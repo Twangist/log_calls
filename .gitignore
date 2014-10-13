@@ -1,0 +1,9 @@
+*.pyc
+/dist/
+.DS_Store
+.idea
+/build/
+/__pycache__/
+/*.egg
+/*.egg-info
+/log_calls/temp_*.*

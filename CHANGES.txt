@@ -1,0 +1,29 @@
+VERSIONS
+--------
+v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
+             doctests moved to tests/test_log_calls.py. VERSIONS moved to
+             CHANGES.txt (this file).
+             TODO: update the *.md files
+v0.1.9    -- reworked logic of enabled, enabled_kwd parameters:
+             enabled_kwd always overrides enabled.
+             Fixed: if a wrapped function explicitly declares its enabled_kwd
+             parameter, its default value wasn't being used when a caller
+             didn't explicitly pass a value for the keyword parameter.
+v0.1.8    -- another example: dynamically enabling logging.
+v0.1.7    -- actual doc (prose) in the docstrings.
+v0.1.6    -- illustrative code converted to doctests;
+             metaclass and multi-handler logging examples/tests;
+             log_calls is now a package;
+             export difference_update.
+v0.1.5    -- call chains! + illustrative code; 100% coverage.
+v0.1.4    -- switched to dedicated 'keyword' params for specifying enabled,
+             logger, and (what prompted the change) args_sep:
+             this way the top-level caller can compel logged functions
+             lower in the call chain to "conform"; exposed a bug (don't
+             use deepcopy [can't deepcopy a logger!] use copy), fixed.
+             Added example code at end giving 100% coverage.
+v0.1.3    -- logger can be a string naming a keyword arg of wrapped function;
+             better output when using a logger.
+v0.1.2    -- logger, loglevel keyword parameters
+v0.1.1    -- removed redundant function-based decos log_caller, log_args,
+             don't want to keep them in sync with the superset log_calls.
