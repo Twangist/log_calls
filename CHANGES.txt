@@ -1,9 +1,17 @@
 VERSIONS
 --------
+v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
+             prefix can take either direct or indirect values, indirect values
+             being names of keyword parameters/arguments of the wrapped function.
+             Thus, no more *_kwd parameters (3 fewer). prefix can't be late-bound
+             because it's needed immediately, as soon as the wrapped function
+             is returned by __call__.
+             Updated the doc/tests test_log_calls.py to reflect these changes,
+             plus probably other little improvements.
+             TODO: update the *.md files
 v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
              doctests moved to tests/test_log_calls.py. VERSIONS moved to
              CHANGES.txt (this file).
-             TODO: update the *.md files
 v0.1.9    -- reworked logic of enabled, enabled_kwd parameters:
              enabled_kwd always overrides enabled.
              Fixed: if a wrapped function explicitly declares its enabled_kwd

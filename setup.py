@@ -6,11 +6,13 @@ NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
 See the README file for details, usage info and examples.
 """
+import log_calls
+
 from setuptools import setup
 setup(
     name='log_calls',
-    version='0.1.10',
-    author="Brian O'Neill",
+    version=log_calls.__version__,     # '0.1.10-b1',
+    author=log_calls.__author__,       # "Brian O'Neill",
     author_email='twangist@gmail.com',
     description='Debugging decorator that writes caller name(s) & args+values.',
     long_description=__doc__,
