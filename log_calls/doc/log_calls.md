@@ -46,18 +46,18 @@ If you use the latter command, at the end of *a lot * of output you should see:
     Test passed.
 
 ####Run the test proper
-Admittedly, running this document is a bit of a stunt – one applauds because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `doc_calls.py`, and running that test suite there is preferred: all tests in this document are contained in `doc_calls.py`, and none are skipped there. The command to do so is even simpler – run this in the `log_calls/` directory:
+Admittedly, running this document is a bit of a stunt – one applauds because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `test_doc_calls.py`, and running that test suite is preferred: none of the tests are skipped there. Running those tests is even simpler – run this command in the `log_calls/` directory:
 
     $ python test_log_calls [-v]
 
-If you omit the "verbose" switch, no news is good news: the command succeeds silently if no errors were encountered, and you should return to a fresh prompt.
+If you omit the "verbose" switch, no news is good news: if no errors were encountered, the command succeeds silently and will return you to a fresh prompt.
     
 ##Basic usage
 Every example in this document uses `log_calls`, so without further ado:
 
     >>> from log_calls import log_calls
 
-###the `enabled` parameter
+###The `enabled` parameter
 The most basic example:
 
     >>> @log_calls()                 # enabled=True is the default
@@ -75,8 +75,8 @@ The next most basic:
     ...     pass
     >>> fn1(1, 2, 3)
 
-###the `args_sep` parameter
-**NOTE**: *In all the doctest examples in this document, you'll see `'\\n'` where in actual code you'd write `'\n'`. This is a `doctest` quirk: all the examples herein work (as tests, they pass), and they would fail if `'\n'` were used. The only alternative would be to use raw character strings and write `r'\n'`, which is not obviously better.*
+###The `args_sep` parameter
+**NOTE**: *In all the doctest examples in this document, you'll see* `'\\n'` *where in actual code you'd write* `'\n'`. *This is a `doctest` quirk: all the examples herein work (as tests, they pass), and they would fail if* `'\n'` *were used. The only alternative would be to use raw character strings and write* `r'\n'`*, which is not obviously better.*
 
     >>> @log_calls(args_sep='\\n')
     ... def fn2(a, b, c, **kwargs):
@@ -91,7 +91,7 @@ The next most basic:
     6
     fn2 ==> returning to <module>
 
-###the `log_exit` parameter
+###The `log_exit` parameter
     >>> @log_calls(log_exit=False)
     ... def fn3(a, b, c):
     ...     return a + b + c
@@ -99,7 +99,7 @@ The next most basic:
     fn3 <== called by <module>
         args: a=1, b=2, c=3
 
-###the `log_retval` parameter
+###The `log_retval` parameter
     >>> @log_calls(log_retval=True)
     ... def fn4(a, b, c):
     ...     return a + b + c
@@ -109,8 +109,7 @@ The next most basic:
         fn4 return value: 6
     fn4 ==> returning to <module>
 
-Return values longer than 60 characters are truncated and end with
-a trailing ellipsis:
+Return values longer than 60 characters are truncated and end with a trailing ellipsis:
 
     >>> @log_calls(log_retval=True)
     ... def return_long_str():
@@ -124,7 +123,7 @@ a trailing ellipsis:
 
 ##Call chains
 
-`log_calls` does its best to chase back along the call chain to find the first `log_calls`-decorated function in the stack. If there is such a function, it displays the entire list of functions on the stack up to and including that function when logging calls and returns. Without this, you'd have to guess at what had been called in between calls to functions decorated by `log_calls`.
+`log_calls` does its best to chase back along the call chain to find the first `log_calls`-decorated function in the stack. If there is such a function, it displays the entire list of functions on the stack up to and including that function when logging calls and returns. Without this, you'd have to guess at what was called in between calls to functions decorated by `log_calls`.
 
     >>> @log_calls()
     ... def g1():
@@ -189,7 +188,7 @@ When chasing back along the stack, `log_calls` also detects inner functions that
     h4_inner ==> returning to h5
     h5 ==> returning to <module>
 
-... even when the inner function is called from within the outer function in which it's defined:
+... even when the inner function is called from within the outer function it's defined in:
 
     >>> @log_calls()
     ... def j0():
@@ -215,7 +214,7 @@ When chasing back along the stack, `log_calls` also detects inner functions that
 
 ##Decorating methods: using the `prefix` keyword parameter
 
-Especially useful for clarity when decorating methods, the prefix keyword parameter lets you specify a string with which to prefix the name of the method. log_calls uses the prefixed name in its output when logging a call to and return from the method, when reporting its return value, and when the method is at the end of a call/return chain.
+Especially useful for clarity when decorating methods, the `prefix` keyword parameter lets you specify a string with which to prefix the name of the method. `log_calls` uses the prefixed name in its output: when logging a call to, and a return from, the method; when reporting the method's return value, and when the method is at the end of a call or return chain.
 
     >>> import math
     >>> class Point():
@@ -236,6 +235,7 @@ Especially useful for clarity when decorating methods, the prefix keyword parame
     ...         return self
     ...     def __repr__(self):
     ...         return "Point" + str((self.x, self.y))
+
     >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
     Point.diag_reflect <== called by <module>
         args: self=Point(1, 2)

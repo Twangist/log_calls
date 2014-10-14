@@ -145,7 +145,7 @@ that it has decorated:
     h5 ==> returning to <module>
 
 ... even when the inner function is called from within the outer function
-in which it's defined:
+it's defined in:
 
     >>> @log_calls()
     ... def j0():
@@ -175,9 +175,9 @@ def main__methods__prefixes():
     """
 Especially useful for clarity when decorating methods, the prefix keyword
 parameter lets you specify a string with which to prefix the name of the
-method. log_calls uses the prefixed name in its output when logging
-a call to and return from the method, when reporting its return value,
-and when the method is at the end of a call/return chain.
+method. log_calls uses the prefixed name in its outputoutput: when logging
+a call to, and a return from, the method; when reporting the method's return
+value, and when the method is at the end of a call or return chain.
 
     >>> import math
     >>> class Point():
@@ -198,6 +198,7 @@ and when the method is at the end of a call/return chain.
     ...         return self
     ...     def __repr__(self):
     ...         return "Point" + str((self.x, self.y))
+
     >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
     Point.diag_reflect <== called by <module>
         args: self=Point(1, 2)
