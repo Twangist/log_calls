@@ -789,5 +789,46 @@ any log_calls output:
 
 if __name__ == "__main__":
 
+    @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
+    def myfunc(x, y, z, **kwargs):
+        pass
+
+    d = myfunc.log_calls_settings
+    d['enabled'] = False
+    d['log_retval'] = True
+    d['log_exit'] = False
+    d['log_args'] = 'log_args='
+
+    print("settings, as_dict:", myfunc.log_calls_settings.as_dict())  # same as:
+
+    myfunc.log_calls_settings.update(prefix='prix-fixe.', enabled=True, log_retval=False)
+
+    print(str(myfunc.log_calls_settings))
+
+    print("len =", len(myfunc.log_calls_settings))
+
+    assert 'enabled' in myfunc.log_calls_settings
+    assert 'args_sep' in myfunc.log_calls_settings
+    assert 'Fu Manchu' not in myfunc.log_calls_settings
+
+    print( "raw setting for 'log_args':", myfunc.log_calls_settings._get_raw_setting('log_args') )
+
+    print("for x in myfunc.log_calls_settings: print(x)")
+    for x in myfunc.log_calls_settings:
+        print(x)
+
+    print("for k, v in myfunc.log_calls_settings.items(): print(k, v)")
+    for k, v in myfunc.log_calls_settings.items():
+        print(k, v)
+
+
+    print( repr(myfunc.log_calls_settings))
+
+    # TODO TODO OK hot stuff, but now try it with
+    #    todo  inner functions (both variations)
+    #    todo  instance methods, classmethods, staticmethods
+
+
+
     import doctest
     doctest.testmod()   # (verbose=True)
