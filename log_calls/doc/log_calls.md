@@ -1,7 +1,8 @@
 #log_calls – a decorator for debugging
 ---
-This Python 3 decorator logs the caller of a decorated function,and optionally the arguments passed to that function, before calling it; after calling the function, it optionally writes the return value (default: it doesn't), and optionally prints a 'closing bracket' message (default: it does). Here, "logs" means: writes to `stdout`, or, optionally, to a logger.
+`log_calls` is a Python 3 decorator that can log the caller of a decorated function, the arguments passed to that function, the function's returned value, and its return to the caller. The decorator can write its messages to stdout using the `print` function, or to a `Logger` obtained from the Python `logging` module. Almost all of these features are optional and configurable, and can be toggled or customized for each decorated function via keyword parameters of the decorator. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation from a decorated function these features can even be controlled dynamically on a per-call basis.
 
+#### Credits
 Argument logging is based on the Python 2 decorator:
         [https://wiki.python.org/moin/PythonDecoratorLibrary#Easy_Dump_of_Function_Arguments](https://wiki.python.org/moin/PythonDecoratorLibrary#Easy_Dump_of_Function_Arguments)
 
@@ -14,28 +15,42 @@ Changes and improvements to the arg logging of that decorator:
     * the decorated function's explicit keyword args are listed one by one,
     * and the implicit keyword args are grouped in kwargs.
 
-`log_calls` provides a lot of flexibility. This document contains many examples covering a wide range of uses, and even includes some _tips und tricks_.
+`log_calls` provides a lot of flexibility. This document contains many examples covering a wide range of uses, and includes several _tips und tricks_.
 
-###Run this document!
-This is runnable documentation. When run in the directory containing `log_calls.py` and `log_calls.md`, the command:
+##Dependencies
 
-    $ python3 -m doctest log_calls.md
+None.
 
-should return you to the prompt ($) with no other output, because no errors should have occurred in the roughly 100 tests. Verbose output from doctest can be had by adding the `-v` (verbose) option:
+##Installation
+### TODO TODO TODO
+*Blah Blah Blah*
 
-    $ python3 -m doctest -v log_calls.md
+###Testing proper installation and compatibility
+####Run this document
+This is runnable documentation. When run in the `log_calls/doc/` directory, which contains the file `log_calls.md`, the command:
 
-If you use the latter command, at the end of *a lot* of output you should see:
+    $ python -m doctest log_calls.md
 
+should return you to the prompt ($) with no other output, because no errors should have occurred in the roughly 100 tests. Verbose output from `doctest` can be had by adding the `-v` (verbose) option:
+
+    $ python -m doctest -v log_calls.md
+
+If you use the latter command, at the end of *a lot * of output you should see:
+
+# TODO UPDATE THIS (SURELY IT ISN'T 98 NOW)
+        
     1 items passed all tests:
       98 tests in log_calls.md
     98 tests in 1 items.
     98 passed and 0 failed.
     Test passed.
 
-Admittedly, running this document is a bit of a stunt – one applauds because it can be run at all, not because it does it so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `doc_calls.py`, and running the test suite there is preferred. The commands to do so are even simpler:
+####Run the test proper
+Admittedly, running this document is a bit of a stunt – one applauds because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `doc_calls.py`, and running that test suite there is preferred: all tests in this document are contained in `doc_calls.py`, and none are skipped there. The command to do so is even simpler – run this in the `log_calls/` directory:
 
-    $ python3 log_calls [-v]
+    $ python test_log_calls [-v]
+
+If you omit the "verbose" switch, no news is good news: the command succeeds silently if no errors were encountered, and you should return to a fresh prompt.
     
 ##Basic usage
 Every example in this document uses `log_calls`, so without further ado:
@@ -61,6 +76,8 @@ The next most basic:
     >>> fn1(1, 2, 3)
 
 ###the `args_sep` parameter
+**NOTE**: *In all the doctest examples in this document, you'll see `'\\n'` where in actual code you'd write `'\n'`. This is a `doctest` quirk: all the examples herein work (as tests, they pass), and they would fail if `'\n'` were used. The only alternative would be to use raw character strings and write `r'\n'`, which is not obviously better.*
+
     >>> @log_calls(args_sep='\\n')
     ... def fn2(a, b, c, **kwargs):
     ...     print(a + b + c)
@@ -78,7 +95,7 @@ The next most basic:
     >>> @log_calls(log_exit=False)
     ... def fn3(a, b, c):
     ...     return a + b + c
-    >>> _ = fn3(1, 2, 3)             # doctest: +NORMALIZE_WHITESPACE
+    >>> _ = fn3(1, 2, 3)
     fn3 <== called by <module>
         args: a=1, b=2, c=3
 
@@ -86,7 +103,7 @@ The next most basic:
     >>> @log_calls(log_retval=True)
     ... def fn4(a, b, c):
     ...     return a + b + c
-    >>> _ = fn4(1, 2, 3)             # doctest: +NORMALIZE_WHITESPACE
+    >>> _ = fn4(1, 2, 3)
     fn4 <== called by <module>
         args: a=1, b=2, c=3
         fn4 return value: 6
@@ -107,12 +124,7 @@ a trailing ellipsis:
 
 ##Call chains
 
-`log_calls` does its best to chase back along the call chain to find
-the first `log_calls`-decorated function in the stack. If there is such
-a function, it displays the entire list of functions on the stack
-up to and including that function when logging calls and returns.
-Without this, you'd have to guess at what had been called in between
-calls to functions decorated by `log_calls`.
+`log_calls` does its best to chase back along the call chain to find the first `log_calls`-decorated function in the stack. If there is such a function, it displays the entire list of functions on the stack up to and including that function when logging calls and returns. Without this, you'd have to guess at what had been called in between calls to functions decorated by `log_calls`.
 
     >>> @log_calls()
     ... def g1():
@@ -127,7 +139,7 @@ calls to functions decorated by `log_calls`.
     >>> @log_calls()
     ... def g5():
     ...     g4()
-    >>> g5()         # doctest: +NORMALIZE_WHITESPACE
+    >>> g5()
     g5 <== called by <module>
     g3 <== called by g4 <== g5
         args: <none>
@@ -138,15 +150,12 @@ calls to functions decorated by `log_calls`.
 
 
 ###Functions with no parameters, calls with no arguments
-In the previous example, four of the five functions have no parameters,
-so `log_calls` shows no `args:` section for them. `g3` takes one optional
-argument but is called with none, so log_calls displays `args: <none>`.
+In the previous example, four of the five functions have no parameters, so `log_calls` shows no `args:` section for them. `g3` takes one optional argument but is called with none, so log_calls displays `args: <none>`.
 
 
 ###Call chains and inner functions
 
-When chasing back along the stack, `log_calls` also detects inner functions
-that it has decorated:
+When chasing back along the stack, `log_calls` also detects inner functions that it has decorated:
 
     >>> @log_calls()
     ... def h0(z):
@@ -168,7 +177,7 @@ that it has decorated:
     >>> @log_calls()
     ... def h5():
     ...     h4()()
-    >>> h5()         # doctest: +NORMALIZE_WHITESPACE
+    >>> h5()
     h5 <== called by <module>
     h4_inner <== called by h5
     h1_inner <== called by h2 <== h3 <== h4_inner
@@ -180,8 +189,7 @@ that it has decorated:
     h4_inner ==> returning to h5
     h5 ==> returning to <module>
 
-... even when the inner function is called from within the outer function
-in which it's defined:
+... even when the inner function is called from within the outer function in which it's defined:
 
     >>> @log_calls()
     ... def j0():
@@ -196,7 +204,7 @@ in which it's defined:
     >>> @log_calls()
     ... def j3():
     ...     j2()
-    >>> j3()         # doctest: +NORMALIZE_WHITESPACE
+    >>> j3()
     j3 <== called by <module>
     j2_inner <== called by j2 <== j3
     j0 <== called by j1 <== j2_inner
@@ -207,11 +215,7 @@ in which it's defined:
 
 ##Decorating methods: using the `prefix` keyword parameter
 
-Especially useful for clarity when decorating methods, the prefix keyword
-parameter lets you specify a string with which to prefix the name of the
-method. log_calls uses the prefixed name in its output, both when logging
-a call to the method, and when the method is at the end of a call/return
-chain.
+Especially useful for clarity when decorating methods, the prefix keyword parameter lets you specify a string with which to prefix the name of the method. log_calls uses the prefixed name in its output when logging a call to and return from the method, when reporting its return value, and when the method is at the end of a call/return chain.
 
     >>> import math
     >>> class Point():
@@ -223,7 +227,7 @@ chain.
     ...     @log_calls(prefix='Point.')
     ...     def distance(pt1, pt2):
     ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
-    ...     @log_calls(prefix='Point.')
+    ...     @log_calls(log_retval=True, prefix='Point.')
     ...     def length(self):
     ...         return self.distance(self, Point(0, 0))
     ...     @log_calls(prefix='Point.')
@@ -232,37 +236,109 @@ chain.
     ...         return self
     ...     def __repr__(self):
     ...         return "Point" + str((self.x, self.y))
-    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect()) # doctest: +NORMALIZE_WHITESPACE
+    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
     Point.diag_reflect <== called by <module>
         args: self=Point(1, 2)
     Point.diag_reflect ==> returning to <module>
     Point(1, 2).diag_reflect() = Point(2, 1)
 
-    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))
+    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))    # doctest: +ELLIPSIS
     Point.length <== called by <module>
         args: self=Point(1, 2)
     Point.distance <== called by Point.length
         args: pt1=Point(1, 2), pt2=Point(0, 0)
     Point.distance ==> returning to Point.length
+        Point.length return value: 2.236...
     Point.length ==> returning to <module>
     length of Point(1, 2) = 2.24
 
 
-##Controlling format and enabling logging dynamically
-###The `args_sep_kwd` parameter
-The `args_sep` keyword lets you specify string used to separate the arguments
-a decorated function was called with. However, once the decorated function
-definition is parsed and created by the interpreter, there's no way to change
-the value originally given for `args_sep`. However, you can change the separator
-dynamically, by using the `args_sep_kwd` keyword parameter. The value of this
-parameter must be a string, which should give the name of a keyword parameter
-that will be passed to the wrapped function; the value of *that* parameter,
-if it's a nonempty string, will then be used as the argument separator.
+##Direct (static) and indirect (dynamic) parameter values
+-------------------------------------------------------
+###Dynamical control of logging
 
-`args_sep_kwd` takes precedence over `args_sep`, provided it's actually
-present among the wrapped function's keyword args (this can vary from
-call to call), and provided its value is a nonempty string. Failing those
-conditions, log_calls uses the supplied or default value of args_sep.
+Every parameter of `log_calls` except `prefix` can take two kinds of values: *direct* and *indirect*, which you can think of as *static* and *dynamic* respectively. Direct/static values are actual values used when the decorated function is interpreted, e.g. `enabled=True`, `args_sep=" / "`. Such values are established once and for all when the Python interpreter parses the definition of a decorated function and creates a function object. If a variable is used as a parameter value, its value at the time Python processes the definition is "frozen" for the created function object. Subsequently changing the value of the variable will *not* affect the behavior of the decorator.
+
+For example, suppose `DEBUG` is a module-level variable initialized to `False`, and you use this code:
+        @log_calls(enabled=DEBUG)
+        def foo(a, *args, **kwargs): # ...
+        
+If later you set `Debug = True` and call `foo`, that call won't be logged, because the decorated `foo`'s enabled setting is bound to the original value of `DEBUG`, established when the definition was processed. To illustrate with a doctest:
+
+    >>> DEBUG = False
+    >>> @log_calls(enabled=DEBUG)
+    ... def foo(**kwargs):
+    ...     pass
+
+    >>> foo()       # No log_calls output
+    >>> DEBUG = True
+    >>> foo()       # Still no log_calls output
+
+To overcome this limitation, `log_calls` lets you specify any parameter except `prefix` with one level of indirection, by using *indirect values*: an indirect value is a string that names a keyword argument *of the decorated function*. It can be an explicit keyword argument present in the signature of the function, or an implicit keyword argument that ends up in `**kwargs` (if that is present in the function's signature). When the decorated function is called, the arguments passed by keyword and the explicit keyword parameters of the decorated function are searched for the named parameter; if it is found and of the correct type, `its` value is used; otherwise a default value is used.
+
+To specify an indirect value for a parameter whose normal type is str, append an `'='` to the value. (Presently, `args_sep` is the only parameter this applies to.) As a concession to consistency, any parameter value that names a keyword parameter of the decorated function can also end in a trailing '=', which is stripped. Thus, `enabled='enable_='` indicates an indirect value supplied by the keyword (argument or parameter) `enable_` of the decorated function.
+
+Thus, in:
+
+    >>> @log_calls(args_sep='sep=', prefix="*** ")
+    ... def f(a, b, c, sep='|'): pass
+
+`args_sep` has an indirect value which names `f`'s explicit keyword parameter `sep`, and `prefix` has a direct value. A call can dynamically override the default value `'|'` in the signature of f by supplying a value:
+
+    >>> f(1, 2, 3, sep=' / ')
+    *** f <== called by <module>
+        args: a=1 / b=2 / c=3 / sep=' / '
+    *** f ==> returning to <module>
+
+or it can use `f`'s default value by not supplying a `sep` argument:
+
+    >>> f(1, 2, 3)
+    *** f <== called by <module>
+        args: a=1|b=2|c=3
+    *** f ==> returning to <module>
+
+A decorated function doesn't have to explicitly declare the named parameter, if its signature includes `**kwargs` -- it can be an implicit keyword parameter. Consider:
+
+    >>> @log_calls(enabled='enable')
+    ... def func1(a, b, c, **kwargs): pass
+    >>> @log_calls(enabled='enable')
+    ... def func2(z, **kwargs): func1(z, z+1, z+2, **kwargs)
+
+When the following statement is executed, the calls to both `func1` and `func2` will be logged:
+
+    >>> func2(17, enable=True)
+    func2 <== called by <module>
+        args: z=17, [**]kwargs={'enable': True}
+    func1 <== called by func2
+        args: a=17, b=18, c=19, [**]kwargs={'enable': True}
+    func1 ==> returning to func2
+    func2 ==> returning to <module>
+
+whereas neither of the following two statements will trigger logging:
+
+    >>> func2(42, enable=False)     # no log_calls output
+    >>> func2(99)                   # no log_calls output
+
+**NOTE**: This last example illustrates a perhaps subtle point: if you omit the `enabled` parameter altogether, logging will occur, as the default value is (the direct value) True; however, if you specify an indirect value for `enabled` and the named indirect keyword is not supplied in a call, then that call *won't* be logged. In other words, the default value of enabled is `True`, a direct value; but if you specify an indirect value then the default effective value of the enabled setting is False -- calls are not logged unless the named parameter is found and its value is truthy.
+
+Additional Tests for log_args, log_retval, log_exit with indirect values
+------------------------------------------------------------------------
+
+    >>> @log_calls(log_args='logargs=', log_retval='logretval=', log_exit='logexit=')
+    ... def f(x, **kwargs):
+    ...     return x**2
+    >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
+    f <== called by <module>
+        args: x=2, [**]kwargs={'logexit': False}
+
+    >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
+    f <== called by <module>
+        f return value: 25
+    f ==> returning to <module>
+
+
+# RESUME RESUME
+
 
 This mechanism allows a calling function to control the appearance of logged
 calls lower in the call chain, provided they all use the same `args_sep_kwd`.
