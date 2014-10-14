@@ -14,20 +14,20 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     >>> @log_calls()
     ... def fn0(a, b, c):
     ...     pass
-    >>> fn0(1, 2, 3)                 # doctest: +NORMALIZE_WHITESPACE
+    >>> fn0(1, 2, 3)
     fn0 <== called by <module>
         args: a=1, b=2, c=3
     fn0 ==> returning to <module>
 
-    >>> @log_calls(enabled=False)    # no output
+    >>> @log_calls(enabled=False)
     ... def fn1(a, b, c):
     ...     pass
-    >>> fn1(1, 2, 3)
+    >>> fn1(1, 2, 3)                # no output
 
     >>> @log_calls(args_sep='\\n')
     ... def fn2(a, b, c, **kwargs):
     ...     print(a + b + c)
-    >>> fn2(1, 2, 3, u='you')        # doctest: +NORMALIZE_WHITESPACE
+    >>> fn2(1, 2, 3, u='you')       # doctest: +NORMALIZE_WHITESPACE
     fn2 <== called by <module>
         args:
             a=1
@@ -40,7 +40,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     >>> @log_calls(log_exit=False)
     ... def fn3(a, b, c):
     ...     return a + b + c
-    >>> _ = fn3(1, 2, 3)             # doctest: +NORMALIZE_WHITESPACE
+    >>> _ = fn3(1, 2, 3)
     fn3 <== called by <module>
         args: a=1, b=2, c=3
 
@@ -48,7 +48,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     >>> @log_calls(log_retval=True)
     ... def fn4(a, b, c):
     ...     return a + b + c
-    >>> _ = fn4(1, 2, 3)             # doctest: +NORMALIZE_WHITESPACE
+    >>> _ = fn4(1, 2, 3)
     fn4 <== called by <module>
         args: a=1, b=2, c=3
         fn4 return value: 6
@@ -60,7 +60,7 @@ a trailing ellipsis:
     >>> @log_calls(log_retval=True)
     ... def return_long_str():
     ...     return '*' * 100
-    >>> return_long_str()       # doctest: +NORMALIZE_WHITESPACE
+    >>> return_long_str()           # doctest: +NORMALIZE_WHITESPACE
     return_long_str <== called by <module>
     return_long_str return value: ************************************************************...
     return_long_str ==> returning to <module>
@@ -95,7 +95,7 @@ argument but is called with none, so log_calls displays "args: <none>".
     >>> @log_calls()
     ... def g5():
     ...     g4()
-    >>> g5()         # doctest: +NORMALIZE_WHITESPACE
+    >>> g5()
     g5 <== called by <module>
     g3 <== called by g4 <== g5
         args: <none>
@@ -132,7 +132,7 @@ that it has decorated:
     >>> @log_calls()
     ... def h5():
     ...     h4()()
-    >>> h5()         # doctest: +NORMALIZE_WHITESPACE
+    >>> h5()
     h5 <== called by <module>
     h4_inner <== called by h5
     h1_inner <== called by h2 <== h3 <== h4_inner
@@ -145,7 +145,7 @@ that it has decorated:
     h5 ==> returning to <module>
 
 ... even when the inner function is called from within the outer function
-in which it's defined:
+it's defined in:
 
     >>> @log_calls()
     ... def j0():
@@ -160,7 +160,7 @@ in which it's defined:
     >>> @log_calls()
     ... def j3():
     ...     j2()
-    >>> j3()         # doctest: +NORMALIZE_WHITESPACE
+    >>> j3()
     j3 <== called by <module>
     j2_inner <== called by j2 <== j3
     j0 <== called by j1 <== j2_inner
@@ -175,9 +175,9 @@ def main__methods__prefixes():
     """
 Especially useful for clarity when decorating methods, the prefix keyword
 parameter lets you specify a string with which to prefix the name of the
-method. log_calls uses the prefixed name in its output, both when logging
-a call to the method, when reporting its return value, and when the method
-is at the end of a call/return chain.
+method. log_calls uses the prefixed name in its outputoutput: when logging
+a call to, and a return from, the method; when reporting the method's return
+value, and when the method is at the end of a call or return chain.
 
     >>> import math
     >>> class Point():
@@ -198,13 +198,14 @@ is at the end of a call/return chain.
     ...         return self
     ...     def __repr__(self):
     ...         return "Point" + str((self.x, self.y))
-    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect()) # doctest: +NORMALIZE_WHITESPACE
+
+    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
     Point.diag_reflect <== called by <module>
         args: self=Point(1, 2)
     Point.diag_reflect ==> returning to <module>
     Point(1, 2).diag_reflect() = Point(2, 1)
 
-    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS
     Point.length <== called by <module>
         args: self=Point(1, 2)
     Point.distance <== called by Point.length
@@ -221,17 +222,17 @@ def main__static_dynamic_parameter_values__dynamic_control():
     """
 Direct (static) and indirect (dynamic) parameter values
 -------------------------------------------------------
-Dynamical controlling of logging
+Dynamical control of logging
 
 Every parameter except prefix can take two kinds of values: direct and
 indirect, which you can think of as static and dynamic respectively.
 Direct/static values are actual values used when the decorated function
 is interpreted, e.g. enabled=True, args_sep=" / ". Such values are established
-once and for all when the Python interpreter parses creates a function object
-from a decorated function. If a variable is used as a parameter value,
-its value at the time Python processes the definition is "frozen" for the
-created function object. Subsequently changing the value of the variable will
-not affect the behavior of the decorated function.
+once and for all when the Python interpreter parses the definition of a
+decorated function and creates a function object. If a variable is used
+as a parameter value, its value at the time Python processes the definition
+is "frozen" for the created function object. Subsequently changing the value
+of the variable will not affect the behavior of the decorator.
 
 For example, suppose DEBUG is a module-level variable initialized to False,
 and you use this code:
@@ -257,14 +258,14 @@ or an implicit keyword argument that ends up in **kwargs (if that is present
 in the function's signature). When the decorated function is called,
 the arguments passed by keyword and the explicit keyword parameters of the
 decorated function are searched for the named parameter; if it is found and of
-the right type, ***its*** value is used; otherwise a default value is used.
+the correct type, ***its*** value is used; otherwise a default value is used.
 
 To specify an indirect value for a parameter whose normal type is str,
 append an '=' to the value. (Presently, args_sep is the only parameter this
 applies to.) As a concession to consistency, any parameter value that names
 a keyword parameter of the decorated function can also end in a trailing '=',
 which is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
-by the keyword 'enable_' of the decorated function.
+by the keyword (argument or parameter) enable_ of the decorated function.
 
 Thus, in:
     >>> @log_calls(args_sep='sep=', prefix="*** ")
@@ -278,7 +279,7 @@ value '|' in the signature of f by supplying a value:
         args: a=1 / b=2 / c=3 / sep=' / '
     *** f ==> returning to <module>
 
-or it can use func's default value by not supplying a sep argument:
+or it can use f's default value by not supplying a sep argument:
     >>> f(1, 2, 3)
     *** f <== called by <module>
         args: a=1|b=2|c=3
@@ -306,13 +307,14 @@ whereas neither of the following two statements will trigger logging:
     >>> func2(42, enable=False)     # no log_calls output
     >>> func2(99)                   # no log_calls output
 
-This last example illustrates a perhaps subtle point: if you omit the enabled
-parameter altogether, logging will occur; however, if you specify an indirect
-value for logging and the named indirect keyword is not supplied in a call,
-then that call won't be logged. That is, the default value of enabled is True,
-a direct value; but if you specify an indirect value then the default effective
-value of the enabled setting is False -- calls are not logged unless the named
-parameter is found and its value is truthy.
+NOTE: This last example illustrates a perhaps subtle point: if you omit the
+enabled parameter altogether, logging will occur, as the default value is
+(the direct value) True; however, if you specify an indirect value for enabled
+and the named indirect keyword is not supplied in a call, then that call won't
+be logged. In other words, the default value of enabled is True, a direct value;
+but if you specify an indirect value then the default effective value of the
+enabled setting is False -- calls are not logged unless the named parameter is
+found and its value is truthy.
 
 Additional Tests for log_args, log_retval, log_exit with indirect values
 ------------------------------------------------------------------------
@@ -329,6 +331,7 @@ Additional Tests for log_args, log_retval, log_exit with indirect values
         f return value: 25
     f ==> returning to <module>
 
+RESUME RESUME RESUME
 
 Controlling format 'from above'
 -------------------------------
