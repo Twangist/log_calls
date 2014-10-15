@@ -1,7 +1,7 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b2'
-
-"""Decorator that eliminates boilerplate code for debugging by writing
+__version__ = 'v0.1.10-b4'
+__doc__ = """
+Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
@@ -18,7 +18,169 @@ import sys
 
 #__all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# helper classes
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+
+class SettingInfo():
+    "a little struct"
+    def __init__(self, name, final_type, default, *, allow_falsy, allow_indirect):
+        assert not default or isinstance(default, final_type)
+        self.name = name                # key
+        self.final_type = final_type    # bool int str logging.Logger ...
+        self.default = default
+        self.allow_falsy = allow_falsy  # is a falsy final val of setting allowed
+        self.allow_indirect = allow_indirect  # are indirect values allowed
+
+    def __repr__(self):
+        classname = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
+        return "SettingInfo(%s, %s, %s, allow_falsy=%s, allow_indirect=%s)" \
+               % (self.name, classname, self.default, self.allow_falsy, self.allow_indirect)
+
+
+class SettingsMapping():
+
+    def __init__(self, settings_info, item_iterable=None):
+        """settings_info: iterable of SettingInfo's
+        item_iterable: iterable of pairs
+                       (name, value such as is passed to log_calls-__init__"""
+        self._settings_info = {}
+        for info in settings_info:
+            self._settings_info[info.name] = info
+
+        self._settings_dict = {}    # stores pairs as returned by _analyze_value
+        for k, v in item_iterable:
+            self.__setitem__(k, v)
+
+    def __setitem__(self, key, value):
+        """
+        key: name of setting, e.g. 'prefix'
+        value: something passed to __init__ (of log_calls),
+        Return pair (is_indirect, modded_val) where
+            is_indirect: bool,
+            modded_val = val if kind is direct (not is_indirect),
+                       = keyword of wrapped fn if is_indirect
+                         (sans any trailing '=')
+        """
+        assert key in self._settings_info
+
+        info = self._settings_info[key]
+        final_type = info.final_type
+        default = info.default
+        allow_falsy = info.default
+        allow_indirect = info.allow_indirect
+
+        if not allow_indirect:
+            self._settings_dict[key] = False, value
+            return
+
+        # Detect fixup direct/static values, except for target_type == str
+        if not isinstance(value, str) or not value:
+            indirect = False
+            # value not a str, or == '', so use value as-is if valid, else default
+            if (not value and not allow_falsy) or not isinstance(value, final_type):
+                value = default
+        else:                           # val is a nonempty str
+            if final_type != str:       # val designates a keyword of f
+                indirect = True
+                # Remove trailing self.KEYWORD_MARKER if any
+                if value[-1] == log_calls.KEYWORD_MARKER:
+                    value = value[:-1]
+            else:                       # target_type == str
+                # val denotes an f-keyword IFF last char is KEYWORD_MARKER
+                indirect = (value[-1] == log_calls.KEYWORD_MARKER)
+                if indirect:
+                    value = value[:-1]
+
+        self._settings_dict[key] = indirect, value
+
+    def __getitem__(self, key):
+        indirect, value = self._settings_dict[key]
+        if indirect:
+            return value + '='
+        else:
+            return value
+
+    def __len__(self):
+        return len(self._settings_dict)
+
+    def __iter__(self):
+        return (name for name in self._settings_dict)
+
+    def items(self):
+        return ((name, self.__getitem__(name)) for name in self._settings_dict)
+
+    def __contains__(self, key):
+        return key in self._settings_dict
+
+    def __repr__(self, repr=repr):
+        list_of_settingsinfo_reprs = []
+        for k, info in self._settings_info.items():
+            list_of_settingsinfo_reprs.append(repr(info))
+
+        def multiline(tpl):
+            return '    [\n        ' + \
+                   ',\n        '.join(tpl) + \
+                   '\n    ]'
+
+        return "SettingsMapping( \n" \
+               "%s, \n" \
+               "%s\n" \
+               ")" % \
+               (multiline(list_of_settingsinfo_reprs),
+                multiline(
+                    map(str, list(self.items())) )
+               )
+
+    def __str__(self):
+        return str(self.as_dict())
+
+    def update(self, **d_settings):
+        for k, v in d_settings.items():
+            self.__setitem__(k, v)      # i.e. self[k] = v ?!
+
+    def as_dict(self):
+        d = {}
+        for name in self._settings_dict:
+            d[name] = self.__getitem__(name)  # self[name] ?!
+        return d
+
+    def _get_raw_setting(self, key):        # TODO: UNUSED
+        """Return (indirect, value) for key"""
+        return self._settings_dict[key]
+
+    def get_final_value(self, name, fparams, kwargs):
+        """
+        name:    key into self._settings_dict, self._settings_info
+        fparams: inspect.signature(f).parameters of some function f
+        kwargs:  kwargs of a call to that function f"""
+        indirect, di_val  = self._settings_dict[name] # di_ - direct or indirect
+        if not indirect:
+            return di_val
+
+        info = self._settings_info[name]
+        final_type = info.final_type
+        default = info.default
+        allow_falsy = info.default
+
+        # di_val designates a (potential) f-keyword
+        if di_val in kwargs:            # actually passed to f
+            val = kwargs[di_val]
+        elif is_keyword_param(fparams.get(di_val)): # not passed; explicit f-kwd?
+            # yes, explicit param of f, so use f's default value
+            val = fparams[di_val].default
+        else:
+            val = default
+        # fixup: "loggers" that aren't loggers, "strs" that arent strs, etc
+        if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
+            val = default
+        return val
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# log_calls
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 class log_calls():
     """
     This decorator logs the caller of a decorated function, and optionally
@@ -100,6 +262,24 @@ class log_calls():
     LOG_CALLS_SENTINEL_VAR = "_log_calls-deco'd"
     LOG_CALLS_PREFIXED_NAME = 'log_calls-prefixed-name'     # name of attr
 
+    # allow indirection for all except prefix
+    _settings_info = (
+        SettingInfo('enabled',    int,            False,         allow_falsy=True,  allow_indirect=True),
+        SettingInfo('log_args',   bool,           True,          allow_falsy=True,  allow_indirect=True),
+        SettingInfo('log_retval', bool,           False,         allow_falsy=True,  allow_indirect=True),
+        SettingInfo('log_exit',   bool,           True,          allow_falsy=True,  allow_indirect=True),
+        SettingInfo('args_sep',   str,            ', ',          allow_falsy=False, allow_indirect=True),
+        SettingInfo('prefix',     str,            '',            allow_falsy=True,  allow_indirect=False),
+        SettingInfo('logger',     logging.Logger, None,          allow_falsy=True,  allow_indirect=True),
+        SettingInfo('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
+    )
+
+    _first_time_flag = False  # flag
+
+    @classmethod
+    def _get_settings_info(cls):
+        return cls._settings_info
+
     # When this is last char of a parameter (to log_calls),
     # interpret value of parameter to be the name of
     # a keyword parameter ** of f **
@@ -117,48 +297,49 @@ class log_calls():
             loglevel=logging.DEBUG,
     ):
         """(See class docstring)"""
-        # Set all except prefix to pairs (is_indirect, val)
-        # as returned by analyze_deco_param_value (see its docstring)
-        self.enabled = self.analyze_deco_param_value(enabled, int, False)
-        self.log_args = self.analyze_deco_param_value(log_args, bool, True)
-        self.log_retval = self.analyze_deco_param_value(log_retval, bool, False)
-        self.log_exit = self.analyze_deco_param_value(log_exit, bool, True)
-        self.args_sep = self.analyze_deco_param_value(args_sep, str, ', ')
+        # Set up pseudo-dict
+        self._settings_mapping = SettingsMapping(
+            self._settings_info,
+            [
+                ('enabled', enabled),
+                ('log_args', log_args),
+                ('log_retval', log_retval),
+                ('log_exit', log_exit),
+                ('args_sep', args_sep),
+                ('prefix', prefix),
+                ('logger', logger),
+                ('loglevel', loglevel),
+            ]
+        )
+        # and the special case:
         self.prefix = prefix
-        self.logger = self.analyze_deco_param_value(logger, logging.Logger, None)
-        self.loglevel = self.analyze_deco_param_value(loglevel, int, logging.DEBUG)
+
+        if not self.__class__._first_time_flag:
+            self.__class__._first_time_flag = True
+            self.__class__.once_only()
 
     @staticmethod
-    def analyze_deco_param_value(val, target_type, default):
-        """
-        val: passed to __init__,
-        target_type: bool int str logger.Logger,
-        default: fallback value.
-        Return pair (is_indirect, moddedval) where
-            is_indirect: bool,
-            moddedval = val if kind is direct (not is_indirect),
-                      = keyword of wrapped fn if is_indirect
-                        (sans any trailing '=')
-        """
-        # Detect fixup direct/static values, except for target_type == str
-        if not isinstance(val, str) or not val:
-            indirect = False
-            # p not a str, or == '', so use value as-is if valid, else default
-            if not isinstance(val, target_type):
-                val = default
-        else:                           # val is a nonempty str
-            if target_type != str:      # val designates a keyword of f
-                indirect = True
-                # Remove trailing self.KEYWORD_MARKER if any
-                if val[-1] == log_calls.KEYWORD_MARKER:
-                    val = val[:-1]
-            else:                       # target_type == str
-                # val denotes an f-keyword IFF last char is KEYWORD_MARKER
-                indirect = (val[-1] == log_calls.KEYWORD_MARKER)
-                if indirect:
-                    val = val[:-1]
+    def make_descriptor(name):
+        class Descr():
+            def __get__(self, instance, owner):
+                """
+                instance: a SettingsMapping
+                owner: class (which?..., SettingsMapping?)"""
+                return instance[name]
 
-        return indirect, val
+            def __set__(self, instance, value):
+                """
+                instance: a SettingsMapping
+                value: what to set"""
+                instance[name] = value
+
+        return Descr()
+
+    @classmethod
+    def once_only(cls):
+        for info in cls._settings_info:
+#            SettingsMapping.__dict__[info.name] = cls.make_descriptor(info.name)
+            setattr(SettingsMapping, info.name, cls.make_descriptor(info.name))
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
@@ -169,49 +350,18 @@ class log_calls():
         prefixed_fname = self.prefix + f.__name__
         f_params = inspect.signature(f).parameters
 
-        def resolve_deco_param(p, target_type, kwargs, default):
-            """
-            p: self.<something>,
-            target_type: bool int str logger.Logger"""
-            indirect, di_val = p    # di_ - direct or indirect
-            if not indirect:
-                return di_val
-
-            # di_val designates an f-keyword
-            if di_val in kwargs:            # actually passed to f
-                val = kwargs[di_val]
-            elif is_keyword_param(f_params.get(di_val)): # not passed; explicit f-kwd?
-                # yes, explicit param of f, so use f's default value
-                val = f_params[di_val].default
-            else:
-                val = default
-            # fixup: "loggers" that aren't loggers, "strs" that arent strs, etc
-            if val and not isinstance(val, target_type):
-                val = default
-            return val
-
         @wraps(f)
         def f_log_calls_wrapper_(*args, **kwargs):
+            # save a few cycles - we call this a lot
+            _get_final_value = self._settings_mapping.get_final_value
 
-            # # Establish "do_it" - 'enabled'
-            # do_it = self.enabled
-            # if self.enabled_kwd:
-            #     if self.enabled_kwd in kwargs:  # passed to f
-            #         do_it = kwargs[self.enabled_kwd]
-            #     else:   # not passed; is it an explicit kwd of f?
-            #         if is_keyword_param(f_params.get(self.enabled_kwd)):
-            #             # yes, explicit param of wrapped f; use f's default value
-            #             do_it = f_params[self.enabled_kwd].default
-            #         else:
-            #             do_it = False
-
-            do_it = resolve_deco_param(self.enabled, int, kwargs, False)
+            do_it = _get_final_value('enabled', f_params, kwargs)
             # if nothing to do, hurry up & don't do it
             if not do_it:
                 return f(*args, **kwargs)
 
-            logger = resolve_deco_param(self.logger, logging.Logger, kwargs, None)
-            loglevel = resolve_deco_param(self.loglevel, int, kwargs, logging.DEBUG)
+            logger = _get_final_value('logger', f_params, kwargs)
+            loglevel = _get_final_value('loglevel', f_params, kwargs)
 
             # Establish logging function
             logging_fn = partial(logger.log, loglevel) if logger else print
@@ -225,7 +375,7 @@ class log_calls():
             # Make & append args message
             indent = " " * 4
 
-            log_args = resolve_deco_param(self.log_args, bool, kwargs, True)
+            log_args = _get_final_value('log_args', f_params, kwargs)
 
             # If function has no parameters, skip arg reportage,
             # don't even bother writing "args: <none>"
@@ -233,9 +383,7 @@ class log_calls():
                 argcount = f.__code__.co_argcount
                 argnames = f.__code__.co_varnames[:argcount]
 
-                args_sep = resolve_deco_param(self.args_sep, str, kwargs, ', ')
-                if not args_sep:
-                    args_sep = ', '
+                args_sep = _get_final_value('args_sep', f_params, kwargs)  # != ''
 
                 # ~Kludge / incomplete treatment of seps that contain \n
                 end_args_line = ''
@@ -268,7 +416,7 @@ class log_calls():
 
             retval = f(*args, **kwargs)
 
-            log_retval = resolve_deco_param(self.log_retval, bool, kwargs, False)
+            log_retval = _get_final_value('log_retval', f_params, kwargs)
 
             if log_retval:
                 retval_str = str(retval)
@@ -277,7 +425,7 @@ class log_calls():
                 logging_fn(indent + "%s return value: %s"
                            % (prefixed_fname, retval_str))
 
-            log_exit = resolve_deco_param(self.log_exit, bool, kwargs, True)
+            log_exit = _get_final_value('log_exit', f_params, kwargs)
             if log_exit:
                 logging_fn("%s ==> returning to %s"
                            % (prefixed_fname, ' ==> '.join(call_list)))
@@ -294,6 +442,13 @@ class log_calls():
             f,
             self.LOG_CALLS_PREFIXED_NAME,
             prefixed_fname
+        )
+
+        # Provide attribute on wrapped function,  'log_call_settings'
+        setattr(
+            f_log_calls_wrapper_,
+            'log_calls_settings',
+            self._settings_mapping
         )
 
         return f_log_calls_wrapper_
@@ -334,14 +489,15 @@ class log_calls():
                     # if it's a decorated inner function that's called
                     # by its enclosing function, detect that:
                     locls = curr_frame.f_back.f_back.f_locals
+                except AttributeError:
+                    # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
+                    pass
+                else:
                     if curr_funcname in locls:
                         curr_fn = locls[curr_funcname]
                         #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                         #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                         #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                except AttributeError:
-                    # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
-                    pass
 
             if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
                 found = True
