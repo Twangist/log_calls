@@ -1,5 +1,25 @@
 VERSIONS
 --------
+v0.1.10-b4 - Implement attributes i.e. descriptors on SettingsMapping
+             for each setting (e.g. f.log_calls_settings.enabled, you can
+             get and set it, i.e. __get__ and __set__ it. Thus,
+                    print('d.log_retval =', d.log_retval)
+                    d.enabled = 17
+                    d.log_retval = False
+                    d.log_exit = True
+                    d.log_args = 'different_log_args_kwd='
+             etc.
+
+v0.1.10-b3 - New feature: mapping interface for settings! Any log_calls-deco'd
+             function f now has an attribute .log_calls_settings which behaves
+             "just like" a dictionary - __?etitem__, update, __contains__,
+             __len__, iteration through names, iteration through .items(),
+             a real __repr__ fn, a real __str__ fn.
+             Users can get & set the settings of a deco'd function much more
+             easily using these interfaces/methods,  no intrusion on deco'd
+             function's signature.
+             Indirect values still have their place, for controlling an entire
+             call subtree/subgraph.
 v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
              prefix can take either direct or indirect values, indirect values
              being names of keyword parameters/arguments of the wrapped function.

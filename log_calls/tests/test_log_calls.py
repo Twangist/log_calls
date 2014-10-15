@@ -788,6 +788,7 @@ any log_calls output:
     """
 
 if __name__ == "__main__":
+    import logging
 
     @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
     def myfunc(x, y, z, **kwargs):
@@ -798,6 +799,38 @@ if __name__ == "__main__":
     d['log_retval'] = True
     d['log_exit'] = False
     d['log_args'] = 'log_args='
+
+    # Now try descriptors/properties/err attributes - YES!
+    # here's the descriptors' __get__ method being exercised
+    print('d.enabled =', d.enabled)
+    print('d.log_retval =', d.log_retval)
+    print('d.log_exit =', d.log_exit)
+    print('d.log_args =', d.log_args)
+    print('d.prefix =', d.prefix)
+    print('d.logger =', d.logger)
+    print('d.loglevel =', d.loglevel)
+    print('d.args_sep =', d.args_sep)
+
+    # and here's the descriptors' __set__ method being exercised
+    d.enabled = 17
+    d.log_retval = False
+    d.log_exit = True
+    d.log_args = 'different_log_args_kwd='
+    d.prefix = 'felix.'
+    d.logger = 'different_logger_kwd='
+    d.loglevel = logging.CRITICAL
+    d.args_sep = 'different_args_sep='
+
+    # Check state of myfunc.log_calls_settings:
+    print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+    # TODO yep this would be a good unittest, a lousy doctest
+    # TODO Unit tests for attributes and dictionary access,
+    # todo  that is, for SettingsMapping, SettingInfo, and descriptor class Descr
+    # todo   accessed via examples like above
+    # Do a unittest just for coverage ? of the lowlevel classes?
+    # What's coverage now?
+    # TODO Document these features (mapping AND attribute style access)!!! log_calls.md
+
 
     print("settings, as_dict:", myfunc.log_calls_settings.as_dict())  # same as:
 
@@ -824,11 +857,46 @@ if __name__ == "__main__":
 
     print( repr(myfunc.log_calls_settings))
 
-    # TODO TODO OK hot stuff, but now try it with
-    #    todo  inner functions (both variations)
-    #    todo  instance methods, classmethods, staticmethods
+    # Now try it with an inner function
+    def outer():
+        @log_calls(enabled='doit=', args_sep='sepr8r_=', logger='lgr_=')
+        def inner():
+            pass
+        return inner
 
+    f = outer()
+    print("inner function's log_calls_settings repr: \n%r"
+          % f.log_calls_settings)
 
+    # OK even cooler. Now try it with:
+    #     instance methods, classmethods, staticmethods
+    class Klass():
+        def __init__(self):
+            pass
+        @log_calls(enabled=False, args_sep=' + ', logger='lager=', prefix='Klass.instance.')
+        def instance_method(self, **kwargs):
+            pass
+
+        @classmethod
+        @log_calls(enabled=True, log_retval=True, log_args=False, prefix='Klass.klass.')
+        def klassmethod(cls, **kwargs):
+            return 78
+
+        @staticmethod
+        @log_calls(enabled=True, prefix='Klass.statik.')
+        def statikmethod(x, y, **kwargs):
+            return -1
+
+    obj = Klass()
+    print("via instance of Klass:")
+    print("instance method log_calls_settings:", obj.instance_method.log_calls_settings)
+    print("classmethod log_calls_settings:", obj.klassmethod.log_calls_settings)
+    print("staticmethod log_calls_settings:", obj.statikmethod.log_calls_settings)
+    print("via Klass:")
+    print("classmethod log_calls_settings:", Klass.klassmethod.log_calls_settings)
+    print("staticmethod log_calls_settings:", Klass.statikmethod.log_calls_settings)
+
+    # Gee whiz!! :D
 
     import doctest
     doctest.testmod()   # (verbose=True)

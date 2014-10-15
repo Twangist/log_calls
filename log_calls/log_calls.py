@@ -1,7 +1,7 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b2'
-
-"""Decorator that eliminates boilerplate code for debugging by writing
+__version__ = 'v0.1.10-b4'
+__doc__ = """
+Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
@@ -37,6 +37,7 @@ class SettingInfo():
         classname = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
         return "SettingInfo(%s, %s, %s, allow_falsy=%s, allow_indirect=%s)" \
                % (self.name, classname, self.default, self.allow_falsy, self.allow_indirect)
+
 
 class SettingsMapping():
 
@@ -273,6 +274,12 @@ class log_calls():
         SettingInfo('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
 
+    _first_time_flag = False  # flag
+
+    @classmethod
+    def _get_settings_info(cls):
+        return cls._settings_info
+
     # When this is last char of a parameter (to log_calls),
     # interpret value of parameter to be the name of
     # a keyword parameter ** of f **
@@ -306,6 +313,33 @@ class log_calls():
         )
         # and the special case:
         self.prefix = prefix
+
+        if not self.__class__._first_time_flag:
+            self.__class__._first_time_flag = True
+            self.__class__.once_only()
+
+    @staticmethod
+    def make_descriptor(name):
+        class Descr():
+            def __get__(self, instance, owner):
+                """
+                instance: a SettingsMapping
+                owner: class (which?..., SettingsMapping?)"""
+                return instance[name]
+
+            def __set__(self, instance, value):
+                """
+                instance: a SettingsMapping
+                value: what to set"""
+                instance[name] = value
+
+        return Descr()
+
+    @classmethod
+    def once_only(cls):
+        for info in cls._settings_info:
+#            SettingsMapping.__dict__[info.name] = cls.make_descriptor(info.name)
+            setattr(SettingsMapping, info.name, cls.make_descriptor(info.name))
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
@@ -349,9 +383,7 @@ class log_calls():
                 argcount = f.__code__.co_argcount
                 argnames = f.__code__.co_varnames[:argcount]
 
-                args_sep = _get_final_value('args_sep', f_params, kwargs)
-                if not args_sep:
-                    args_sep = ', '
+                args_sep = _get_final_value('args_sep', f_params, kwargs)  # != ''
 
                 # ~Kludge / incomplete treatment of seps that contain \n
                 end_args_line = ''
@@ -411,7 +443,8 @@ class log_calls():
             self.LOG_CALLS_PREFIXED_NAME,
             prefixed_fname
         )
-        # DRUMROLL... TRY THIS:
+
+        # Provide attribute on wrapped function,  'log_call_settings'
         setattr(
             f_log_calls_wrapper_,
             'log_calls_settings',
@@ -456,14 +489,15 @@ class log_calls():
                     # if it's a decorated inner function that's called
                     # by its enclosing function, detect that:
                     locls = curr_frame.f_back.f_back.f_locals
+                except AttributeError:
+                    # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
+                    pass
+                else:
                     if curr_funcname in locls:
                         curr_fn = locls[curr_funcname]
                         #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                         #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                         #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                except AttributeError:
-                    # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
-                    pass
 
             if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
                 found = True
