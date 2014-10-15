@@ -55,14 +55,17 @@ class SettingsMapping():
         for k, v in item_iterable:
             self.__setitem__(k, v)
 
+        # <<<DESCRIPTOR>>>
         if not self.__class__._first_time_flag:
             self.__class__._first_time_flag = True
             self.once_only()
 
+    # <<<DESCRIPTOR>>>
     def once_only(self):
         for name in self._name2SettingsInfo_dict:
             setattr(self.__class__, name, self.make_descriptor(name))
 
+    # <<<DESCRIPTOR>>>
     @staticmethod
     def make_descriptor(name):
         class Descr():
