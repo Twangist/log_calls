@@ -794,6 +794,9 @@ if __name__ == "__main__":
     def myfunc(x, y, z, **kwargs):
         pass
 
+    print("===============================")
+    print("testing descriptors:")
+
     d = myfunc.log_calls_settings
     d['enabled'] = False
     d['log_retval'] = True
@@ -811,6 +814,7 @@ if __name__ == "__main__":
     print('d.loglevel =', d.loglevel)
     print('d.args_sep =', d.args_sep)
 
+    print('-------full set of changes via __set__ of of every descriptors')
     # and here's the descriptors' __set__ method being exercised
     d.enabled = 17
     d.log_retval = False
@@ -823,6 +827,7 @@ if __name__ == "__main__":
 
     # Check state of myfunc.log_calls_settings:
     print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+    print("==================================")
     # TODO yep this would be a good unittest, a lousy doctest
     # TODO Unit tests for attributes and dictionary access,
     # todo  that is, for SettingsMapping, SettingInfo, and descriptor class Descr

@@ -41,17 +41,44 @@ class SettingInfo():
 
 class SettingsMapping():
 
+    _first_time_flag = False
+
     def __init__(self, settings_info, item_iterable=None):
         """settings_info: iterable of SettingInfo's
         item_iterable: iterable of pairs
                        (name, value such as is passed to log_calls-__init__"""
-        self._settings_info = {}
+        self._name2SettingsInfo_dict = {}
         for info in settings_info:
-            self._settings_info[info.name] = info
+            self._name2SettingsInfo_dict[info.name] = info
 
         self._settings_dict = {}    # stores pairs as returned by _analyze_value
         for k, v in item_iterable:
             self.__setitem__(k, v)
+
+        if not self.__class__._first_time_flag:
+            self.__class__._first_time_flag = True
+            self.once_only()
+
+    def once_only(self):
+        for name in self._name2SettingsInfo_dict:
+            setattr(self.__class__, name, self.make_descriptor(name))
+
+    @staticmethod
+    def make_descriptor(name):
+        class Descr():
+            def __get__(self, instance, owner):
+                """
+                instance: a SettingsMapping
+                owner: class (which?..., SettingsMapping?)"""
+                return instance[name]
+
+            def __set__(self, instance, value):
+                """
+                instance: a SettingsMapping
+                value: what to set"""
+                instance[name] = value
+
+        return Descr()
 
     def __setitem__(self, key, value):
         """
@@ -63,9 +90,9 @@ class SettingsMapping():
                        = keyword of wrapped fn if is_indirect
                          (sans any trailing '=')
         """
-        assert key in self._settings_info
+        assert key in self._name2SettingsInfo_dict
 
-        info = self._settings_info[key]
+        info = self._name2SettingsInfo_dict[key]
         final_type = info.final_type
         default = info.default
         allow_falsy = info.default
@@ -116,7 +143,7 @@ class SettingsMapping():
 
     def __repr__(self, repr=repr):
         list_of_settingsinfo_reprs = []
-        for k, info in self._settings_info.items():
+        for k, info in self._name2SettingsInfo_dict.items():
             list_of_settingsinfo_reprs.append(repr(info))
 
         def multiline(tpl):
@@ -159,7 +186,7 @@ class SettingsMapping():
         if not indirect:
             return di_val
 
-        info = self._settings_info[name]
+        info = self._name2SettingsInfo_dict[name]
         final_type = info.final_type
         default = info.default
         allow_falsy = info.default
@@ -274,12 +301,6 @@ class log_calls():
         SettingInfo('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
 
-    _first_time_flag = False  # flag
-
-    @classmethod
-    def _get_settings_info(cls):
-        return cls._settings_info
-
     # When this is last char of a parameter (to log_calls),
     # interpret value of parameter to be the name of
     # a keyword parameter ** of f **
@@ -313,33 +334,6 @@ class log_calls():
         )
         # and the special case:
         self.prefix = prefix
-
-        if not self.__class__._first_time_flag:
-            self.__class__._first_time_flag = True
-            self.__class__.once_only()
-
-    @staticmethod
-    def make_descriptor(name):
-        class Descr():
-            def __get__(self, instance, owner):
-                """
-                instance: a SettingsMapping
-                owner: class (which?..., SettingsMapping?)"""
-                return instance[name]
-
-            def __set__(self, instance, value):
-                """
-                instance: a SettingsMapping
-                value: what to set"""
-                instance[name] = value
-
-        return Descr()
-
-    @classmethod
-    def once_only(cls):
-        for info in cls._settings_info:
-#            SettingsMapping.__dict__[info.name] = cls.make_descriptor(info.name)
-            setattr(SettingsMapping, info.name, cls.make_descriptor(info.name))
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
