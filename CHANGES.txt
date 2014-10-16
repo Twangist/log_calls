@@ -1,6 +1,6 @@
 VERSIONS
 --------
-v0.1.10-b4 - Implement attributes i.e. descriptors on SettingsMapping
+v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
              for each setting (e.g. f.log_calls_settings.enabled, you can
              get and set it, i.e. __get__ and __set__ it. Thus,
                     print('d.log_retval =', d.log_retval)

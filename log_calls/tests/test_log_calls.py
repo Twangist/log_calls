@@ -816,12 +816,12 @@ if __name__ == "__main__":
     print('d.log_retval =', d.log_retval)
     print('d.log_exit =', d.log_exit)
     print('d.log_args =', d.log_args)
-    print("d.prefix ='%s'" % d.prefix)
+    print("d.prefix = '%s'" % d.prefix)
     print('d.logger =', d.logger)
     print('d.loglevel =', d.loglevel)
     print("d.args_sep = '%s'" % d.args_sep)
 
-    print('-------full set of changes via __set__ of of every descriptor')
+    print('-------full set of changes via __set__ of every descriptor')
     # and here's the descriptors' __set__ method being exercised
     d.enabled = 17
     d.log_retval = False
@@ -834,7 +834,6 @@ if __name__ == "__main__":
 
     # Check state of myfunc.log_calls_settings:
     print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
-    print("==================================")
 
     # Fail... with AttributeError?
     try:
@@ -842,9 +841,8 @@ if __name__ == "__main__":
     except AttributeError as e:
         print("Exception '%s' caused by '%s'" % (e, 'd.nosuchattribute'))
 
-    # Fail... with AttributeError?
-    # Dammit, it succeeds, adds that attr/value
-    # But hmmmm do we care? Why prevent user from doing that?
+    # This does NOT fail:
+    # but we don't care, no need to prevent user from doing that
     try:
         print("Doing 'd.nosuchattribute = 519'")
         d.nosuchattribute = 519
@@ -856,11 +854,14 @@ if __name__ == "__main__":
     # 'nosuchattribute' is not a key of log_call_settings' dicts
     print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
 
+    assert 'nosuchattribute' not in myfunc.log_calls_settings
+    assert 'nosuchattribute' in myfunc.log_calls_settings.__dict__
+
     print("==================================")
 
-    # TODO yep this would be a good unittest, a lousy doctest
-    # TODO Unit tests for attributes and dictionary access,
-    # todo  that is, for SettingsMapping, SettingInfo, and descriptor class Descr
+    # TODO yep this would be a good unittest, a lousy doctest.
+    # TODO Unittests for attributes and dictionary access,
+    # todo  that is, for DecoSettingsMapping, DecoSetting, and descriptor class Descr
     # todo   accessed via examples like above
     # Do a unittest just for coverage ? of the lowlevel classes?
     # What's coverage now?
@@ -879,8 +880,6 @@ if __name__ == "__main__":
     assert 'args_sep' in myfunc.log_calls_settings
     assert 'Fu Manchu' not in myfunc.log_calls_settings
 
-    assert 'nosuchattribute' not in myfunc.log_calls_settings
-    assert 'nosuchattribute' in myfunc.log_calls_settings.__dict__
     print("myfunc.log_calls_settings as list: %s"
           % list(myfunc.log_calls_settings))
     # That's the iter, converted to a list.
@@ -890,6 +889,8 @@ if __name__ == "__main__":
         print(x)
 
     print( "_get_tagged_value for 'log_args':", myfunc.log_calls_settings._get_tagged_value('log_args') )
+    print("calling get_final_value('prefix', None, None) to get 100% coverage :D")
+    print( "get_final_value for 'prefix':", myfunc.log_calls_settings.get_final_value('prefix', None, None) )
 
     print("for k, v in myfunc.log_calls_settings.items(): print(k, v)")
     for k, v in myfunc.log_calls_settings.items():
