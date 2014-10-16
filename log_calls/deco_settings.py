@@ -11,18 +11,53 @@ The attribute/obj of type DecoSettingsMapping provides
         i.e. attributes of the same names,
     as well as 'direct' and 'indirect' values for its keyword params
     q.v.
-    TODO That should probably be doc'd here?
+Using this class, any setting under its management can take two kinds of values:
+direct and indirect, which you can think of as static and dynamic respectively.
+Direct/static values are actual values used when the decorated function is
+interpreted, e.g. enabled=True, args_sep=" / ". Indirect/dynamic values are
+strings that name keyword arguments of the decorated function; when the
+decorated function is called, the arguments passed by keyword and the
+parameters of the decorated function are searched for the named parameter,
+and if it is found, its value is used. Parameters whose normal type is str
+(args_sep) indicate an indirect value by appending an '='.
 
+Thus, in:
+    @log_calls(args_sep='sep=', prefix="MyClass.")
+    def f(a, b, c, sep='|'): pass
+args_sep has an indirect value, and prefix has a direct value. A call can
+dynamically override the default value in the signature of f by supplying
+a value:
+    f(1, 2, 3, sep=' $ ')
+or use func's default by omitting the sep argument.
+A decorated function doesn't have to explicitly declare the named parameter,
+if its signature includes **kwargs. Consider:
+    @log_calls(enabled='enable')
+    def func1(a, b, c, **kwargs): pass
+    @log_calls(enabled='enable')
+    def func2(z, **kwargs): func1(z, z+1, z+2, **kwargs)
+When the following statement is executed, the calls to both func1 and func2
+will be logged:
+    func2(17, enable=True)
+whereas neither of the following two statements will trigger logging:
+    func2(42, enable=False)
+    func2(99)
+
+As a concession to consistency, any parameter value that names a keyword
+parameter of the decorated function can also end in a trailing '=', which
+is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
+by the keyword 'enable_' of the decorated function.
 """
+
+from .helpers import is_keyword_param
 import pprint
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # classes
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
-        irrespective of value"""
+                         sans any value. """
     def __init__(self, name, final_type, default, *, allow_falsy, allow_indirect):
         assert not default or isinstance(default, final_type)
         self.name = name                # key
@@ -52,11 +87,11 @@ class DecoSettingsMapping():
     KEYWORD_MARKER = '='
 
     @classmethod
-    def add_settings_for_class(cls, classname, settings_iter):
+    def register_class_settings(cls, classname, settings_iter):
         """
         Client class should call this *** from class level ***
         e.g.
-            DecoSettingsMapping.add_settings_for_class('log_calls', _setting_info_list)
+            DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
 
         Add item (classname, d) to _classname2SettingsData_dict
         where d is a dict built from items of settings_iter.
@@ -77,6 +112,8 @@ class DecoSettingsMapping():
     @staticmethod
     def make_descriptor(name):
         class Descr():
+            """A little data descriptor which just delegates
+            to __getitem__ and __setitem__ of instance"""
             def __get__(self, instance, owner):
                 """
                 instance: a DecoSettingsMapping
@@ -98,7 +135,7 @@ class DecoSettingsMapping():
 
     def __init__(self, classname, **values_dict):
         """classname: name of class that has already stored its settings
-        by calling add_settings_for_class(cls, classname, settings_iter)
+        by calling register_class_settings(cls, classname, settings_iter)
 
         values_iterable: iterable of pairs
                        (name,
@@ -135,7 +172,7 @@ class DecoSettingsMapping():
         class_settings_dict = class_settings_dict_ or self.get_settings_for_class()
         if key not in class_settings_dict:
             raise KeyError(
-                "DecoSettingsMapping.__setitem__: no such setting (key) as '%s'" % key)
+                "DecoSettingsMapping.__setitem__: KeyError - no such setting (key) as '%s'" % key)
 
         info = class_settings_dict[key]
         final_type = info.final_type
@@ -254,15 +291,3 @@ class DecoSettingsMapping():
         if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
             val = default
         return val
-
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# helper function
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def is_keyword_param(param):
-    return param and (
-        param.kind == param.KEYWORD_ONLY
-        or
-        ((param.kind == param.POSITIONAL_OR_KEYWORD)
-         and param.default is not param.empty)
-    )

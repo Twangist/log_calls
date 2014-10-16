@@ -16,7 +16,8 @@ from functools import wraps, partial
 import logging
 import sys
 
-from .deco_settings import DecoSetting, DecoSettingsMapping, is_keyword_param
+from .deco_settings import DecoSetting, DecoSettingsMapping
+from .helpers import difference_update, is_keyword_param
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 
@@ -34,59 +35,22 @@ class log_calls():
 
     The decorator takes various keyword arguments, all with sensible defaults.
     Every parameter except prefix can take two kinds of values, direct and
-    indirect, which you can think of as static and dynamic respectively.
-    Direct/static values are actual values used when the decorated function is
-    interpreted, e.g. enabled=True, args_sep=" / ". Indirect/dynamic values are
-    strings that name keyword arguments of the decorated function; when the
-    decorated function is called, the arguments passed by keyword and the
-    parameters of the decorated function are searched for the named parameter,
-    and if it is found, its value is used. Parameters whose normal type is str
-    (args_sep) indicate an indirect value by appending an '='.
+    indirect. Briefly, if the value of any of these parameters (other than prefix)
+    is a string that ends in in '=', then it's treated as the name of a keyword
+    arg of the wrapped function, and its value when that function is called is
+    the final, indirect value of the decorator's parameter (for that call).
+    See deco_settings.py docstring for details.
 
-    Thus, in:
-        @log_calls(args_sep='sep=', prefix="MyClass.")
-        def f(a, b, c, sep='|'): pass
-    args_sep has an indirect value, and prefix has a direct value. A call can
-    dynamically override the default value in the signature of f by supplying
-    a value:
-        f(1, 2, 3, sep=' $ ')
-    or use func's default by omitting the sep argument.
-
-    A decorated function doesn't have to explicitly declare the named parameter,
-    if its signature includes **kwargs. Consider:
-        @log_calls(enabled='enable')
-        def func1(a, b, c, **kwargs): pass
-        @log_calls(enabled='enable')
-        def func2(z, **kwargs): func1(z, z+1, z+2, **kwargs)
-    When the following statement is executed, the calls to both func1 and func2
-    will be logged:
-        func2(17, enable=True)
-    whereas neither of the following two statements will trigger logging:
-        func2(42, enable=False)
-        func2(99)
-
-    As a concession to consistency, any parameter value that names a keyword
-    parameter of the decorated function can also end in a trailing '=', which
-    is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
-    by the keyword 'enable_' of the decorated function.
-
-        log_args:     arguments passed to the (decorated) function will be logged
+        log_args:     Arguments passed to the (decorated) function will be logged
                       (Default: True)
-        log_retval:   log what the wrapped function returns IFF True/non-false
+        log_retval:   Log what the wrapped function returns IFF True/non-false.
                       At most MAXLEN_RETVALS chars are printed. (Default: False)
         args_sep:     str used to separate args. The default is  ', ', which lists
-                      all args on the same line. If args_sep='\n' is used, then
+                      all args on the same line. If args_sep ends in a newline '\n',
                       additional spaces are appended to that to make for a neater
                       display. Other separators in which '\n' occurs are left
                       unchanged, and are untested -- experiment/use at your own risk.
-                      If args_sep ends in a '=', it's considered to designate
-                      the name of a keyword arg of the wrapped function,
-                      whose value in turn determines the args_sep to use.
-        enabled:      if not a str and 'truthy', then logging will occur.
-                      If it's a str, it's considered to designate the name
-                      of a keyword arg of the wrapped function, whose value
-                      determines whether messages are written or not
-                      (truthy <==> they are written). (Default: True)
+        enabled:      If 'truthy', then logging will occur. (Default: True)
         prefix:       str to prefix the function name with when it is used
                       in logged messages: on entry, in reporting return value
                       (if log_retval) and on exit (if log_exit). (Default: '')
@@ -94,16 +58,16 @@ class log_calls():
                       message after calling the function, and before returning
                       what the function returned.
         logger:       If not None (the default), a Logger which will be used
-                      to write all messages, or a str naming a keyword arg of
-                      the wrapped function; in the last case, the logger used
-                      is the value of that arg passed to the function, IF that
-                      is a Logger. If no logger is thus obtained, print is used.
+                      (instead of the print function) to write all messages.
         loglevel:     logging level, if logger != None. (Default: logging.DEBUG)
     """
     MAXLEN_RETVALS = 60
     LOG_CALLS_SENTINEL_ATTR = '_log_calls_sentinel_'        # name of attr
     LOG_CALLS_SENTINEL_VAR = "_log_calls-deco'd"
     LOG_CALLS_PREFIXED_NAME = 'log_calls-prefixed-name'     # name of attr
+
+    # *** DecoSettingsMapping "API" --
+    # (1) initialize: call register_class_settings
 
     # allow indirection for all except prefix
     _setting_info_list = (
@@ -117,7 +81,7 @@ class log_calls():
         DecoSetting('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
 
-    DecoSettingsMapping.add_settings_for_class('log_calls', _setting_info_list)
+    DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
 
     def __init__(
             self,
@@ -132,6 +96,10 @@ class log_calls():
     ):
         """(See class docstring)"""
         # Set up pseudo-dict
+        #
+        # *** DecoSettingsMapping "API" --
+        # (2) construct DecoSettingsMapping object
+        #     that will provide mapping & attribute access to settings, & more
         self._settings_mapping = DecoSettingsMapping(
             'log_calls',
             enabled=enabled,
@@ -157,6 +125,14 @@ class log_calls():
 
         @wraps(f)
         def f_log_calls_wrapper_(*args, **kwargs):
+            """Wrapper around the wrapped function f.
+            When this runs, f has been called, so we can now resolve
+            any indirect values for the settings/keyword-params
+            of log_calls, using info in kwargs and f_params."""
+            # *** Part of the DecoSettingsMapping "API" --
+            #     (4) using self._settings_mapping.get_final_value in wrapper
+            # [[[ This/these is/are 4th chronologically ]]]
+
             # save a few cycles - we call this a lot (<= 7x)
             _get_final_value = self._settings_mapping.get_final_value
 
@@ -178,11 +154,11 @@ class log_calls():
 
             msg = ("%s <== called by %s"
                    % (prefixed_fname, ' <== '.join(call_list)))
-            # Make & append args message
 
-            # If not log_args or function has no parameters, skip arg reportage,
-            # don't even bother writing "args: <none>"
-            if _get_final_value('log_args', f_params, kwargs) and f_params:
+            # Make & append args message
+            # If function has no parameters or if not log_args,
+            # skip arg reportage, don't even bother writing "args: <none>"
+            if f_params and _get_final_value('log_args', f_params, kwargs):
                 argcount = f.__code__.co_argcount
                 argnames = f.__code__.co_varnames[:argcount]
 
@@ -248,10 +224,13 @@ class log_calls():
         )
 
         # *** Part of the DecoSettingsMapping "API" --
-        #     exposing the DecoSettingsMapping to 'users'
+        #     (3) exposing the DecoSettingsMapping to 'users'
+        #     [[[ 3rd step chronologically ]]]
         #
-        # Add an attribute on wrapped function,  'log_call_settings'
-        # which provides both mapping and attribute interfaces to settings
+        # Add an attribute on wrapped function, 'log_call_settings',
+        # which provides both mapping and attribute interfaces to settings.
+        # Same thing as:
+        #     f_log_calls_wrapper_.log_calls_settings = self._settings_mapping
         setattr(
             f_log_calls_wrapper_,
             'log_calls_settings',
@@ -318,16 +297,3 @@ class log_calls():
             call_list = call_list[:1]
 
         return call_list
-
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# helper function(s)
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def difference_update(d, d_remove):
-    """Change and return d.
-    d: mutable mapping, d_remove: iterable.
-    There is such a method for sets, but unfortunately not for dicts."""
-    for k in d_remove:
-        if k in d:
-            del(d[k])
-    return d    # so that we can pass a call to this fn as an arg, or chain

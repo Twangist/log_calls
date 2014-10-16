@@ -843,14 +843,10 @@ if __name__ == "__main__":
 
     # This does NOT fail:
     # but we don't care, no need to prevent user from doing that
-    try:
-        print("Doing 'd.nosuchattribute = 519'")
-        d.nosuchattribute = 519
-        print("No exception raised,")
-    except AttributeError as e:
-        print("Exception '%s' caused by '%s'" % (e, 'd.nosuchattribute = 519'))
-
-    print ("but of course 'nosuchattribute' does NOT wind up among the settings managed by log_call_settings:")
+    print("Doing 'd.nosuchattribute = 519'")
+    d.nosuchattribute = 519
+    print("No exception raised,")
+    print ("but 'nosuchattribute' does NOT wind up among the settings managed by log_call_settings:")
     # 'nosuchattribute' is not a key of log_call_settings' dicts
     print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
 
@@ -889,15 +885,12 @@ if __name__ == "__main__":
         print(x)
 
     print( "_get_tagged_value for 'log_args':", myfunc.log_calls_settings._get_tagged_value('log_args') )
-    print("calling get_final_value('prefix', None, None) to get 100% coverage :D")
-    print( "get_final_value for 'prefix':", myfunc.log_calls_settings.get_final_value('prefix', None, None) )
 
     print("for k, v in myfunc.log_calls_settings.items(): print(k, v)")
     for k, v in myfunc.log_calls_settings.items():
         print(k, '=', v)
 
-
-    print( repr(myfunc.log_calls_settings))
+    print( repr(myfunc.log_calls_settings) )
 
     # Now try it with an inner function
     def outer():
