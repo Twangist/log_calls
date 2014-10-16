@@ -803,18 +803,25 @@ if __name__ == "__main__":
     d['log_exit'] = False
     d['log_args'] = 'log_args='
 
+    # KeyError:
+    try:
+        print("About to try '%s'" % "d['nosuchsetting'] = True")
+        d['nosuchsetting'] = True
+    except KeyError as e:
+        print("Expected exception:", e)
+
     # Now try descriptors/properties/err attributes - YES!
     # here's the descriptors' __get__ method being exercised
     print('d.enabled =', d.enabled)
     print('d.log_retval =', d.log_retval)
     print('d.log_exit =', d.log_exit)
     print('d.log_args =', d.log_args)
-    print('d.prefix =', d.prefix)
+    print("d.prefix ='%s'" % d.prefix)
     print('d.logger =', d.logger)
     print('d.loglevel =', d.loglevel)
-    print('d.args_sep =', d.args_sep)
+    print("d.args_sep = '%s'" % d.args_sep)
 
-    print('-------full set of changes via __set__ of of every descriptors')
+    print('-------full set of changes via __set__ of of every descriptor')
     # and here's the descriptors' __set__ method being exercised
     d.enabled = 17
     d.log_retval = False
@@ -828,6 +835,29 @@ if __name__ == "__main__":
     # Check state of myfunc.log_calls_settings:
     print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
     print("==================================")
+
+    # Fail... with AttributeError?
+    try:
+        print('d.nosuchattribute =', d.nosuchattribute)
+    except AttributeError as e:
+        print("Exception '%s' caused by '%s'" % (e, 'd.nosuchattribute'))
+
+    # Fail... with AttributeError?
+    # Dammit, it succeeds, adds that attr/value
+    # But hmmmm do we care? Why prevent user from doing that?
+    try:
+        print("Doing 'd.nosuchattribute = 519'")
+        d.nosuchattribute = 519
+        print("No exception raised,")
+    except AttributeError as e:
+        print("Exception '%s' caused by '%s'" % (e, 'd.nosuchattribute = 519'))
+
+    print ("but of course 'nosuchattribute' does NOT wind up among the settings managed by log_call_settings:")
+    # 'nosuchattribute' is not a key of log_call_settings' dicts
+    print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+
+    print("==================================")
+
     # TODO yep this would be a good unittest, a lousy doctest
     # TODO Unit tests for attributes and dictionary access,
     # todo  that is, for SettingsMapping, SettingInfo, and descriptor class Descr
@@ -849,15 +879,21 @@ if __name__ == "__main__":
     assert 'args_sep' in myfunc.log_calls_settings
     assert 'Fu Manchu' not in myfunc.log_calls_settings
 
-    print( "raw setting for 'log_args':", myfunc.log_calls_settings._get_raw_setting('log_args') )
-
+    assert 'nosuchattribute' not in myfunc.log_calls_settings
+    assert 'nosuchattribute' in myfunc.log_calls_settings.__dict__
+    print("myfunc.log_calls_settings as list: %s"
+          % list(myfunc.log_calls_settings))
+    # That's the iter, converted to a list.
+    # Here's its standard use in a "for" construct:
     print("for x in myfunc.log_calls_settings: print(x)")
     for x in myfunc.log_calls_settings:
         print(x)
 
+    print( "_get_tagged_value for 'log_args':", myfunc.log_calls_settings._get_tagged_value('log_args') )
+
     print("for k, v in myfunc.log_calls_settings.items(): print(k, v)")
     for k, v in myfunc.log_calls_settings.items():
-        print(k, v)
+        print(k, '=', v)
 
 
     print( repr(myfunc.log_calls_settings))
