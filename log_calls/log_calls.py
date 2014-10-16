@@ -18,10 +18,10 @@ import sys
 
 #__all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper classes
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 
 class SettingInfo():
     "a little struct"
@@ -34,35 +34,43 @@ class SettingInfo():
         self.allow_indirect = allow_indirect  # are indirect values allowed
 
     def __repr__(self):
-        classname = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
-        return "SettingInfo(%s, %s, %s, allow_falsy=%s, allow_indirect=%s)" \
-               % (self.name, classname, self.default, self.allow_falsy, self.allow_indirect)
+        final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
+        default = self.default if final_type != str else repr(self.default)
+        return ("SettingInfo(%s, %s, %r, allow_falsy=%s, allow_indirect=%s)"
+                %
+                (self.name, final_type, default, self.allow_falsy, self.allow_indirect)
+        )
 
 
 class SettingsMapping():
+    """Usable with any class-based decorator that wants to implement
+    a mapping interface and attribute interface for its keyword params,
+    as well as 'direct' and 'indirect' values for its keyword params"""
+    _classname2SettingsData_dict = {}
 
-    _first_time_flag = False
+    @classmethod
+    def add_settings_for_class(cls, classname, settings_iter):
+        """
+        Client class should call this *** from class level ***
+        e.g.
+            SettingsMapping.add_settings_for_class('log_calls', _setting_info_list)
 
-    def __init__(self, settings_info, item_iterable=None):
-        """settings_info: iterable of SettingInfo's
-        item_iterable: iterable of pairs
-                       (name, value such as is passed to log_calls-__init__"""
-        self._name2SettingsInfo_dict = {}
-        for info in settings_info:
-            self._name2SettingsInfo_dict[info.name] = info
+        Add item (classname, d) to _classname2SettingsData_dict
+        where d is a dict built from items of settings_iter.
+        cls: this class
+        clsname: key for dict produced from settings_iter
+        settings_iter: iterable of Keyed"""
+        d = {}
+        for setting in settings_iter:
+            d[setting.name] = setting
 
-        self._settings_dict = {}    # stores pairs as returned by _analyze_value
-        for k, v in item_iterable:
-            self.__setitem__(k, v)
+        cls._classname2SettingsData_dict[classname] = d
 
-        if not self.__class__._first_time_flag:
-            self.__class__._first_time_flag = True
-            self.once_only()
+        # <<<attributes>>> Set up descriptors
+        for name in d:
+            setattr(cls, name, cls.make_descriptor(name))
 
-    def once_only(self):
-        for name in self._name2SettingsInfo_dict:
-            setattr(self.__class__, name, self.make_descriptor(name))
-
+    # <<<attributes>>>
     @staticmethod
     def make_descriptor(name):
         class Descr():
@@ -76,9 +84,38 @@ class SettingsMapping():
                 """
                 instance: a SettingsMapping
                 value: what to set"""
+                # ONLY do this is name is a legit setting name
+                # (for this obj, as per this obj's initialization)
                 instance[name] = value
 
         return Descr()
+
+    def get_settings_for_class(self):
+        return self._classname2SettingsData_dict[self.classname]
+
+    def __init__(self, classname, **values_dict):
+        """classname: name of class that has already stored its settings
+        by calling add_settings_for_class(cls, classname, settings_iter)
+
+        values_iterable: iterable of pairs
+                       (name,
+                        value such as is passed to log_calls-__init__)
+                        values are either 'direct' or 'indirect'
+
+        Assumption: every name in values_iterable is info.name
+                    for some info in settings_info.
+        Must be called after __init__ sets self.classname."""
+        self.classname = classname
+        class_settings_dict = self.get_settings_for_class()
+
+        self._tagged_values_dict = {}    # stores pairs as returned by _analyze_value
+
+        for k, v in values_dict.items():
+            if k not in class_settings_dict:
+                raise KeyError("SettingsMapping.__init__: key/setting-name '%s' "
+                               "not in setting info dict for class '%s'"
+                               % (k, classname))
+            self.__setitem__(k, v)
 
     def __setitem__(self, key, value):
         """
@@ -89,17 +126,22 @@ class SettingsMapping():
             modded_val = val if kind is direct (not is_indirect),
                        = keyword of wrapped fn if is_indirect
                          (sans any trailing '=')
+        THIS method assumes that the values in self.get_settings_for_class()
+        are SettingInfo objects -- all fields of that are used
         """
-        assert key in self._name2SettingsInfo_dict
+        class_settings_dict = self.get_settings_for_class()
+        if key not in class_settings_dict:
+            raise KeyError(
+                "SettingsMapping.__setitem__: no such setting (key) as '%s'" % key)
 
-        info = self._name2SettingsInfo_dict[key]
+        info = class_settings_dict[key]
         final_type = info.final_type
         default = info.default
         allow_falsy = info.default
         allow_indirect = info.allow_indirect
 
         if not allow_indirect:
-            self._settings_dict[key] = False, value
+            self._tagged_values_dict[key] = False, value
             return
 
         # Detect fixup direct/static values, except for target_type == str
@@ -120,35 +162,38 @@ class SettingsMapping():
                 if indirect:
                     value = value[:-1]
 
-        self._settings_dict[key] = indirect, value
+        self._tagged_values_dict[key] = indirect, value
 
     def __getitem__(self, key):
-        indirect, value = self._settings_dict[key]
+        indirect, value = self._tagged_values_dict[key]
         if indirect:
             return value + '='
         else:
             return value
 
     def __len__(self):
-        return len(self._settings_dict)
+        return len(self._tagged_values_dict)
 
     def __iter__(self):
-        return (name for name in self._settings_dict)
+        return (name for name in self._tagged_values_dict)
 
     def items(self):
-        return ((name, self.__getitem__(name)) for name in self._settings_dict)
+        return ((name, self.__getitem__(name)) for name in self._tagged_values_dict)
 
     def __contains__(self, key):
-        return key in self._settings_dict
+        return key in self._tagged_values_dict
 
-    def __repr__(self, repr=repr):
+    def __repr__(self):
+        class_settings_dict = self.get_settings_for_class()
+
         list_of_settingsinfo_reprs = []
-        for k, info in self._name2SettingsInfo_dict.items():
+
+        for k, info in class_settings_dict.items():
             list_of_settingsinfo_reprs.append(repr(info))
 
-        def multiline(tpl):
+        def multiline(lst):
             return '    [\n        ' + \
-                   ',\n        '.join(tpl) + \
+                   ',\n        '.join(lst) + \
                    '\n    ]'
 
         return "SettingsMapping( \n" \
@@ -169,27 +214,34 @@ class SettingsMapping():
 
     def as_dict(self):
         d = {}
-        for name in self._settings_dict:
+        for name in self._tagged_values_dict:
             d[name] = self.__getitem__(name)  # self[name] ?!
         return d
 
-    def _get_raw_setting(self, key):        # TODO: UNUSED
+    def _get_tagged_value(self, key):
         """Return (indirect, value) for key"""
-        return self._settings_dict[key]
+        return self._tagged_values_dict[key]
 
     def get_final_value(self, name, fparams, kwargs):
         """
-        name:    key into self._settings_dict, self._settings_info
+        name:    key into self._tagged_values_dict, self._setting_info_list
         fparams: inspect.signature(f).parameters of some function f
-        kwargs:  kwargs of a call to that function f"""
-        indirect, di_val  = self._settings_dict[name] # di_ - direct or indirect
+        kwargs:  kwargs of a call to that function f
+        THIS method assumes that the objs stored in self.get_settings_for_class()
+        are SettingInfo objects -- this method uses every attribute of that class.
+        """
+        indirect, di_val = self._tagged_values_dict[name]  # di_ - direct or indirect
         if not indirect:
             return di_val
 
-        info = self._name2SettingsInfo_dict[name]
-        final_type = info.final_type
-        default = info.default
-        allow_falsy = info.default
+        setting_info = self.get_settings_for_class()[name]
+
+        if not setting_info.allow_indirect:
+            return di_val
+
+        final_type = setting_info.final_type
+        default = setting_info.default
+        allow_falsy = setting_info.default
 
         # di_val designates a (potential) f-keyword
         if di_val in kwargs:            # actually passed to f
@@ -205,9 +257,9 @@ class SettingsMapping():
         return val
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#------------------------------------------------------------------------------
 # log_calls
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#------------------------------------------------------------------------------
 class log_calls():
     """
     This decorator logs the caller of a decorated function, and optionally
@@ -290,7 +342,7 @@ class log_calls():
     LOG_CALLS_PREFIXED_NAME = 'log_calls-prefixed-name'     # name of attr
 
     # allow indirection for all except prefix
-    _settings_info = (
+    _setting_info_list = (
         SettingInfo('enabled',    int,            False,         allow_falsy=True,  allow_indirect=True),
         SettingInfo('log_args',   bool,           True,          allow_falsy=True,  allow_indirect=True),
         SettingInfo('log_retval', bool,           False,         allow_falsy=True,  allow_indirect=True),
@@ -300,6 +352,9 @@ class log_calls():
         SettingInfo('logger',     logging.Logger, None,          allow_falsy=True,  allow_indirect=True),
         SettingInfo('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
+
+    SettingsMapping.add_settings_for_class('log_calls', _setting_info_list)
+
 
     # When this is last char of a parameter (to log_calls),
     # interpret value of parameter to be the name of
@@ -320,17 +375,15 @@ class log_calls():
         """(See class docstring)"""
         # Set up pseudo-dict
         self._settings_mapping = SettingsMapping(
-            self._settings_info,
-            [
-                ('enabled', enabled),
-                ('log_args', log_args),
-                ('log_retval', log_retval),
-                ('log_exit', log_exit),
-                ('args_sep', args_sep),
-                ('prefix', prefix),
-                ('logger', logger),
-                ('loglevel', loglevel),
-            ]
+            'log_calls',
+            enabled=enabled,
+            log_args=log_args,
+            log_retval=log_retval,
+            log_exit=log_exit,
+            args_sep=args_sep,
+            prefix=prefix,
+            logger=logger,
+            loglevel=loglevel,
         )
         # and the special case:
         self.prefix = prefix
@@ -346,17 +399,15 @@ class log_calls():
 
         @wraps(f)
         def f_log_calls_wrapper_(*args, **kwargs):
-            # save a few cycles - we call this a lot
+            # save a few cycles - we call this a lot (<= 7x)
             _get_final_value = self._settings_mapping.get_final_value
 
-            do_it = _get_final_value('enabled', f_params, kwargs)
             # if nothing to do, hurry up & don't do it
-            if not do_it:
+            if not _get_final_value('enabled', f_params, kwargs):
                 return f(*args, **kwargs)
 
             logger = _get_final_value('logger', f_params, kwargs)
             loglevel = _get_final_value('loglevel', f_params, kwargs)
-
             # Establish logging function
             logging_fn = partial(logger.log, loglevel) if logger else print
 
@@ -364,16 +415,16 @@ class log_calls():
             # (or just caller, if no such fn)
             call_list = self.call_chain_to_next_log_calls_fn()
 
+            # Our unit of indentation
+            indent = " " * 4
+
             msg = ("%s <== called by %s"
                    % (prefixed_fname, ' <== '.join(call_list)))
             # Make & append args message
-            indent = " " * 4
 
-            log_args = _get_final_value('log_args', f_params, kwargs)
-
-            # If function has no parameters, skip arg reportage,
+            # If not log_args or function has no parameters, skip arg reportage,
             # don't even bother writing "args: <none>"
-            if log_args and f_params:
+            if _get_final_value('log_args', f_params, kwargs) and f_params:
                 argcount = f.__code__.co_argcount
                 argnames = f.__code__.co_varnames[:argcount]
 
@@ -410,35 +461,39 @@ class log_calls():
 
             retval = f(*args, **kwargs)
 
-            log_retval = _get_final_value('log_retval', f_params, kwargs)
-
-            if log_retval:
+            # log_retval
+            if _get_final_value('log_retval', f_params, kwargs):
                 retval_str = str(retval)
                 if len(retval_str) > log_calls.MAXLEN_RETVALS:
                     retval_str = retval_str[:log_calls.MAXLEN_RETVALS] + "..."
                 logging_fn(indent + "%s return value: %s"
                            % (prefixed_fname, retval_str))
 
-            log_exit = _get_final_value('log_exit', f_params, kwargs)
-            if log_exit:
+            # log_exit
+            if _get_final_value('log_exit', f_params, kwargs):
                 logging_fn("%s ==> returning to %s"
                            % (prefixed_fname, ' ==> '.join(call_list)))
             return retval
 
-        # Add a sentinel as a property to f_log_calls_wrapper_
+        # Add a sentinel as an attribute to f_log_calls_wrapper_
         # so we can in theory chase back to any previous log_calls-decorated fn
         setattr(
             f_log_calls_wrapper_,
             self.LOG_CALLS_SENTINEL_ATTR,
             self.LOG_CALLS_SENTINEL_VAR
         )
+        # Add prefixed name of f as an attribute
         setattr(
             f,
             self.LOG_CALLS_PREFIXED_NAME,
             prefixed_fname
         )
 
-        # Provide attribute on wrapped function,  'log_call_settings'
+        # *** Part of the SettingsMapping "API" --
+        #     exposing the SettingsMapping to 'users'
+        #
+        # Add an attribute on wrapped function,  'log_call_settings'
+        # which provides both mapping and attribute interfaces to settings
         setattr(
             f_log_calls_wrapper_,
             'log_calls_settings',
