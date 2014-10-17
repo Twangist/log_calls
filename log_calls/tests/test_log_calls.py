@@ -290,17 +290,17 @@ A decorated function doesn't have to explicitly declare the named parameter,
 if its signature includes **kwargs -- it can be an implicit keyword parameter.
 Consider:
     >>> @log_calls(enabled='enable')
-    ... def func1(a, b, c, **kwargs): pass
+    ... def func1(a, b, c, **func1_kwargs): pass
     >>> @log_calls(enabled='enable')
-    ... def func2(z, **kwargs): func1(z, z+1, z+2, **kwargs)
+    ... def func2(z, **func2_kwargs): func1(z, z+1, z+2, **func2_kwargs)
 
 When the following statement is executed, the calls to both func1 and func2
 will be logged:
     >>> func2(17, enable=True)
     func2 <== called by <module>
-        args: z=17, [**]kwargs={'enable': True}
+        args: z=17, [**]func2_kwargs={'enable': True}
     func1 <== called by func2
-        args: a=17, b=18, c=19, [**]kwargs={'enable': True}
+        args: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
     func1 ==> returning to func2
     func2 ==> returning to <module>
 
@@ -790,6 +790,18 @@ any log_calls output:
 
 if __name__ == "__main__":
 
+    @log_calls(enabled='enable')
+    def func1(a, b, c, **func1_kwargs): pass
+    @log_calls(enabled='enable')
+    def func2(z, **func2_kwargs): func1(z, z+1, z+2, **func2_kwargs)
+
+    func2(17, enable=True)
+
+    print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+
+
+
+
     @log_calls()
     def g1():
         pass
@@ -811,7 +823,7 @@ if __name__ == "__main__":
 
     whatis = g1.stats.num_calls
     whatis2 = g1.stats.call_history
-    elapsed = g1.stats.my_property
+    elapsed = g1.stats.total_elapsed
 
     print("g1 has been called %d times" % g1.stats.num_calls)
     hist_str = '\n'.join(map(str, g1.stats.call_history))
