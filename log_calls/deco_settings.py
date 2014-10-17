@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b4'
+__version__ = 'v0.1.10-b5'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -87,11 +87,12 @@ class DecoSettingsMapping():
     KEYWORD_MARKER = '='
 
     @classmethod
-    def register_class_settings(cls, classname, settings_iter):
+    def register_class_settings(cls, deco_classname, settings_iter):
         """
+        Called before __init__, presently - by deco class.
         Client class should call this *** from class level ***
         e.g.
-            DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
+            DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list, descr_names)
 
         Add item (classname, d) to _classname2SettingsData_dict
         where d is a dict built from items of settings_iter.
@@ -102,16 +103,16 @@ class DecoSettingsMapping():
         for setting in settings_iter:
             d[setting.name] = setting
 
-        cls._classname2SettingsData_dict[classname] = d
+        cls._classname2SettingsData_dict[deco_classname] = d
 
         # <<<attributes>>> Set up descriptors
         for name in d:
-            setattr(cls, name, cls.make_descriptor(name))
+            setattr(cls, name, cls.make_setting_descriptor(name))
 
     # <<<attributes>>>
-    @staticmethod
-    def make_descriptor(name):
-        class Descr():
+    @classmethod
+    def make_setting_descriptor(cls, name):
+        class SettingDescr():
             """A little data descriptor which just delegates
             to __getitem__ and __setitem__ of instance"""
             def __get__(self, instance, owner):
@@ -128,12 +129,14 @@ class DecoSettingsMapping():
                 # (for this obj, as per this obj's initialization)
                 instance[name] = value
 
-        return Descr()
+        return SettingDescr()
 
-    def get_settings_for_class(self):
-        return self._classname2SettingsData_dict[self.classname]
+    @property
+    def _deco_class_settings_dict(self):
+        """Can't use/call till self.deco_class set in __init__"""
+        return self._classname2SettingsData_dict[self.deco_class.__name__]
 
-    def __init__(self, classname, **values_dict):
+    def __init__(self, *, deco_class, **values_dict):
         """classname: name of class that has already stored its settings
         by calling register_class_settings(cls, classname, settings_iter)
 
@@ -145,31 +148,43 @@ class DecoSettingsMapping():
         Assumption: every name in values_iterable is info.name
                     for some info in settings_info.
         Must be called after __init__ sets self.classname."""
-        self.classname = classname
-        class_settings_dict = self.get_settings_for_class()
+
+        self.deco_class = deco_class
+        class_settings_dict = self._deco_class_settings_dict
 
         self._tagged_values_dict = {}    # stores pairs inserted by __setitem__
 
-        for k, v in values_dict.items():
-            self.__setitem__(k, v, class_settings_dict_=class_settings_dict)
+        # for k, v in values_dict.items():
+        #     self.__setitem__(k, v, _class_settings_dict_=class_settings_dict)
+        self.update(_class_settings_dict_=class_settings_dict, **values_dict)
 
-    def __setitem__(self, key, value, class_settings_dict_=None):
+######### MOVED to deco_class __init__
+        # # setup descriptors. So, for every descr_name list/tuple self._deco_class_descriptor_names,
+        # # e.g. 'num_calls', this will name a descriptor provided by the deco_class,
+        # # e.g. (base implementation) an attribute of the same name in the deco_class
+        # for descr_name in self._deco_class_descriptor_names:
+        #     setattr(self, descr_name, self.deco_class_instance.make_deco_descriptor(descr_name))
+
+    def is_setting(self, name):
+        return name in self._deco_class_settings_dict
+
+    def __setitem__(self, key, value, _class_settings_dict_=None):
         """
         key: name of setting, e.g. 'prefix';
-             must be in self.get_settings_for_class()
+             must be in self._deco_class_settings_dict()
         value: something passed to __init__ (of log_calls),
-        class_settings_dict_: passed by __init__ or any other method that will
-                              call many times, saves this method from having
-                              to do self.get_settings_for_class() on each call
+        _class_settings_dict_: passed by __init__ or any other method that will
+                               call many times, saves this method from having
+                               to do self._deco_class_settings_dict() on each call
         Return pair (is_indirect, modded_val) where
             is_indirect: bool,
             modded_val = val if kind is direct (not is_indirect),
                        = keyword of wrapped fn if is_indirect
                          (sans any trailing '=')
-        THIS method assumes that the values in self.get_settings_for_class()
+        THIS method assumes that the values in self._deco_class_settings_dict()
         are DecoSetting objects -- all fields of that class are used
         """
-        class_settings_dict = class_settings_dict_ or self.get_settings_for_class()
+        class_settings_dict = _class_settings_dict_ or self._deco_class_settings_dict
         if key not in class_settings_dict:
             raise KeyError(
                 "DecoSettingsMapping.__setitem__: KeyError - no such setting (key) as '%s'" % key)
@@ -224,7 +239,7 @@ class DecoSettingsMapping():
         return key in self._tagged_values_dict
 
     def __repr__(self):
-        class_settings_dict = self.get_settings_for_class()
+        class_settings_dict = self._deco_class_settings_dict
 
         list_of_settingsinfo_reprs = []
 
@@ -247,9 +262,9 @@ class DecoSettingsMapping():
     def __str__(self):
         return str(self.as_dict())
 
-    def update(self, **d_settings):
+    def update(self, *, _class_settings_dict_=None, **d_settings):
         for k, v in d_settings.items():
-            self.__setitem__(k, v)      # i.e. self[k] = v ?!
+            self.__setitem__(k, v, _class_settings_dict_=_class_settings_dict_)      # i.e. self[k] = v ?!
 
     def as_dict(self):
         d = {}
@@ -266,7 +281,7 @@ class DecoSettingsMapping():
         name:    key into self._tagged_values_dict, self._setting_info_list
         fparams: inspect.signature(f).parameters of some function f
         kwargs:  kwargs of a call to that function f
-        THIS method assumes that the objs stored in self.get_settings_for_class()
+        THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.
         """
@@ -274,7 +289,7 @@ class DecoSettingsMapping():
         if not indirect:
             return di_val
 
-        setting_info = self.get_settings_for_class()[name]
+        setting_info = self._deco_class_settings_dict[name]
         final_type = setting_info.final_type
         default = setting_info.default
         allow_falsy = setting_info.default

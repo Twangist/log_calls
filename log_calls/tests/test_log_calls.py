@@ -4,6 +4,7 @@ from log_calls import log_calls
 
 import pdb
 
+
 #############################################################################
 # doctests
 #############################################################################
@@ -788,6 +789,61 @@ any log_calls output:
     """
 
 if __name__ == "__main__":
+
+    @log_calls()
+    def g1():
+        pass
+    def g2():
+        g1()
+    @log_calls()
+    def g3(optional=''):    # g3 will have an 'args:' section
+        g2()
+    g3()
+    # def g4():
+    #     g3()
+    # @log_calls()
+    # def g5():
+    #     g4()
+    # g5()
+    g1.log_calls_settings.log_exit = False
+    for i in range(3):
+        g1()
+
+    whatis = g1.stats.num_calls
+    whatis2 = g1.stats.call_history
+    elapsed = g1.stats.my_property
+
+    print("g1 has been called %d times" % g1.stats.num_calls)
+    hist_str = '\n'.join(map(str, g1.stats.call_history))
+    print("g1 call history: \n%s" % hist_str)
+
+    print("g1 total elapsed time =", elapsed)
+
+    @log_calls()
+    def h0(z):
+        pass
+    def h1(x):
+        @log_calls()
+        def h1_inner(y):
+            h0(x*y)
+        return h1_inner
+    def h2():
+        h1(2)(3)
+    def h3():
+        h2()
+    def h4():
+        @log_calls()
+        def h4_inner():
+            h3()
+        return h4_inner
+    @log_calls()
+    def h5():
+        h4()()
+    h5()
+
+
+
+
     import logging
 
     @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')

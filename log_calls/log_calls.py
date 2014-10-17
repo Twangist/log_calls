@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b4'
+__version__ = 'v0.1.10-b5'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -15,11 +15,25 @@ import inspect
 from functools import wraps, partial
 import logging
 import sys
+import time
+from collections import namedtuple, OrderedDict     # TODO ordered dict of args & vals useful for history?
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
-from .helpers import difference_update, is_keyword_param
+from .helpers import difference_update, is_keyword_param, get_args_kwargs_param_names
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
+
+
+CallHistoryRecord = namedtuple(
+    "CallHistoryRecord",
+    (
+        'argnames', 'argvals',
+        'varargs',
+        'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
+        'retval',
+        'elapsed_ms'
+    )
+)
 
 
 #------------------------------------------------------------------------------
@@ -80,8 +94,61 @@ class log_calls():
         DecoSetting('logger',     logging.Logger, None,          allow_falsy=True,  allow_indirect=True),
         DecoSetting('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
+    _descriptor_names = ('num_calls', 'call_history', 'my_property')
 
-    DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
+    DecoSettingsMapping.register_class_settings('log_calls',
+                                                _setting_info_list)
+    # pass not jst 'log_calls', but the actual class
+
+    # 'virtual' method, called by __init__
+    @classmethod
+    def make_deco_descriptor(cls, descr_name):
+        """E.g. descr_name will be 'num_calls" or etc."""
+        class DecoDescr():
+            def __get__(self_, stats_dummyObj, owner):
+                "instance: a function returned by __call__"
+                ### print("**** descriptor %s __get__ called" % descr_name)
+                return getattr(stats_dummyObj.deco_instance, '_' + descr_name)
+
+            def __set__(self_, stats_dummyObj, value):
+                # THese properties are r/o so trying to set the vals should raise an exception
+                # TODO test!
+                #setattr(instance, '_' + descr_name, value)
+                raise AttributeError("%s is r/o" % descr_name)
+
+        return DecoDescr()
+
+    # A few generic properties, internal logging, and exposed
+    # as descriptors on the __Mapping obj
+    # @property
+    # def num_calls(self):
+    #     return len(self._call_history)
+    #
+    # @property
+    # def call_history(self):
+    #     return self._call_history
+
+    @property
+    def _my_property(self):
+        return sum((histrec.elapsed_ms for histrec in self._call_history))
+
+
+    def _add_to_history(self, f,
+                        argnames, argvals,
+                        varargs,
+                        explicit_kwargs, defaulted_kwargs, implicit_kwargs,
+                        retval=None,
+                        elapsed_ms=0):
+        # uses self.f_params
+        self._call_history.append(
+                CallHistoryRecord(
+                    argnames, argvals,
+                    varargs,
+                    explicit_kwargs, defaulted_kwargs, implicit_kwargs,
+                    retval,
+                    elapsed_ms)
+        )
+        self._num_calls += 1
 
     def __init__(
             self,
@@ -101,7 +168,8 @@ class log_calls():
         # (2) construct DecoSettingsMapping object
         #     that will provide mapping & attribute access to settings, & more
         self._settings_mapping = DecoSettingsMapping(
-            'log_calls',
+            deco_class=self.__class__,
+            # and the rest are what DecoSettingsMapping calls **values_dict
             enabled=enabled,
             log_args=log_args,
             log_retval=log_retval,
@@ -114,6 +182,12 @@ class log_calls():
         # and the special case:
         self.prefix = prefix
 
+        # Accessed by descriptors on the __Mapping obj
+        self._call_history = []
+        self._num_calls = 0
+
+        self.f_params = None    # set properly by __call__
+
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
@@ -121,27 +195,33 @@ class log_calls():
         So, this method *returns* the decorator proper."""
         # First, save prefix + function name for function f
         prefixed_fname = self.prefix + f.__name__
-        f_params = inspect.signature(f).parameters
+        self.f_params = inspect.signature(f).parameters
+        (self.args_name,
+         self.kwargs_name) = get_args_kwargs_param_names(self.f_params)
 
         @wraps(f)
         def f_log_calls_wrapper_(*args, **kwargs):
             """Wrapper around the wrapped function f.
             When this runs, f has been called, so we can now resolve
             any indirect values for the settings/keyword-params
-            of log_calls, using info in kwargs and f_params."""
+            of log_calls, using info in kwargs and self.f_params."""
             # *** Part of the DecoSettingsMapping "API" --
             #     (4) using self._settings_mapping.get_final_value in wrapper
             # [[[ This/these is/are 4th chronologically ]]]
 
-            # save a few cycles - we call this a lot (<= 7x)
+            # save a few cycles - we call this a lot (<= 7x). Method 'pointer'
             _get_final_value = self._settings_mapping.get_final_value
 
             # if nothing to do, hurry up & don't do it
-            if not _get_final_value('enabled', f_params, kwargs):
+            # TODO: make a version of _get_final_value (sic?) in THIS class
+            # todo  which uses self.f_params (don't pass). Maybe part of it is a gen'l fn needed by _add_to_history
+            if not _get_final_value('enabled', self.f_params, kwargs):
+                ### # call f after adding to stats, return its retval
+                ### self._add_to_history(f, args, kwargs, logged=False)     # uses self.f_params
                 return f(*args, **kwargs)
 
-            logger = _get_final_value('logger', f_params, kwargs)
-            loglevel = _get_final_value('loglevel', f_params, kwargs)
+            logger = _get_final_value('logger', self.f_params, kwargs)
+            loglevel = _get_final_value('loglevel', self.f_params, kwargs)
             # Establish logging function
             logging_fn = partial(logger.log, loglevel) if logger else print
 
@@ -155,14 +235,28 @@ class log_calls():
             msg = ("%s <== called by %s"
                    % (prefixed_fname, ' <== '.join(call_list)))
 
+            # Gather all the things we need for _add_history (sic)
+            argcount = f.__code__.co_argcount
+            argnames = f.__code__.co_varnames[:argcount]
+            args_vals = list(zip(argnames, args))
+            varargs = args[argcount:]
+            explicit_kwargs = {k: v for (k, v) in kwargs.items()
+                               if k in self.f_params
+                               and is_keyword_param(self.f_params[k])}
+            implicit_kwargs = difference_update(
+                kwargs.copy(), explicit_kwargs)
+            defaulted_kwargs = {
+                k: self.f_params[k].default
+                for k in self.f_params
+                if is_keyword_param(self.f_params[k]) and k not in kwargs
+            }
+
             # Make & append args message
             # If function has no parameters or if not log_args,
             # skip arg reportage, don't even bother writing "args: <none>"
-            if f_params and _get_final_value('log_args', f_params, kwargs):
-                argcount = f.__code__.co_argcount
-                argnames = f.__code__.co_varnames[:argcount]
+            if self.f_params and _get_final_value('log_args', self.f_params, kwargs):
 
-                args_sep = _get_final_value('args_sep', f_params, kwargs)  # != ''
+                args_sep = _get_final_value('args_sep', self.f_params, kwargs)  # != ''
 
                 # ~Kludge / incomplete treatment of seps that contain \n
                 end_args_line = ''
@@ -172,31 +266,46 @@ class log_calls():
 
                 msg += ('\n' + indent + "args: " + end_args_line)
 
-                args_vals = list(zip(argnames, args))
-                if args[argcount:]:
-                    args_vals.append( ("[*]args", args[argcount:]) )
+                if varargs:
+                    args_vals.append( ("[*]%s" % self.args_name, varargs) )
 
-                explicit_kwargs = {k: v for (k, v) in kwargs.items()
-                                   if k in f_params
-                                   and is_keyword_param(f_params[k])}
                 args_vals.extend( explicit_kwargs.items() )
 
-                implicit_kwargs = difference_update(
-                    kwargs.copy(), explicit_kwargs)
+                # TODO NEW -- make this next optional via setting?
+                # if implicit_kwargs, then f has a "kwargs"-like parameter;
+                # the defaulted kwargs are kw args in self.f_params which
+                # are NOT in implicit_kwargs, and their vals are defaults
+                # of those parameters
+                if defaulted_kwargs:
+                    args_vals.append( ("(defaulted kwd args)",  defaulted_kwargs) )
+
                 if implicit_kwargs:
-                    args_vals.append( ("[**]kwargs",  implicit_kwargs) )
+                    args_vals.append( ("[**]%s" % self.kwargs_name,  implicit_kwargs) )
 
                 if args_vals:
                     msg += args_sep.join('%s=%r' % pair for pair in args_vals)
                 else:
                     msg += "<none>"
 
+                #### TODO can this all be simplified using
+                #### todo inspect.getfullargspec(...)
+                #### todo  or inspect... signature... bind ( f, *args, **kwargs) ???
+
             logging_fn(msg)
 
+            # Call f(*args, **kwargs) and get its retval,
+            # then add elapsed time and retval (as str? repr?) etc to stats
+            t0 = time.time()
             retval = f(*args, **kwargs)
+            self._add_to_history(f, argnames, args[:argcount],
+                                 varargs,
+                                 explicit_kwargs, defaulted_kwargs, implicit_kwargs,
+                                 retval,
+                                 elapsed_ms=(t0 - time.time())
+            )  # uses self.f_params
 
             # log_retval
-            if _get_final_value('log_retval', f_params, kwargs):
+            if _get_final_value('log_retval', self.f_params, kwargs):
                 retval_str = str(retval)
                 if len(retval_str) > log_calls.MAXLEN_RETVALS:
                     retval_str = retval_str[:log_calls.MAXLEN_RETVALS] + "..."
@@ -204,7 +313,7 @@ class log_calls():
                            % (prefixed_fname, retval_str))
 
             # log_exit
-            if _get_final_value('log_exit', f_params, kwargs):
+            if _get_final_value('log_exit', self.f_params, kwargs):
                 logging_fn("%s ==> returning to %s"
                            % (prefixed_fname, ' ==> '.join(call_list)))
             return retval
@@ -218,9 +327,35 @@ class log_calls():
         )
         # Add prefixed name of f as an attribute
         setattr(
-            f,
+            f,      # revert to f, after trying f_log_calls_wrapper_
             self.LOG_CALLS_PREFIXED_NAME,
             prefixed_fname
+        )
+
+        class DecoInstanceProxy():
+            """attributes on deco_instance ==> descriptors on this obj"""
+            first_time = True
+
+            # Note: self = deco class instance from outer scope (__call__)
+            def __init__(self_, deco_instance):
+                self_.deco_instance = self          # deco_instance == self
+                if self_.__class__.first_time:
+                    for descr_name in self._descriptor_names:
+                        setattr(self_.__class__,
+                                descr_name,
+                                self.make_deco_descriptor(descr_name))
+                self_.__class__.first_time = False
+            # TODO : Add methods to THIS class,
+            # todo   which maybe we should think of and rename
+            # todo   as DecoInstanceStats
+            # todo  E.g. call_history_as_csv
+
+
+        stats = DecoInstanceProxy(self)
+        setattr(
+            f_log_calls_wrapper_,
+            'stats',
+            stats
         )
 
         # *** Part of the DecoSettingsMapping "API" --
@@ -256,6 +391,7 @@ class log_calls():
                 # Fixup: get prefixed named of wrapped function
                 call_list[-1] = getattr(curr_frame.f_locals['f'],
                                         log_calls.LOG_CALLS_PREFIXED_NAME)
+                # call_list[-1] = curr_frame.f_locals['prefixed_fname']  # bit of a kludge eh TODO TODO
                 found = True
                 break
             call_list.append(curr_funcname)
@@ -284,7 +420,19 @@ class log_calls():
                         #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                         #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                         #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-
+                    # # TODO FUCK BUT this doesn't work for methods eh
+                    # # No doesn't work for... prefixed fnames!
+                    # # todo BECAUSE <<<<< curr_funcname lacks prefix >>>>>
+                    # # todo Can we fix?
+                    # # WHAT IF WE COULD LOOK UP THE ATTRS OF ANY deco'd fn here,
+                    # # we could get its (static) prefix if it has one
+                    elif ('prefixed_fname' in locls
+                        #  and locls['prefixed_fname'] == curr_funcname   # TODO
+                         ):
+                        # TODO - why? curr_funcname will 'come around for real' next time through loop,
+                        # todo   so remove it from end now
+                        call_list = call_list[:-1]
+                        # and curr_fn is None, so it won't have attr in next "if"
             if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
                 found = True
                 break

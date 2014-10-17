@@ -1,6 +1,57 @@
 #log_calls – a decorator for debugging
 ---
-`log_calls` is a Python 3 decorator that can log the caller of a decorated function, the arguments passed to that function, the function's returned value, and its return to the caller. The decorator can write its messages to stdout using the `print` function, or to a `Logger` obtained from the Python `logging` module. Almost all of these features are optional and configurable, and can be toggled or customized for each decorated function via keyword parameters of the decorator. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation from a decorated function these features can even be controlled dynamically on a per-call basis.
+`log_calls` is a Python 3 decorator that can log the caller of a decorated function, the arguments passed to that function, the function's returned value, and its return to the caller. The decorator can write its messages to stdout using the `print` function, or to a `Logger` from the Python `logging` module. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can dynamically get and set a decorated function's settings, using attributes with the same names as the keywords, or a dict-like interface whose keys are the keywords.
+In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions, a caller can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
+
+##Dependencies
+
+None – this package depends on no others.
+
+##Installation
+### TODO TODO TODO
+*Blah Blah Blah*
+You have two simple options:
+
+1. If you're viewing the repository, copy the `log_calls` folder and its subfolders to a location on your `PYTHONPATH`, or 
+2. run
+
+    `pip install log_calls`
+  
+    ideally in a *virtualenv*.
+
+Running 'pip' will also automatically run the tests in the `log_calls/tests/` folder.
+
+###Testing proper installation and compatibility
+
+ ## TODO Maybe make a simple run_tests.py to put in setup directory, or tests directory, or sumpin? and describe that
+
+####Run the test proper
+Admittedly, running this document is a bit of a stunt – we applaud because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `test_doc_calls.py`, and running that test suite is preferred: none of the tests are skipped there. Running those tests is even simpler – use this command in the `log_calls/tests/` directory:
+
+    $ python test_log_calls [-v]
+
+If you omit the "verbose" switch `-v`, no news is good news: if no errors were encountered, the command succeeds silently and will return you to a fresh prompt.
+If you use the verbose switch, at the end of *a lot * of output you should see:
+
+# TODO UPDATE THIS (SURELY IT ISN'T 98 NOW)
+        
+    1 items passed all tests:
+      98 tests in log_calls.md
+    98 tests in 1 items.
+    98 passed and 0 failed.
+    Test passed.
+    
+####Run this document
+This is runnable documentation. When run in the `log_calls/doc/` directory, which contains this file `log_calls.md`, the command:
+
+    $ python -m doctest log_calls.md
+
+should return you to the prompt ($) with no other output, because no errors should have occurred in the roughly 100 tests. Verbose output from `doctest` can be had by adding the `-v` (verbose) option:
+
+    $ python -m doctest -v log_calls.md
+
+
+Admittedly, running this document is a bit of a stunt – we applaud because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise with those same doctests in `test_doc_calls.py`. The module `test_doc_calls.py` has the same tests as this document, an none of them are skipped, so running that test suite is preferred.
 
 #### Credits
 Argument logging is based on the Python 2 decorator:
@@ -11,47 +62,12 @@ Changes and improvements to the arg logging of that decorator:
 * updated for Python 3 (names of function attributes and the like),
 * configurable separator for args,
 * handling of *args,
-* improved handling of keyword args, properly reflecting what the function decorated receives:
-    * the decorated function's explicit keyword args are listed one by one,
-    * and the implicit keyword args are grouped in kwargs.
+* improved handling of keyword args, properly reflecting what the function receives:
+    * the decorated function's explicit keyword args are listed one by one, and
+    * if the function declares `**kwargs`, the implicit keyword args are collected in that dictionary.
 
 `log_calls` provides a lot of flexibility. This document contains many examples covering a wide range of uses, and includes several _tips und tricks_.
 
-##Dependencies
-
-None.
-
-##Installation
-### TODO TODO TODO
-*Blah Blah Blah*
-
-###Testing proper installation and compatibility
-####Run this document
-This is runnable documentation. When run in the `log_calls/doc/` directory, which contains the file `log_calls.md`, the command:
-
-    $ python -m doctest log_calls.md
-
-should return you to the prompt ($) with no other output, because no errors should have occurred in the roughly 100 tests. Verbose output from `doctest` can be had by adding the `-v` (verbose) option:
-
-    $ python -m doctest -v log_calls.md
-
-If you use the latter command, at the end of *a lot * of output you should see:
-
-# TODO UPDATE THIS (SURELY IT ISN'T 98 NOW)
-        
-    1 items passed all tests:
-      98 tests in log_calls.md
-    98 tests in 1 items.
-    98 passed and 0 failed.
-    Test passed.
-
-####Run the test proper
-Admittedly, running this document is a bit of a stunt – one applauds because it can be run at all, not because it does that so well. A few of the tests had to be skipped using the `#doctest: +SKIP` directive, due to "newline" problems that don't arise when those doctests reside in a .py module. The very same tests appear in `test_doc_calls.py`, and running that test suite is preferred: none of the tests are skipped there. Running those tests is even simpler – run this command in the `log_calls/` directory:
-
-    $ python test_log_calls [-v]
-
-If you omit the "verbose" switch, no news is good news: if no errors were encountered, the command succeeds silently and will return you to a fresh prompt.
-    
 ##Basic usage
 Every example in this document uses `log_calls`, so without further ado:
 

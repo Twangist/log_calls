@@ -1,5 +1,31 @@
 VERSIONS
 --------
+v0.1.10-b5 - Base class for log_calls that does count logging?
+             Possible to Hide some of the housekeeping obligations?
+             call __call__ and bump counters? Arrogate 'enabled' keyword
+             shared by all decos, let's say, every one with this base class.
+             or _blah_enabled? For now no.
+
+             Realization that (the hideously named) DecoSettingsMapping is a mechanism
+             for letting multiple decorators each share their own namespaces,
+             e.g. imagine a log_num_calls deco... or add functionality to base class
+             AND/OR imagine letting subclass of DecoSettingsMapping override
+             make_setting_descriptor (made that a class method). Let caller (subclass?) provide
+             additional keywords to be attrs of the __Mapping object
+                e.g. num_calls
+                    num_logged_calls
+                    num_unlogged_calls
+             or decofn.deco_settings['log_calls'].my_attribute
+             where decofn.deco_settings['log_calls'].my_attribute is a descriptor
+             provided by subclass, and so it can access attrs of "instance"
+             i.e. the __Mapping it's bound to. Suppose at creation it's also bound
+             to an instance of log_calls' base class... make up something...
+
+                def __get__(self, instance, ownercls):
+                    return getattr(instance, name)
+             which could be a property that yields num_calls
+             or could be a property that
+
 v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
              for each setting (e.g. f.log_calls_settings.enabled, you can
              get and set it, i.e. __get__ and __set__ it. Thus,
