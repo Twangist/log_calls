@@ -94,7 +94,7 @@ class log_calls():
         DecoSetting('logger',     logging.Logger, None,          allow_falsy=True,  allow_indirect=True),
         DecoSetting('loglevel',   int,            logging.DEBUG, allow_falsy=False, allow_indirect=True)
     )
-    _descriptor_names = ('num_calls', 'call_history', 'my_property')
+    _descriptor_names = ('num_calls', 'call_history', 'total_elapsed')
 
     DecoSettingsMapping.register_class_settings('log_calls',
                                                 _setting_info_list)
@@ -108,7 +108,7 @@ class log_calls():
             def __get__(self_, stats_dummyObj, owner):
                 "instance: a function returned by __call__"
                 ### print("**** descriptor %s __get__ called" % descr_name)
-                return getattr(stats_dummyObj.deco_instance, '_' + descr_name)
+                return getattr(stats_dummyObj.deco_instance, descr_name)    # '_' + descr_name
 
             def __set__(self_, stats_dummyObj, value):
                 # THese properties are r/o so trying to set the vals should raise an exception
@@ -120,18 +120,17 @@ class log_calls():
 
     # A few generic properties, internal logging, and exposed
     # as descriptors on the __Mapping obj
-    # @property
-    # def num_calls(self):
-    #     return len(self._call_history)
-    #
-    # @property
-    # def call_history(self):
-    #     return self._call_history
+    @property
+    def num_calls(self):
+        return len(self._call_history)
 
     @property
-    def _my_property(self):
-        return sum((histrec.elapsed_ms for histrec in self._call_history))
+    def call_history(self):
+        return self._call_history
 
+    @property
+    def total_elapsed(self):
+        return sum((histrec.elapsed_ms for histrec in self._call_history))
 
     def _add_to_history(self, f,
                         argnames, argvals,
@@ -148,7 +147,6 @@ class log_calls():
                     retval,
                     elapsed_ms)
         )
-        self._num_calls += 1
 
     def __init__(
             self,
@@ -184,7 +182,7 @@ class log_calls():
 
         # Accessed by descriptors on the __Mapping obj
         self._call_history = []
-        self._num_calls = 0
+#        self._num_calls = 0
 
         self.f_params = None    # set properly by __call__
 
@@ -301,7 +299,7 @@ class log_calls():
                                  varargs,
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                                  retval,
-                                 elapsed_ms=(t0 - time.time())
+                                 elapsed_ms=(time.time() - t0)
             )  # uses self.f_params
 
             # log_retval
