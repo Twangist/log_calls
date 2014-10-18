@@ -1,8 +1,8 @@
 __author__ = 'brianoneill'
 __version__ = 'v0.1'
 __doc__ = """
-    Useful stuff :)
     <<<<<< TODO >>>>>>
+    See docstrings for install_proxy_descriptor and KlassInstanceAttrProxy.
 """
 __all__ = ['install_proxy_descriptor', 'KlassInstanceAttrProxy']
 
