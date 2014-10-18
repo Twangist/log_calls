@@ -1,5 +1,16 @@
 VERSIONS
 --------
+v0.1.10-b6 - Lots of changes.
+             Still no base class for log_calls, but architecture of that
+             becomes clearer.
+             New: stats object available on the deco'd function,
+             with attributes num_calls, time_elapsed, call_history
+             Four new keyword parameters: log_elapsed, log_call_numbers,
+             record_history, log_history
+             Nice lil class KlassInstanceAttrProxy (stats is one of them).
+             All tests from v0.1.10-b5 pass, but we still need more tests,
+             and documentation -- now, even more of both than at v0.1.10-b5.
+
 v0.1.10-b5 - Base class for log_calls that does count logging?
              Possible to Hide some of the housekeeping obligations?
              call __call__ and bump counters? Arrogate 'enabled' keyword

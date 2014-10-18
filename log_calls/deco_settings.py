@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b5'
+__version__ = 'v0.1.10-b6'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -48,8 +48,9 @@ is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
 
-from .helpers import is_keyword_param
+from collections import OrderedDict
 import pprint
+from .helpers import is_keyword_param
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -79,6 +80,7 @@ class DecoSettingsMapping():
     """Usable with any class-based decorator that wants to implement
     a mapping interface and attribute interface for its keyword params,
     as well as 'direct' and 'indirect' values for its keyword params"""
+    # Class-level mapping: classname |-> OrderedDict of class's settings (info 'structs')
     _classname2SettingsData_dict = {}
 
     # When this is last char of a parameter value (to decorator),
@@ -94,19 +96,19 @@ class DecoSettingsMapping():
         e.g.
             DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list, descr_names)
 
-        Add item (classname, d) to _classname2SettingsData_dict
-        where d is a dict built from items of settings_iter.
+        Add item (classname, od) to _classname2SettingsData_dict
+        where od is an ordered dict built from items of settings_iter.
         cls: this class
         clsname: key for dict produced from settings_iter
         settings_iter: iterable of Keyed"""
-        d = {}
+        od = OrderedDict()
         for setting in settings_iter:
-            d[setting.name] = setting
+            od[setting.name] = setting
 
-        cls._classname2SettingsData_dict[deco_classname] = d
+        cls._classname2SettingsData_dict[deco_classname] = od
 
         # <<<attributes>>> Set up descriptors
-        for name in d:
+        for name in od:
             setattr(cls, name, cls.make_setting_descriptor(name))
 
     # <<<attributes>>>
@@ -152,18 +154,14 @@ class DecoSettingsMapping():
         self.deco_class = deco_class
         class_settings_dict = self._deco_class_settings_dict
 
+        # We'd use an OrderedDict here too, but values_dict is just vanilla
+        # and update iterates through that.
         self._tagged_values_dict = {}    # stores pairs inserted by __setitem__
 
-        # for k, v in values_dict.items():
-        #     self.__setitem__(k, v, _class_settings_dict_=class_settings_dict)
+        # Equivalent to:
+        #   for k, v in values_dict.items():
+        #       self.__setitem__(k, v, _class_settings_dict_=class_settings_dict)
         self.update(_class_settings_dict_=class_settings_dict, **values_dict)
-
-######### MOVED to deco_class __init__
-        # # setup descriptors. So, for every descr_name list/tuple self._deco_class_descriptor_names,
-        # # e.g. 'num_calls', this will name a descriptor provided by the deco_class,
-        # # e.g. (base implementation) an attribute of the same name in the deco_class
-        # for descr_name in self._deco_class_descriptor_names:
-        #     setattr(self, descr_name, self.deco_class_instance.make_deco_descriptor(descr_name))
 
     def is_setting(self, name):
         return name in self._deco_class_settings_dict
@@ -276,32 +274,51 @@ class DecoSettingsMapping():
         """Return (indirect, value) for key"""
         return self._tagged_values_dict[key]
 
-    def get_final_value(self, name, fparams, kwargs):
+    def get_final_value(self, name, *dicts, fparams):
         """
         name:    key into self._tagged_values_dict, self._setting_info_list
-        fparams: inspect.signature(f).parameters of some function f
-        kwargs:  kwargs of a call to that function f
+        *dicts:  varargs, usually just kwargs of a call to some function f,
+                 but it can also be e.g. *(explicit_kwargs, defaulted_kwargs,
+                 implicit_kwargs) of that function f,
+        fparams: inspect.signature(f).parameters of that function f
+                 NOTE: it's a keyword-ONLY argument
         THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.
+        A very (deco-)specific method, it seems
         """
+        # (TODO!?) THUS  is this really the right place/class for this method?
+        # todo    Certainly this method needs
+        # todo         DecoSetting for name                   and
+        # todo         self._tagged_values_dict[name]         and
+        # todo         self._deco_class_settings_dict[name]
+
         indirect, di_val = self._tagged_values_dict[name]  # di_ - direct or indirect
         if not indirect:
             return di_val
 
+        # di_val designates a (potential) f-keyword
+
         setting_info = self._deco_class_settings_dict[name]
         final_type = setting_info.final_type
         default = setting_info.default
-        allow_falsy = setting_info.default
+        allow_falsy = setting_info.allow_falsy
 
-        # di_val designates a (potential) f-keyword
-        if di_val in kwargs:            # actually passed to f
-            val = kwargs[di_val]
-        elif is_keyword_param(fparams.get(di_val)): # not passed; explicit f-kwd?
-            # yes, explicit param of f, so use f's default value
-            val = fparams[di_val].default
-        else:
-            val = default
+        # If di_val is in any of the dictionaries, get corresponding value
+        found = False
+        for d in dicts:
+            if di_val in d:            # actually passed to f
+                val = d[di_val]
+                found = True
+                break
+
+        if not found:
+            if fparams and is_keyword_param(fparams.get(di_val)): # not passed; explicit f-kwd?
+                # yes, explicit param of f, so use f's default value
+                val = fparams[di_val].default
+            else:
+                val = default
+
         # fixup: "loggers" that aren't loggers, "strs" that arent strs, etc
         if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
             val = default

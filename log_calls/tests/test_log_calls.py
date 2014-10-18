@@ -2,8 +2,6 @@ __author__ = 'brianoneill'
 
 from log_calls import log_calls
 
-import pdb
-
 
 #############################################################################
 # doctests
@@ -17,7 +15,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     ...     pass
     >>> fn0(1, 2, 3)
     fn0 <== called by <module>
-        args: a=1, b=2, c=3
+        arguments: a=1, b=2, c=3
     fn0 ==> returning to <module>
 
     >>> @log_calls(enabled=False)
@@ -30,7 +28,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     ...     print(a + b + c)
     >>> fn2(1, 2, 3, u='you')       # doctest: +NORMALIZE_WHITESPACE
     fn2 <== called by <module>
-        args:
+        arguments:
             a=1
             b=2
             c=3
@@ -43,7 +41,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     ...     return a + b + c
     >>> _ = fn3(1, 2, 3)
     fn3 <== called by <module>
-        args: a=1, b=2, c=3
+        arguments: a=1, b=2, c=3
 
 
     >>> @log_calls(log_retval=True)
@@ -51,7 +49,7 @@ Basic examples - the enabled, args_sep, log_exit, log_retval keyword parameters.
     ...     return a + b + c
     >>> _ = fn4(1, 2, 3)
     fn4 <== called by <module>
-        args: a=1, b=2, c=3
+        arguments: a=1, b=2, c=3
         fn4 return value: 6
     fn4 ==> returning to <module>
 
@@ -80,8 +78,8 @@ Without this, you'd have to guess at what had been called in between
 calls to functions decorated by log_calls.
 
 In the following example, four of the five functions have no parameters,
-so log_calls shows no "args:" section for them. g3 takes one optional
-argument but is called with none, so log_calls displays "args: <none>".
+so log_calls shows no "arguments:" section for them. g3 takes one optional
+argument but is called with none, so log_calls displays "arguments: <none>".
 
     >>> @log_calls()
     ... def g1():
@@ -89,7 +87,7 @@ argument but is called with none, so log_calls displays "args: <none>".
     >>> def g2():
     ...     g1()
     >>> @log_calls()
-    ... def g3(optional=''):    # g3 will have an 'args:' section
+    ... def g3(optional=''):    # g3 will have an 'arguments:' section
     ...     g2()
     >>> def g4():
     ...     g3()
@@ -99,7 +97,7 @@ argument but is called with none, so log_calls displays "args: <none>".
     >>> g5()
     g5 <== called by <module>
     g3 <== called by g4 <== g5
-        args: <none>
+        arguments: (defaults used)={'optional': ''}
     g1 <== called by g2 <== g3
     g1 ==> returning to g2 ==> g3
     g3 ==> returning to g4 ==> g5
@@ -137,9 +135,9 @@ that it has decorated:
     h5 <== called by <module>
     h4_inner <== called by h5
     h1_inner <== called by h2 <== h3 <== h4_inner
-        args: y=3
+        arguments: y=3
     h0 <== called by h1_inner
-        args: z=6
+        arguments: z=6
     h0 ==> returning to h1_inner
     h1_inner ==> returning to h2 ==> h3 ==> h4_inner
     h4_inner ==> returning to h5
@@ -202,15 +200,15 @@ value, and when the method is at the end of a call or return chain.
 
     >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
     Point.diag_reflect <== called by <module>
-        args: self=Point(1, 2)
+        arguments: self=Point(1, 2)
     Point.diag_reflect ==> returning to <module>
     Point(1, 2).diag_reflect() = Point(2, 1)
 
     >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS
     Point.length <== called by <module>
-        args: self=Point(1, 2)
+        arguments: self=Point(1, 2)
     Point.distance <== called by Point.length
-        args: pt1=Point(1, 2), pt2=Point(0, 0)
+        arguments: pt1=Point(1, 2), pt2=Point(0, 0)
     Point.distance ==> returning to Point.length
         Point.length return value: 2.236...
     Point.length ==> returning to <module>
@@ -277,13 +275,13 @@ and prefix has a direct value. A call can dynamically override the default
 value '|' in the signature of f by supplying a value:
     >>> f(1, 2, 3, sep=' / ')
     *** f <== called by <module>
-        args: a=1 / b=2 / c=3 / sep=' / '
+        arguments: a=1 / b=2 / c=3 / sep=' / '
     *** f ==> returning to <module>
 
 or it can use f's default value by not supplying a sep argument:
     >>> f(1, 2, 3)
     *** f <== called by <module>
-        args: a=1|b=2|c=3
+        arguments: a=1|b=2|c=3|(defaults used)={'sep': '|'}
     *** f ==> returning to <module>
 
 A decorated function doesn't have to explicitly declare the named parameter,
@@ -298,9 +296,9 @@ When the following statement is executed, the calls to both func1 and func2
 will be logged:
     >>> func2(17, enable=True)
     func2 <== called by <module>
-        args: z=17, [**]func2_kwargs={'enable': True}
+        arguments: z=17, [**]func2_kwargs={'enable': True}
     func1 <== called by func2
-        args: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
+        arguments: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
     func1 ==> returning to func2
     func2 ==> returning to <module>
 
@@ -325,7 +323,7 @@ Additional Tests for log_args, log_retval, log_exit with indirect values
     ...     return x**2
     >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
     f <== called by <module>
-        args: x=2, [**]kwargs={'logexit': False}
+        arguments: x=2, [**]kwargs={'logexit': False}
 
     >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
     f <== called by <module>
@@ -345,18 +343,19 @@ the same indirect parameter keywords:
     ...     print(a+b+c)
     >>> f(1,2,3, u='you')                   # doctest: +NORMALIZE_WHITESPACE
     f <== called by <module>
-        args: a=1, b=2, c=3, u='you'
+        arguments: a=1, b=2, c=3, u='you', (defaults used)={'v': 9}
     6
     f ==> returning to <module>
 
     >>> f(1,2,3, u="you", sep_='\\n')        # doctest: +NORMALIZE_WHITESPACE
     f <== called by <module>
-        args:
+        arguments:
             a=1
             b=2
             c=3
             u='you'
             [**]kwargs={'sep_': '\\n'}
+            (defaults used)={'v': 9}
     6
     f ==> returning to <module>
 
@@ -368,21 +367,22 @@ their roles are unambiguous and their names are available to log_calls which
 will use them:
     >>> @log_calls(args_sep='sep_=')
     ... def g(a, b, c, *g_args, **g_kwargs):
-    ...     f(a, b, c, **kwargs)
+    ...     f(a, b, c, **g_kwargs)
     >>> g(1,2,3, 42, 99, sep_='\\n')       # doctest: +NORMALIZE_WHITESPACE
     g <== called by <module>
-        args:
+        arguments:
             a=1
             b=2
             c=3
             [*]g_args=(42, 99)
             [**]g_kwargs={'sep_': '\\n'}
     f <== called by g
-        args:
+        arguments:
             a=1
             b=2
             c=3
             [**]kwargs={'sep_': '\\n'}
+            (defaults used)={'u': '', 'v': 9}
     6
     f ==> returning to g
     g ==> returning to <module>
@@ -404,11 +404,11 @@ to tell it that the order doesn't matter.
     >>> for i in range(2):
     ...     h(i, i+1, 'a', 'b', u='somebody', enable=i%2, sep_=', ')       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     h <== called by <module>
-        args: a=1, b=2, [*]args=('a', 'b'), enable=1, [**]kwargs={...}
+        arguments: a=1, b=2, [*]args=('a', 'b'), enable=1, [**]kwargs={...}
     g <== called by h
-        args: a=1, b=2, c=10, [*]g_args=('a', 'b'), [**]g_kwargs={...}
+        arguments: a=1, b=2, c=10, [*]g_args=('a', 'b'), [**]g_kwargs={...}
     f <== called by g
-        args: a=1, b=2, c=10, u='somebody', [**]kwargs={'sep_': ', '}
+        arguments: a=1, b=2, c=10, u='somebody', [**]kwargs={'sep_': ', '}, (defaults used)={'v': 9}
     13
     f ==> returning to g
     g ==> returning to h
@@ -441,7 +441,7 @@ Here we get output, without having to pass `debug=True`:
 
     >>> do_more_stuff_t(9)
     do_more_stuff_t <== called by <module>
-        args: a=9
+        arguments: a=9, (defaults used)={'debug': True}
     do_more_stuff_t ==> returning to <module>
 
 and here we get none:
@@ -461,7 +461,7 @@ but here we do get output:
 
     >>> do_more_stuff_f(4, debug=True)
     do_more_stuff_f <== called by <module>
-        args: a=4, debug=True
+        arguments: a=4, debug=True
     do_more_stuff_f ==> returning to <module>
 
 ###Examples of condition 2.
@@ -472,7 +472,7 @@ but here we do get output:
     >>> bar(debug=False)  # no output
     >>> bar(debug=True)   # output
     bar <== called by <module>
-        args: [**]kwargs={'debug': True}
+        arguments: [**]kwargs={'debug': True}
     bar ==> returning to <module>
 
     >>> bar()         # no output: enabled=<keyword> overrides enabled=True
@@ -498,13 +498,13 @@ No output:
 Only log_calls output:
     >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_BASIC)
     do_stuff_with_commentary <== called by <module>
-        args: debuglevel=1
+        arguments: debuglevel=1
     do_stuff_with_commentary ==> returning to <module>
 
 log_calls output plus the function's debugging reportage:
     >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_VERBOSE)
     do_stuff_with_commentary <== called by <module>
-        args: debuglevel=2
+        arguments: debuglevel=2
     *** extra debugging info ***
     do_stuff_with_commentary ==> returning to <module>
 
@@ -536,7 +536,7 @@ that logger rather than the print function:
     ...     logger.debug(v1 + v2)
     >>> somefunc(5, 16)       # doctest: +NORMALIZE_WHITESPACE
     DEBUG:mylogger:somefunc <== called by <module>
-        args: v1=5, v2=16
+        arguments: v1=5, v2=16
     DEBUG:mylogger:21
     DEBUG:mylogger:somefunc ==> returning to <module>
 
@@ -546,7 +546,7 @@ that logger rather than the print function:
     >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
     DEBUG:mylogger:anotherfunc <== called by <module>
     DEBUG:mylogger:somefunc <== called by anotherfunc
-        args: v1=17, v2=19
+        arguments: v1=17, v2=19
     DEBUG:mylogger:36
     DEBUG:mylogger:somefunc ==> returning to anotherfunc
     DEBUG:mylogger:anotherfunc ==> returning to <module>
@@ -567,7 +567,7 @@ uses the default separator ', '.)
     ...     print(x * y + z)
     >>> r(1, 2, 3, enable=True)
     r <== called by <module>
-        args: x=1, y=2, z=3, [**]kwargs={'enable': True}
+        arguments: x=1, y=2, z=3, [**]kwargs={'enable': True}
     5
     r ==> returning to <module>
 
@@ -586,13 +586,13 @@ separator '\\n'):
     >>> #            'enable': True, 'sep_': '\\n'}
     >>> t(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     DEBUG:mylogger:t <== called by <module>
-        args:
+        arguments:
             x=1
             y=2
             z=3
             [**]kwargs={...}
     DEBUG:mylogger:r <== called by s <== t
-        args:
+        arguments:
             x=1
             y=2
             z=3
@@ -637,7 +637,7 @@ but now we do get output:
     ...                   logger_=logger,
     ...                   loglevel_=logging.INFO)    # doctest: +ELLIPSIS
     INFO:mylogger:indirect_loglevel <== called by <module>
-        args: a=5, x=3, y=3, [**]kwargs={...}
+        arguments: a=5, x=3, y=3, [**]kwargs={...}
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
 
@@ -749,7 +749,7 @@ will also print extra debugging information:
     >>> class A(metaclass=A_meta, A_debug=True):    # doctest: +NORMALIZE_WHITESPACE
     ...     pass
     A_meta.__prepare__ <== called by <module>
-        args:
+        arguments:
             mcs=<class '__main__.A_meta'>
             cls_name='A'
             bases=()
@@ -759,7 +759,7 @@ will also print extra debugging information:
         Returning dict: OrderedDict([('key-from-__prepare__', 1729)])
     A_meta.__prepare__ ==> returning to <module>
     A_meta.__new__ <== called by <module>
-        args:
+        arguments:
             mcs=<class '__main__.A_meta'>
             cls_name='A'
             bases=()
@@ -773,7 +773,7 @@ will also print extra debugging information:
                                                         ('key-from-__new__', 'No, Hardy!')])
     A_meta.__new__ ==> returning to <module>
     A_meta.__init__ <== called by <module>
-        args:
+        arguments:
             cls=<class '__main__.A'>
             cls_name='A'
             bases=()
@@ -794,6 +794,24 @@ any log_calls output:
 
 if __name__ == "__main__":
 
+
+    # @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
+    # def r(x, y, z, **kwargs):
+    #     print(x * y + z)
+    # r(1, 2, 3, enable=True)
+    # """
+    # Got:
+    #     5
+    # Expecting:
+    #     r <== called by <module>
+    #         arguments: x=1, y=2, z=3, [**]kwargs={'enable': True}
+    #     5
+    #     r ==> returning to <module>
+    # """
+    # exit(16)
+
+    ################################################################
+
     @log_calls(enabled='enable')
     def func1(a, b, c, **func1_kwargs): pass
     @log_calls(enabled='enable')
@@ -806,14 +824,14 @@ if __name__ == "__main__":
 
 
 
-    @log_calls()
+    @log_calls(record_history=True, log_call_number=True, log_elapsed=True)
     def g1():
         pass
     def g2():
         g1()
 
-    @log_calls()
-    def g3(optional=''):    # g3 will have an 'args:' section
+    @log_calls(record_history=True)
+    def g3(optional=''):    # g3 will have an 'arguments:' section
         g2()
     g3()
     # def g4():
@@ -898,7 +916,14 @@ if __name__ == "__main__":
     print('d.loglevel =', d.loglevel)
     print("d.args_sep = '%s'" % d.args_sep)
 
-    print('-------full set of changes via __set__ of every descriptor')
+    print("d.record_history =" , d.record_history)
+    print("d.max_history =" , d.max_history)
+    print("d.log_elapsed =", d.log_elapsed)
+    print("d.log_call_number =", d.log_call_number)
+
+    # Check state of myfunc.log_calls_settings:
+    print("Initial myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+    print('-------Now do a full set of changes via __set__ of every descriptor')
     # and here's the descriptors' __set__ method being exercised
     d.enabled = 17
     d.log_retval = False
@@ -908,9 +933,13 @@ if __name__ == "__main__":
     d.logger = 'different_logger_kwd='
     d.loglevel = logging.CRITICAL
     d.args_sep = 'different_args_sep='
+    d.record_history = True
+    d.max_history = -1
+    d.log_elapsed = True
+    d.log_call_number = True
 
     # Check state of myfunc.log_calls_settings:
-    print("myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+    print("Now, myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
 
     # Fail... with AttributeError?
     try:
