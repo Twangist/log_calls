@@ -16,110 +16,21 @@ from functools import wraps, partial
 import logging
 import sys
 import time
+import datetime
 from collections import namedtuple, OrderedDict     # TODO ordered dict of args & vals useful for history?
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .helpers import difference_update, is_keyword_param, get_args_kwargs_param_names
+from .proxy_descriptors import KlassInstanceAttrProxy
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
-
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# helpers
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, readonly=False):
-    """
-    Create and install (setattr) on proxy_obj a descriptor named descr_name
-    assuming proxy_obj has an attribute named attr_name_proxied_instance
-    which 'points' to an object that already has an attr/descr named descr_name;
-    the created descriptor will then just defer to that anterior attr/descr.
-
-    Suppose a, b are instances of classes A, B resp.,
-    and suppose b has an attr 'my_a' that points to a:
-        assert b.my_a is a
-    Suppose a has attributes 'x' 'y' and 'z' which b wants to reflect
-    aka proxy, so that the value of b.x will be (will invoke) a.x
-    and similarly for y, z.
-    b can set this up, as follows:
-        install_proxy_descriptor(b, 'my_a', 'x')   # b: b itself would say, self
-    """
-    class ProxyDescr():
-        def __get__(this_descr, proxy, owner):
-            "todo"
-            ### print("**** descriptor %s __get__ called" % descr_name)
-            return getattr(
-                        getattr(proxy, attr_name_proxied_instance),
-                        descr_name)
-
-        def __set__(this_descr, proxy, value):
-            "todo"
-            if not readonly:
-                setattr(
-                    getattr(proxy, attr_name_proxied_instance),
-                    descr_name,
-                    value)
-            else:
-                # no can do:
-                # TODO test!
-                raise AttributeError("%s is r/o on %r" % (descr_name, proxy))
-
-    proxy_descr = ProxyDescr()
-    setattr(proxy_obj.__class__, descr_name, proxy_descr)
-
-
-class KlassInstanceAttrProxy():
-    """attributes on (instances of) some other class Klass ==>
-            readonly data descriptors on (instances of) this class.
-    This class keeps a record of which other klasses it has already created
-    descriptors for (classes_proxied, initially empty set).
-
-    The transform '==>' is accomplished by install_proxy_descriptor.
-
-    Note that the attributes of instances of Klass that are exposed this way
-    can themselves be descriptors (e.g. properties).
-    """
-    # Only create descriptors on the class once:
-    # for a given descr_name (attr name) they'd be the same :)
-    klasses_proxied = set()
-    # but ensure that different classes use disjoint attr/descr names
-    descr_name2klass = {}       # map descr_name --> klass
-
-    def __init__(self, *, klass_instance):
-        """What makes these work is the klass_instance arg,
-        which a descriptor uses to access a klass_instance
-        and from that its attr of the same name."""
-        self.deco_instance = klass_instance
-
-        klassname = klass_instance.__class__.__name__
-        if klassname not in self.klasses_proxied:
-            # Create descriptors *** on the class ***, once only per class.
-            # Same __get__/__set__ functions, called on different instances.
-            # It doesn't work to create them on instances:
-            #         setattr(self, ... ) doesn't fly.
-            klass_descr_names = klass_instance.get_descriptor_names()
-
-            # Make sure klass_descr_names is disjoint from descr_name2klass keys,
-            # else somebody else gets clobbered (say who! which other klass)
-            for descr_name in klass_descr_names:
-                if descr_name in self.descr_name2klass:
-                    # Note: klassname is still not in klasses_proxied
-                    raise AttributeError("attribute/descriptor-name %s already registered by class %s"
-                                         % (descr_name, self.descr_name2klass[descr_name]))
-
-            for descr_name in klass_descr_names:
-                # Create & add descriptor to this class
-                install_proxy_descriptor(self, 'deco_instance', descr_name, readonly=True)
-
-            # Record this class as 'already (successfully!) handled'
-            self.klasses_proxied.add(klassname)
 
 
 #------------------------------------------------------------------------------
 # log_calls
 #------------------------------------------------------------------------------
 # TODO: add field(s):
-# todo       timestamp (can just use t0 ?? or convert time.time() [ms?] to datetime.datetime (sic))
+# todo       timestamp (can just use t0 ?? or convert time.time() [sec] to datetime.datetime (sic))
 # todo       function name? probably. In fact, prefixed name
 
 CallHistoryRecord = namedtuple(
@@ -129,7 +40,9 @@ CallHistoryRecord = namedtuple(
         'varargs',
         'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
         'retval',
-        'elapsed_ms'
+        'elapsed_sec',
+        'timestamp',
+        'function_name'
     )
 )
 
@@ -180,7 +93,7 @@ class log_calls():
         log_call_number:  If truthy, display number of function call
                            e.g.  f [n] <== <module>   for n-th call. (Default: False)
         log_elapsed:       If truthy, display how long it took the function
-                           to execute, in milliseconds. (Default: False)
+                           to execute, in seconds. (Default: False)
 
     """
     # TODO: keyword parameters for control over stats
@@ -244,7 +157,7 @@ class log_calls():
 
     @property
     def total_elapsed(self):
-        return sum((histrec.elapsed_ms for histrec in self._call_history))
+        return sum((histrec.elapsed_sec for histrec in self._call_history))
 
     # TODO : Add more properties in this vein?
     # todo  E.g. call_history_as_csv
@@ -254,7 +167,10 @@ class log_calls():
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval=None,
-                        elapsed_ms=0):
+                        elapsed_sec=0,
+                        timestamp_secs=0,
+                        function_name=''
+    ):
         "Only called for *logged* calls"
         self._num_calls += 1
 
@@ -264,6 +180,10 @@ class log_calls():
                                 fparams=None
         )
         if record_history:
+            # Convert timestamp_secs to datetime
+            timestamp = datetime.datetime.fromtimestamp(timestamp_secs).\
+                strftime('%Y-%m-%d %I:%M:%S %p')
+
             # TODO: Use self.max_history if > 0
             # todo  Need some kinda object with an insert method that always succeeds
             # todo  and which can be converted to a list exposed by property call_history
@@ -273,7 +193,9 @@ class log_calls():
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval,
-                        elapsed_ms)
+                        elapsed_sec,
+                        timestamp,
+                        function_name)
         )
 
     def __init__(
@@ -353,7 +275,7 @@ class log_calls():
             # if nothing to do, hurry up & don't do it
             if not _get_final_value('enabled'):
                 ### # call f after adding to stats, return its retval
-                ### self._add_to_history(f, args, kwargs, logged=False)     # uses self.f_params
+                ### self._add_to_history(f, args, kwargs, logged=False)
                 return f(*args, **kwargs)
 
             logger = _get_final_value('logger')
@@ -369,9 +291,11 @@ class log_calls():
             indent = " " * 4
 
             log_call_number = _get_final_value('log_call_number')
+            call_number_str = ('[%s] ' % (self.num_calls+1)) if log_call_number else ''
+
             msg = ("%s %s<== called by %s"
                    % (prefixed_fname,
-                      ('[%s] ' % (self.num_calls+1)) if log_call_number else '',
+                      call_number_str,
                       ' <== '.join(call_list)))
 
             # Gather all the things we need for _add_history (sic)
@@ -436,13 +360,15 @@ class log_calls():
             # then add elapsed time and retval (as str? repr?) etc to stats
             t0 = time.time()
             retval = f(*args, **kwargs)
-            elapsed_ms = (time.time() - t0)
+            elapsed_sec = (time.time() - t0)
             self._add_to_history(f, argnames, args[:argcount],
                                  varargs,
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                                  retval,
-                                 elapsed_ms=elapsed_ms
-            )  # uses self.f_params
+                                 elapsed_sec=elapsed_sec,
+                                 timestamp_secs=t0,
+                                 function_name=prefixed_fname
+            )
 
             # log_retval
             if _get_final_value('log_retval'):
@@ -452,13 +378,16 @@ class log_calls():
                 logging_fn(indent + "%s return value: %s"
                            % (prefixed_fname, retval_str))
 
+            # log_elapsed
             if _get_final_value('log_elapsed'):
-                logging_fn(indent + "elapsed time: %f [ms]" % elapsed_ms)
+                logging_fn(indent + "elapsed time: %f [sec]" % elapsed_sec)
 
             # log_exit
             if _get_final_value('log_exit'):
-                logging_fn("%s ==> returning to %s"
-                           % (prefixed_fname, ' ==> '.join(call_list)))
+                logging_fn("%s %s==> returning to %s"
+                           % (prefixed_fname,
+                              call_number_str,
+                              ' ==> '.join(call_list)))
             return retval
 
         # Add a sentinel as an attribute to f_log_calls_wrapper_
