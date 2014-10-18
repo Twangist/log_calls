@@ -330,26 +330,44 @@ class log_calls():
             prefixed_fname
         )
 
-        class DecoInstanceProxy():
-            """attributes on deco_instance ==> descriptors on this obj"""
-            first_time = True
+        class DecoInstanceAttrProxy():
+            """attributes on deco_instance ==> (data) descriptors on this obj.
+            ANYWAY that's what the make_deco_descriptor and this class implement.
+            The transform '==>' is accomplished by make_deco_descriptor.
+            Note that the log_calls attributes that are exposed this way
+            are themselves descriptors (properties).
+            """
+            # TODO How about *shared* descriptors -- (data) shared by all instances of a deco class
 
             # Note: self = deco class instance from outer scope (__call__)
-            def __init__(self_, deco_instance):
-                self_.deco_instance = self          # deco_instance == self
-                if self_.__class__.first_time:
-                    for descr_name in self._descriptor_names:
-                        setattr(self_.__class__,
-                                descr_name,
-                                self.make_deco_descriptor(descr_name))
-                self_.__class__.first_time = False
+            # But we'll restore deco_instance because we don't want to
+            # keep this an inner class.
+            def __init__(self_, *, deco_instance):
+                """What makes these work is the deco_instance arg,
+                which a descriptor uses to access a deco_instance"""
+                self_.deco_instance = deco_instance
+                # Create descriptors *** on the class ***.
+                # Same __get__/__set__ functions, called on different instances
+                # TODO Why not on the instance? That SHOULD work, no? Well, it doesn't:
+                #         setattr(self_ ... ) doesn't work.
+                # So the class will have e.g. as many 'num_calls' descriptors
+                # as there are deco-instances.
+                # TODO Where are these multiple 'num_calls" descrs stored??
+                for descr_name in self._descriptor_names:
+                    setattr(self_.__class__,
+                            descr_name,
+                            deco_instance.make_deco_descriptor(descr_name))
+                    # TODO TODO Move make_deco_descriptor to THIS class from deco_instance,
+                    # TODO rejigger so that call becomes
+                    # todo    self_.make_deco_descriptor(descr_name, deco_instance))
+
             # TODO : Add methods to THIS class,
             # todo   which maybe we should think of and rename
             # todo   as DecoInstanceStats
             # todo  E.g. call_history_as_csv
 
 
-        stats = DecoInstanceProxy(self)
+        stats = DecoInstanceAttrProxy(deco_instance=self)
         setattr(
             f_log_calls_wrapper_,
             'stats',

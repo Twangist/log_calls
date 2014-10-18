@@ -362,9 +362,12 @@ the same indirect parameter keywords:
 
 In the next example, the separator value supplied to g by keyword argument
 propagates to f when g calls it. Note that the arguments 42 and 99 end up
-in the *args tuple of g:
+in the "varargs" tuple of g. We've give the variable-size, collect-all-the-rest
+arguments unusual names to illustrate that whatever you call these parameters,
+their roles are unambiguous and their names are available to log_calls which
+will use them:
     >>> @log_calls(args_sep='sep_=')
-    ... def g(a, b, c, *args, **kwargs):
+    ... def g(a, b, c, *g_args, **g_kwargs):
     ...     f(a, b, c, **kwargs)
     >>> g(1,2,3, 42, 99, sep_='\\n')       # doctest: +NORMALIZE_WHITESPACE
     g <== called by <module>
@@ -372,8 +375,8 @@ in the *args tuple of g:
             a=1
             b=2
             c=3
-            [*]args=(42, 99)
-            [**]kwargs={'sep_': '\\n'}
+            [*]g_args=(42, 99)
+            [**]g_kwargs={'sep_': '\\n'}
     f <== called by g
         args:
             a=1
@@ -390,8 +393,9 @@ NOTE: In the following example,
     [**]kwargs={'sep_': ', ', 'u': 'somebody'}
 or
     [**]kwargs={'u': 'somebody', 'sep_': ', '}
-Only the order of items is different, but doctest is very literal, and provides
-no way other than ellipsis to tell it that the order doesn't matter.
+and similarly for g_kwargs. Only the order of items is different,
+but doctest is very literal, and provides no way other than ellipsis
+to tell it that the order doesn't matter.
 
     >>> @log_calls(args_sep='sep_=', enabled='enable=')
     ... def h(a, b, *args, enable=True, **kwargs):
@@ -402,7 +406,7 @@ no way other than ellipsis to tell it that the order doesn't matter.
     h <== called by <module>
         args: a=1, b=2, [*]args=('a', 'b'), enable=1, [**]kwargs={...}
     g <== called by h
-        args: a=1, b=2, c=10, [*]args=('a', 'b'), [**]kwargs={...}
+        args: a=1, b=2, c=10, [*]g_args=('a', 'b'), [**]g_kwargs={...}
     f <== called by g
         args: a=1, b=2, c=10, u='somebody', [**]kwargs={'sep_': ', '}
     13
@@ -807,6 +811,7 @@ if __name__ == "__main__":
         pass
     def g2():
         g1()
+
     @log_calls()
     def g3(optional=''):    # g3 will have an 'args:' section
         g2()
@@ -821,15 +826,19 @@ if __name__ == "__main__":
     for i in range(3):
         g1()
 
-    whatis = g1.stats.num_calls
-    whatis2 = g1.stats.call_history
-    elapsed = g1.stats.total_elapsed
 
     print("g1 has been called %d times" % g1.stats.num_calls)
     hist_str = '\n'.join(map(str, g1.stats.call_history))
     print("g1 call history: \n%s" % hist_str)
+    print("g1 total elapsed time =", g1.stats.total_elapsed)
+    print('- - - - - - - - - - - - - - ')
+    # ~Same for g3 (1 call)
+    print("g3 has been called %d times" % g3.stats.num_calls)
+    hist_str = '\n'.join(map(str, g3.stats.call_history))
+    print("g3 call history: \n%s" % hist_str)
+    print("g3 total elapsed time =", g3.stats.total_elapsed)
+    print('- - - - - - - - - - - - - - ')
 
-    print("g1 total elapsed time =", elapsed)
 
     @log_calls()
     def h0(z):
