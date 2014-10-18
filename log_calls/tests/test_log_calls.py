@@ -368,7 +368,7 @@ will use them:
     >>> @log_calls(args_sep='sep_=')
     ... def g(a, b, c, *g_args, **g_kwargs):
     ...     f(a, b, c, **g_kwargs)
-    >>> g(1,2,3, 42, 99, sep_='\\n')       # doctest: +NORMALIZE_WHITESPACE
+    >>> g(1,2,3, 42, 99, sep_='\\n')       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     g <== called by <module>
         arguments:
             a=1
@@ -382,10 +382,14 @@ will use them:
             b=2
             c=3
             [**]kwargs={'sep_': '\\n'}
-            (defaults used)={'u': '', 'v': 9}
+            (defaults used)={...}
     6
     f ==> returning to g
     g ==> returning to <module>
+
+NOTE: in the above, the "defaults used" for f are:
+            (defaults used)={'u': '', 'v': 9}
+but the item order can vary.
 
 An artificial example, using the most recent f and g
 - - - - - - - - - - - - - - - - - - - - - - - - - - -

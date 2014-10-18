@@ -24,30 +24,57 @@ from .helpers import difference_update, is_keyword_param, get_args_kwargs_param_
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 
 
-# TODO: add field(s):
-# todo       timestamp (can just use t0 ?? or convert time.time() [ms?] to datetime.datetime (sic))
-# todo       function name? probably. In fact, prefixed name
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# helpers
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-CallHistoryRecord = namedtuple(
-    "CallHistoryRecord",
-    (
-        'argnames', 'argvals',
-        'varargs',
-        'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
-        'retval',
-        'elapsed_ms'
-    )
-)
+def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, readonly=False):
+    """
+    Create and install (setattr) on proxy_obj a descriptor named descr_name
+    assuming proxy_obj has an attribute named attr_name_proxied_instance
+    which 'points' to an object that already has an attr/descr named descr_name;
+    the created descriptor will then just defer to that anterior attr/descr.
+
+    Suppose a, b are instances of classes A, B resp.,
+    and suppose b has an attr 'my_a' that points to a:
+        assert b.my_a is a
+    Suppose a has attributes 'x' 'y' and 'z' which b wants to reflect
+    aka proxy, so that the value of b.x will be (will invoke) a.x
+    and similarly for y, z.
+    b can set this up, as follows:
+        install_proxy_descriptor(b, 'my_a', 'x')   # b: b itself would say, self
+    """
+    class ProxyDescr():
+        def __get__(this_descr, proxy, owner):
+            "todo"
+            ### print("**** descriptor %s __get__ called" % descr_name)
+            return getattr(
+                        getattr(proxy, attr_name_proxied_instance),
+                        descr_name)
+
+        def __set__(this_descr, proxy, value):
+            "todo"
+            if not readonly:
+                setattr(
+                    getattr(proxy, attr_name_proxied_instance),
+                    descr_name,
+                    value)
+            else:
+                # no can do:
+                # TODO test!
+                raise AttributeError("%s is r/o on %r" % (descr_name, proxy))
+
+    proxy_descr = ProxyDescr()
+    setattr(proxy_obj.__class__, descr_name, proxy_descr)
 
 
 class KlassInstanceAttrProxy():
-    """attributes on instances of some other class Klass ==>
-            (data) descriptors on an instance of this class.
+    """attributes on (instances of) some other class Klass ==>
+            readonly data descriptors on (instances of) this class.
     This class keeps a record of which other klasses it has already created
-    descriptors for (initially empty set, classes_proxied).
+    descriptors for (classes_proxied, initially empty set).
 
-    ANYWAY that's what the make_deco_descriptor and this class implement.
-    The transform '==>' is accomplished by make_deco_descriptor.
+    The transform '==>' is accomplished by install_proxy_descriptor.
 
     Note that the attributes of instances of Klass that are exposed this way
     can themselves be descriptors (e.g. properties).
@@ -82,36 +109,30 @@ class KlassInstanceAttrProxy():
 
             for descr_name in klass_descr_names:
                 # Create & add descriptor to this class
-                setattr(self.__class__,
-                        descr_name,
-                        self.make_proxy_descriptor(descr_name))
-                # and add attr/descr name fo class-level map
-                self.descr_name2klass[descr_name] = klassname
+                install_proxy_descriptor(self, 'deco_instance', descr_name, readonly=True)
 
             # Record this class as 'already (successfully!) handled'
             self.klasses_proxied.add(klassname)
-
-    @classmethod
-    def make_proxy_descriptor(cls, descr_name):
-        """E.g. descr_name will be 'num_calls" or etc."""
-        class DecoDescr():
-            def __get__(this_descr, kia_proxy, owner):
-                "kia_proxy: an instance of enclosing class KlassInstanceAttrProxy"
-                ### print("**** descriptor %s __get__ called" % descr_name)
-                return getattr(kia_proxy.deco_instance, descr_name)
-
-            def __set__(this_descr, kia_proxy, value):
-                "kia_proxy: an instance of enclosing class KlassInstanceAttrProxy"
-                # THese properties are r/o so trying to set the vals should raise an exception
-                # TODO test!
-                raise AttributeError("%s is r/o" % descr_name)
-
-        return DecoDescr()
 
 
 #------------------------------------------------------------------------------
 # log_calls
 #------------------------------------------------------------------------------
+# TODO: add field(s):
+# todo       timestamp (can just use t0 ?? or convert time.time() [ms?] to datetime.datetime (sic))
+# todo       function name? probably. In fact, prefixed name
+
+CallHistoryRecord = namedtuple(
+    "CallHistoryRecord",
+    (
+        'argnames', 'argvals',
+        'varargs',
+        'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
+        'retval',
+        'elapsed_ms'
+    )
+)
+
 class log_calls():
     """
     This decorator logs the caller of a decorated function, and optionally
@@ -187,11 +208,10 @@ class log_calls():
         # disallow indirect values, otherwise we have to make a descriptor etc etc
         # and reset/rejigger many things whenever this changes!!! So let's not.
         # value 0: don't record history; value > 0: store at most value records; value < 0 (-1): unbounded
-        # TODO It *would* be cool if settings descriptors on the __Mapping obj
-        # todo  could be attributes on the deco class e.g. properties
+
         DecoSetting('record_history',   bool,           0,             allow_falsy=True, allow_indirect=True),
-        DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False),
-        DecoSetting('log_call_number', bool,           False,         allow_falsy=True, allow_indirect=True),
+        DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
+        DecoSetting('log_call_number',  bool,           False,         allow_falsy=True, allow_indirect=True),
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True, allow_indirect=True),
 
         # TODO should we also track total calls not just logged?

@@ -59,20 +59,21 @@ from .helpers import is_keyword_param
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
                          sans any value. """
-    def __init__(self, name, final_type, default, *, allow_falsy, allow_indirect):
+    def __init__(self, name, final_type, default, *, allow_falsy, allow_indirect, mutable=True):
         assert not default or isinstance(default, final_type)
         self.name = name                # key
         self.final_type = final_type    # bool int str logging.Logger ...
         self.default = default
         self.allow_falsy = allow_falsy  # is a falsy final val of setting allowed
         self.allow_indirect = allow_indirect  # are indirect values allowed
+        self.mutable = mutable
 
     def __repr__(self):
         final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
         default = self.default if final_type != str else repr(self.default)
-        return ("DecoSetting(%s, %s, %r, allow_falsy=%s, allow_indirect=%s)"
+        return ("DecoSetting(%s, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s)"
                 %
-                (self.name, final_type, default, self.allow_falsy, self.allow_indirect)
+                (self.name, final_type, default, self.allow_falsy, self.allow_indirect, self.mutable)
         )
 
 
@@ -154,14 +155,12 @@ class DecoSettingsMapping():
         self.deco_class = deco_class
         class_settings_dict = self._deco_class_settings_dict
 
-        # We'd use an OrderedDict here too, but values_dict is just vanilla
-        # and update iterates through that.
-        self._tagged_values_dict = {}    # stores pairs inserted by __setitem__
-
-        # Equivalent to:
-        #   for k, v in values_dict.items():
-        #       self.__setitem__(k, v, _class_settings_dict_=class_settings_dict)
-        self.update(_class_settings_dict_=class_settings_dict, **values_dict)
+        # Insert values in the proper order - as given by caller
+        self._tagged_values_dict = OrderedDict()    # stores pairs inserted by __setitem__
+        for k in self._deco_class_settings_dict:
+            if k in values_dict:                    # allow k to be set later
+                self.__setitem__(k, values_dict[k],
+                                 _class_settings_dict_=class_settings_dict)
 
     def is_setting(self, name):
         return name in self._deco_class_settings_dict
@@ -192,6 +191,10 @@ class DecoSettingsMapping():
         default = info.default
         allow_falsy = info.default
         allow_indirect = info.allow_indirect
+
+        # if the setting is set-once-only, don't change it:
+        if not info.mutable and key in self._tagged_values_dict:
+            return
 
         if not allow_indirect:
             self._tagged_values_dict[key] = False, value
@@ -264,11 +267,15 @@ class DecoSettingsMapping():
         for k, v in d_settings.items():
             self.__setitem__(k, v, _class_settings_dict_=_class_settings_dict_)      # i.e. self[k] = v ?!
 
+    def as_OrderedDict(self):
+        return self._tagged_values_dict.copy()
+
     def as_dict(self):
-        d = {}
-        for name in self._tagged_values_dict:
-            d[name] = self.__getitem__(name)  # self[name] ?!
-        return d
+        # d = {}
+        # for name in self._tagged_values_dict:
+        #     d[name] = self.__getitem__(name)  # self[name] ?!
+        # return d
+        return dict(self.as_OrderedDict())
 
     def _get_tagged_value(self, key):
         """Return (indirect, value) for key"""
