@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b6.7'
+__version__ = 'v0.1.10-b6.8'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -82,11 +82,12 @@ class DecoSetting():
         self.__dict__.update(more_attributes)
 
     def __repr__(self):
-        final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
-        default = self.default if final_type != str else repr(self.default)
-        output = ("DecoSetting(%s, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s"
+        #final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
+        final_type = self.final_type.__name__         # WHY NOT THIS? lol
+        #default = self.default if final_type != 'str' else repr(self.default)
+        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s"
                   %
-                  (self.name, final_type, default,
+                  (self.name, final_type, self.default,
                    self.allow_falsy, self.allow_indirect, self.mutable)
         )
         # append user attrs
