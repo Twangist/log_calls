@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b6'
+__version__ = 'v0.1.10-b6.7'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -29,22 +29,23 @@ __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 #------------------------------------------------------------------------------
 # log_calls
 #------------------------------------------------------------------------------
-# TODO: add field(s):
-# todo       timestamp (can just use t0 ?? or convert time.time() [sec] to datetime.datetime (sic))
-# todo       function name? probably. In fact, prefixed name
-
-CallHistoryRecord = namedtuple(
-    "CallHistoryRecord",
+# Need 'call_num' in case 'max_history' is set to some N > 0,
+# so that only the N most recent records are retained:
+# it's easier to identify calls if they're tagged with call #.
+CallRecord = namedtuple(
+    "CallRecord",
     (
+        'call_num',
         'argnames', 'argvals',
         'varargs',
         'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
         'retval',
         'elapsed_sec',
         'timestamp',
-        'function_name'
+        'function'
     )
 )
+
 
 class log_calls():
     """
@@ -90,14 +91,18 @@ class log_calls():
                                    value > 0 => store at most value-many records,
                                                 oldest records overwritten;
                                    value <=: unboundedly many records
-        log_call_number:  If truthy, display number of function call
-                           e.g.  f [n] <== <module>   for n-th call. (Default: False)
-        log_elapsed:       If truthy, display how long it took the function
-                           to execute, in seconds. (Default: False)
+        log_call_number:  If truthy, display the number of the function call,
+                          e.g.   f [n] <== <module>   for n-th logged call.
+                          This call would correspond to the n-th record
+                          in the functions call history, if record_history
+                          is true.
+                          (Default: False)
+        log_elapsed:      If truthy, display how long it took the function
+                          to execute, in seconds. (Default: False)
 
     """
     # TODO: keyword parameters for control over stats
-    # todo  -- max_call_history: int (keep only the most recent N)
+    # todo  -- max_history: int (keep only the most recent N)
     # todo     TODO implement upper bound!   circular buffer perhaps
 
     MAXLEN_RETVALS = 60
@@ -118,23 +123,25 @@ class log_calls():
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
         DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
         DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
-        # disallow indirect values, otherwise we have to make a descriptor etc etc
-        # and reset/rejigger many things whenever this changes!!! So let's not.
-        # value 0: don't record history; value > 0: store at most value records; value < 0 (-1): unbounded
 
-        DecoSetting('record_history',   bool,           0,             allow_falsy=True),
+        DecoSetting('record_history',   bool,           False,         allow_falsy=True),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
         DecoSetting('log_call_number',  bool,           False,         allow_falsy=True),
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
-
-        # TODO should we also track total calls not just logged?
-        # todo  then what do we display, f [n/m] <== <module>   ????
-        # TODO If so, then we need two maybe three properties/descriptors: num_calls, num_logged_calls
     )
     DecoSettingsMapping.register_class_settings('log_calls',
                                                 _setting_info_list)
 
-    _descriptor_names = ('num_calls', 'call_history', 'total_elapsed')
+    _descriptor_names = (
+        'num_calls_total',
+        'num_calls_logged',
+        'call_history',
+        'call_history_as_csv',
+        'total_elapsed',
+    )
+    _method_descriptor_names = (
+        'clear_history',
+    )
 
     @classmethod
     def get_descriptor_names(cls):
@@ -145,35 +152,60 @@ class log_calls():
         are the same for all (deco) instances, i.e. that they 're class-level."""
         return cls._descriptor_names
 
+    @classmethod
+    def get_method_descriptor_names(cls):
+        """Called by KlassInstanceAttrProxy when creating descriptors
+        that correspond to the methods of this class named in the returned list.
+        KlassInstanceAttrProxy creates descriptors *once*.
+        This enforces the rule that the descriptor names / attrs
+        are the same for all (deco) instances, i.e. that they 're class-level."""
+        return cls._method_descriptor_names
+
     # A few generic properties, internal logging, and exposed
     # as descriptors on the stats (KlassInstanceAttrProxy) obj
     @property
-    def num_calls(self):
-        return self._num_calls
+    def num_calls_total(self):
+        """All calls, logged and not logged"""
+        return self._num_calls_total
+
+    @property
+    def num_calls_logged(self):
+        return self._num_calls_logged
 
     @property
     def call_history(self):
-        return self._call_history
+        return tuple(self._call_history)
+
+    @property
+    def call_history_as_csv(self):
+        # TODO !
+        return "not,yet,implemented\n,'coming','soon'"
 
     @property
     def total_elapsed(self):
         return sum((histrec.elapsed_sec for histrec in self._call_history))
 
-    # TODO : Add more properties in this vein?
-    # todo  E.g. call_history_as_csv
+    def clear_history(self, max_history=0):
+        self._call_history = []
+        self._num_calls_logged = 0
+        self._num_calls_total = 0
+        self._settings_mapping.__setitem__('max_history', max_history, _force_mutable=True)
+
+    def _add_call(self, *, logged):
+        self._num_calls_total += 1
+        if logged:
+            self._num_calls_logged += 1
 
     def _add_to_history(self, f,
+                        call_num,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval=None,
                         elapsed_sec=0,
                         timestamp_secs=0,
-                        function_name=''
     ):
         "Only called for *logged* calls"
-        self._num_calls += 1
-
         record_history = self._settings_mapping.get_final_value(
                                 'record_history',
                                 explicit_kwargs, defaulted_kwargs, implicit_kwargs,
@@ -182,21 +214,28 @@ class log_calls():
         if record_history:
             # Convert timestamp_secs to datetime
             timestamp = datetime.datetime.fromtimestamp(timestamp_secs).\
-                strftime('%Y-%m-%d %I:%M:%S %p')
+                strftime('%x %X.%f')    # or '%Y-%m-%d %I:%M:%S.%f %p'
+
+            # argnames can contain keyword args (e.g. defaulted), so guard against that
+            n = min(len(argnames), len(argvals))
+            argnames = argnames[:n]
+            argvals = argvals[:n]
 
             # TODO: Use self.max_history if > 0
             # todo  Need some kinda object with an insert method that always succeeds
-            # todo  and which can be converted to a list exposed by property call_history
+            # todo  and which can be converted to a tuple by property call_history
             self._call_history.append(
-                    CallHistoryRecord(
+                    CallRecord(
+                        self._num_calls_logged,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval,
                         elapsed_sec,
                         timestamp,
-                        function_name)
+                        function=f.__name__)
         )
+        self._add_call(logged=True)
 
     def __init__(
             self,
@@ -239,7 +278,8 @@ class log_calls():
         self.prefix = prefix
         self.max_history = max_history  # > 0 --> size of 'buffer'; <= 0 --> unbounded TODO! implement
         # Accessed by descriptors on the __Mapping obj
-        self._num_calls = 0
+        self._num_calls_total = 0
+        self._num_calls_logged = 0
         self._call_history = []
 
         self.f_params = None    # set properly by __call__
@@ -276,6 +316,7 @@ class log_calls():
             if not _get_final_value('enabled'):
                 ### # call f after adding to stats, return its retval
                 ### self._add_to_history(f, args, kwargs, logged=False)
+                self._add_call(logged=False)    # bump self._num_calls_total
                 return f(*args, **kwargs)
 
             logger = _get_final_value('logger')
@@ -290,9 +331,10 @@ class log_calls():
             # Our unit of indentation
             indent = " " * 4
 
-            log_call_number = _get_final_value('log_call_number')
-            call_number_str = ('[%s] ' % (self.num_calls+1)) if log_call_number else ''
-
+            # log_call_number
+            call_number_str = (('[%d] ' % (self._num_calls_logged+1))
+                               if _get_final_value('log_call_number')
+                               else '')
             msg = ("%s %s<== called by %s"
                    % (prefixed_fname,
                       call_number_str,
@@ -351,7 +393,6 @@ class log_calls():
                 else:
                     msg += "<none>"
 
-                # TODO? -- make this next optional via setting?
                 # if implicit_kwargs, then f has a "kwargs"-like parameter;
                 # the defaulted kwargs are kw args in self.f_params which
                 # are NOT in implicit_kwargs, and their vals are defaults
@@ -359,17 +400,16 @@ class log_calls():
                 if defaulted_kwargs:
                     args_vals.append( ("(defaults used)",  defaulted_kwargs) )
 
+                # TODO? -- make this next optional via setting?
+                # the defaulted kwargs are kw args in self.f_params which
+                # are NOT in implicit_kwargs, and their vals are defaults
+                # of those parameters. Write these on a separate line.
+                if defaulted_kwargs:
+                    msg += '\n' + indent + ("defaults:  %r" % defaulted_kwargs)
+
                 #### TODO can this all be simplified using
                 #### todo inspect.getfullargspec(...)
                 #### todo  or inspect... signature... bind ( f, *args, **kwargs) ???
-
-                # TODO? -- make this next optional via setting?
-                # if implicit_kwargs, then f has a "kwargs"-like parameter;
-                # the defaulted kwargs are kw args in self.f_params which
-                # are NOT in implicit_kwargs, and their vals are defaults
-                # of those parameters. Do implicit first.
-                if defaulted_kwargs:
-                    msg += '\n' + indent + ("defaults:  %r" % defaulted_kwargs)
 
             logging_fn(msg)
 
@@ -378,13 +418,12 @@ class log_calls():
             t0 = time.time()
             retval = f(*args, **kwargs)
             elapsed_sec = (time.time() - t0)
-            self._add_to_history(f, argnames, args[:argcount],
+            self._add_to_history(f, argnames[:argcount], args[:argcount],
                                  varargs,
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                                  retval,
                                  elapsed_sec=elapsed_sec,
-                                 timestamp_secs=t0,
-                                 function_name=prefixed_fname
+                                 timestamp_secs=t0
             )
 
             # log_retval

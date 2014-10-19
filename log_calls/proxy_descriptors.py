@@ -1,12 +1,15 @@
 __author__ = 'brianoneill'
-__version__ = 'v0.1'
+__version__ = 'v0.1b6.7'
 __doc__ = """
     <<<<<< TODO >>>>>>
     See docstrings for install_proxy_descriptor and KlassInstanceAttrProxy.
 """
+from itertools import product, chain
+
 __all__ = ['install_proxy_descriptor', 'KlassInstanceAttrProxy']
 
-def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, readonly=False):
+
+def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, data=True, readonly=False):
     """
     Create and install (setattr) on proxy_obj a descriptor named descr_name
     assuming proxy_obj has an attribute named attr_name_proxied_instance
@@ -21,8 +24,10 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
     and similarly for y, z.
     b can set this up, as follows:
         install_proxy_descriptor(b, 'my_a', 'x')   # b: b itself would say, self
+
+    data: True iff we should create & install a data descriptor, else a non-data-descr
     """
-    class ProxyDescr():
+    class ProxyDataDescr():
         def __get__(this_descr, proxy, owner):
             "todo"
             ### print("**** descriptor %s __get__ called" % descr_name)
@@ -40,9 +45,21 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
             else:
                 # no can do:
                 # TODO test!
-                raise AttributeError("%s is r/o on %r" % (descr_name, proxy))
+                raise AttributeError("%s is read-only on %r" % (descr_name, proxy))
 
-    proxy_descr = ProxyDescr()
+    class ProxyMethodDescr():
+        def __get__(this_descr, proxy, owner):
+            "todo"
+            ### print("**** descriptor %s __get__ called" % descr_name)
+            return getattr(
+                        getattr(proxy, attr_name_proxied_instance),
+                        descr_name)
+
+    # if data:
+    #     proxy_descr = ProxyDataDescr()
+    # else:
+    #     proxy_descr = ProxyMethodDescr()
+    proxy_descr = (ProxyDataDescr if data else ProxyMethodDescr)()
     setattr(proxy_obj.__class__, descr_name, proxy_descr)
 
 
@@ -75,19 +92,20 @@ class KlassInstanceAttrProxy():
             # Same __get__/__set__ functions, called on different instances.
             # It doesn't work to create them on instances:
             #         setattr(self, ... ) doesn't fly.
-            klass_descr_names = klass_instance.get_descriptor_names()
-
-            # Make sure klass_descr_names is disjoint from descr_name2klass keys,
+            klass_descr_names = chain(product(klass_instance.get_descriptor_names(), {True}),
+                                      product(klass_instance.get_method_descriptor_names(), {False}))
+            klass_descr_names = list(klass_descr_names)
+            # Make sure names in klass_descr_names is disjoint from descr_name2klass keys,
             # else somebody else gets clobbered (say who! which other klass)
-            for descr_name in klass_descr_names:
+            for descr_name, _ in klass_descr_names:
                 if descr_name in self.descr_name2klass:
                     # Note: klassname is still not in klasses_proxied
                     raise AttributeError("attribute/descriptor-name %s already registered by class %s"
                                          % (descr_name, self.descr_name2klass[descr_name]))
 
-            for descr_name in klass_descr_names:
-                # Create & add descriptor to this class
-                install_proxy_descriptor(self, 'deco_instance', descr_name, readonly=True)
+            for descr_name, is_data in klass_descr_names:
+                # Create & add descriptor to this class. readonly only matters if is_data
+                install_proxy_descriptor(self, 'deco_instance', descr_name, data=is_data, readonly=is_data)
 
             # Record this class as 'already (successfully!) handled'
             self.klasses_proxied.add(klassname)

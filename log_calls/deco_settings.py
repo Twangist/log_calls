@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b6'
+__version__ = 'v0.1.10-b6.7'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -62,21 +62,8 @@ class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
                          sans any value.
     Callers can add additional fields by passing additional keyword args.
-    The additional fields & values are stored in an ordered dict
-    (self.) _user_attrs, AND descriptors are created so that the fields & values
-    are accessible as attributes on the DecoSetting object. The descriptors
-    delegate to the dict.
-    E.g. given
-        info = DecoSetting('setting1', ..., allow_falsy=True, new_attr1='Joe', new_attr2=39)
-    then
-        info._user_attrs == {'new_attr1': 'Joe', 'new_attr2': 39}
-    and
-        info.new_attr1 == 'Joe',
-        info.new_attr2 == 39.
-    Furthermore, after
-        info.new_attr2 = 117
-    we have
-        info._user_attrs == {'new_attr1': 'Joe', 'new_attr2': 117}
+    The additional fields/keys & values are made attributes of this object,
+    and a (sorted) list of the keys is saved (_user_attrs).
     """
     def __init__(self, name, final_type, default, *,
                  allow_falsy, allow_indirect=True, mutable=True,
@@ -91,21 +78,8 @@ class DecoSetting():
         # we need write fields in repr the same way every time,
         # so even though more_attributes isn't ordered,
         # we need to pick an order & stick to it
-        self._user_attrs = OrderedDict()
-        for k, v in more_attributes:
-            self._user_attrs[k] = v
-            setattr(self, k, self.DictLookupDescr(self._user_attrs, k))
-
-        class DictLookupDescr():
-            def __init__(self, d, key):
-                self._dict = d
-                self._key = key
-
-            def __get__(self, instance, owner):
-                return self._dict[self._key]
-
-            def __set__(self, instance, value):
-                self._dict[self._key] = value
+        self._user_attrs = sorted(list(more_attributes))
+        self.__dict__.update(more_attributes)
 
     def __repr__(self):
         final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
@@ -116,8 +90,8 @@ class DecoSetting():
                    self.allow_falsy, self.allow_indirect, self.mutable)
         )
         # append user attrs
-        for k, v in self._user_attrs:
-            output += ", %s=%r" % (k, v)
+        for attr in self._user_attrs:
+            output += ", %s=%r" % (attr, self.__dict__[attr])
 
         output += ")"
         return output
@@ -208,10 +182,23 @@ class DecoSettingsMapping():
                 self.__setitem__(k, values_dict[k],
                                  _class_settings_dict_=class_settings_dict)
 
+    def registered_class_settings_repr(self):
+        list_of_settingsinfo_reprs = []
+
+        for k, info in self._deco_class_settings_dict.items():
+            list_of_settingsinfo_reprs.append(repr(info))
+
+        return ("DecoSettingsMapping.register_class_settings([\n"
+                "    %s\n"
+                "])") % '\n    '.join(list_of_settingsinfo_reprs)
+
+    def setting_names_list(self):
+        return list(self._deco_class_settings_dict)
+
     def is_setting(self, name):
         return name in self._deco_class_settings_dict
 
-    def __setitem__(self, key, value, _class_settings_dict_=None):
+    def __setitem__(self, key, value, _class_settings_dict_=None, _force_mutable=False):
         """
         key: name of setting, e.g. 'prefix';
              must be in self._deco_class_settings_dict()
@@ -219,7 +206,12 @@ class DecoSettingsMapping():
         _class_settings_dict_: passed by __init__ or any other method that will
                                call many times, saves this method from having
                                to do self._deco_class_settings_dict() on each call
-        Return pair (is_indirect, modded_val) where
+        _force_mutable: if key is already in self._tagged_values_dict and
+                        it's not mutable, attempting to __setitem__ on it
+                        raises AttributeError, unless force_mutable is True
+                        in which case it can be written.
+        Store pair (is_indirect, modded_val) at key in self._tagged_values_dict[key]
+        where
             is_indirect: bool,
             modded_val = val if kind is direct (not is_indirect),
                        = keyword of wrapped fn if is_indirect
@@ -238,10 +230,11 @@ class DecoSettingsMapping():
         allow_falsy = info.default
         allow_indirect = info.allow_indirect
 
-        # if the setting is set-once-only, don't change it:
-        if not info.mutable and key in self._tagged_values_dict:
-            return
-
+        # if the setting is set-once-only (not mutable),
+        # raise AttributeError if it's already set, unless _force_mutable:
+        if not info.mutable and not _force_mutable and key in self._tagged_values_dict:
+            raise AttributeError("%s' is write-once (current value: %r)"
+                                 % (key, self._tagged_values_dict[key][1]))
         if not allow_indirect:
             self._tagged_values_dict[key] = False, value
             return
@@ -268,10 +261,7 @@ class DecoSettingsMapping():
 
     def __getitem__(self, key):
         indirect, value = self._tagged_values_dict[key]
-        if indirect:
-            return value + '='
-        else:
-            return value
+        return value + '=' if indirect else value
 
     def __len__(self):
         return len(self._tagged_values_dict)
@@ -286,24 +276,12 @@ class DecoSettingsMapping():
         return key in self._tagged_values_dict
 
     def __repr__(self):
-        class_settings_dict = self._deco_class_settings_dict
-
-        list_of_settingsinfo_reprs = []
-
-        for k, info in class_settings_dict.items():
-            list_of_settingsinfo_reprs.append(repr(info))
-
-        def multiline(lst):
-            return '    [\n        ' + \
-                   ',\n        '.join(lst) + \
-                   '\n    ]'
-
-        return "DecoSettingsMapping( \n" \
-               "%s, \n" \
-               "    %s\n" \
-               ")" % \
-               (multiline(list_of_settingsinfo_reprs),
-                pprint.pformat(self.as_dict(), indent=8)
+        return ("DecoSettingsMapping( \n"
+                "    deco_class=%s,\n"
+                "    ** %s\n"
+                ")") % \
+               (self.deco_class.__name__,
+                pprint.pformat(self.as_OrderedDict(), indent=8)
                )
 
     def __str__(self):
@@ -314,13 +292,12 @@ class DecoSettingsMapping():
             self.__setitem__(k, v, _class_settings_dict_=_class_settings_dict_)      # i.e. self[k] = v ?!
 
     def as_OrderedDict(self):
-        return self._tagged_values_dict.copy()
+        od = OrderedDict()
+        for k, v in self._tagged_values_dict.items():
+            od[k] = v[1]
+        return od
 
     def as_dict(self):
-        # d = {}
-        # for name in self._tagged_values_dict:
-        #     d[name] = self.__getitem__(name)  # self[name] ?!
-        # return d
         return dict(self.as_OrderedDict())
 
     def _get_tagged_value(self, key):
@@ -332,9 +309,9 @@ class DecoSettingsMapping():
         name:    key into self._tagged_values_dict, self._setting_info_list
         *dicts:  varargs, usually just kwargs of a call to some function f,
                  but it can also be e.g. *(explicit_kwargs, defaulted_kwargs,
-                 implicit_kwargs) of that function f,
+                 implicit_kwargs, with fparams=None) of that function f,
         fparams: inspect.signature(f).parameters of that function f
-                 NOTE: it's a keyword-ONLY argument
+                 NOTE: it's a mandatory, keyword-ONLY argument
         THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.

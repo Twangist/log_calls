@@ -32,6 +32,12 @@ class TestDecoSettingsMapping(TestCase):
     def test___init__(self):
         self.fail()
 
+    def test_registered_class_settings_repr(self):
+        self.fail()
+
+    def test_setting_names_list(self):
+        self.fail()
+
     def test_is_setting(self):
         self.fail()
 

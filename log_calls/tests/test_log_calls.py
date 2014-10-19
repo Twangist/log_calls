@@ -816,22 +816,58 @@ if __name__ == "__main__":
     for i in range(3):
         g1()
 
+    print("turning g1 logging off, and calling it again")
     g1.log_calls_settings.enabled = False
-    g1()    # This 5th call won't be tallied in g1.stats.num_calls
+    g1()    # This 5th call WILL be tallied in g1.stats.num_calls
+    print("g1 has been called %d times total" % g1.stats.num_calls_total)
+    print("g1 has been called %d times that were logged" % g1.stats.num_calls_logged)
+    print("turning g1 logging & log_exit back on, and calling it again -- observe the call count")
+    g1.log_calls_settings.enabled = True
+    g1.log_calls_settings.log_exit = True
+    g1()
+    print('- - - - - - - - - - - - - - ')
 
-    print("g1 has been called %d times" % g1.stats.num_calls)
     hist_str = '\n'.join(map(str, g1.stats.call_history))
     print("g1 call history: \n%s" % hist_str)
+    print("g1 call history as csv:\n\"%s\"" % g1.stats.call_history_as_csv)
     print("g1 total elapsed time =", g1.stats.total_elapsed)
+
+    print("---------\nTry g1.stats.clear_history(max_history=2)")
+    g1.stats.clear_history(max_history=2)
+    print("g1 has been called %d times total" % g1.stats.num_calls_total)
+    print("g1 has been called %d times that were logged" % g1.stats.num_calls_logged)
+    hist_str = '\n'.join(map(str, g1.stats.call_history))
+    print("g1 call history: \n%s" % hist_str)
+    print("g1.log_calls_settings.max_history =", g1.log_calls_settings.max_history)
+
     print('- - - - - - - - - - - - - - ')
     # ~Same for g3 (1 call)
-    print("g3 has been called %d times" % g3.stats.num_calls)
+    print("g3 has been called %d times" % g3.stats.num_calls_total)
     hist_str = '\n'.join(map(str, g3.stats.call_history))
     print("g3 call history: \n%s" % hist_str)
     print("g3 total elapsed time =", g3.stats.total_elapsed)
     print('- - - - - - - - - - - - - - ')
 
+    print("Try writing to g1.stats descriptors")
+    for dname in log_calls.get_descriptor_names():
+        try:
+            setattr(g1.stats, dname, 0)
+        except AttributeError as e:
+            print("Exception '%s' caused by 'setattr(g1.stats, %s, 0)'" % (e, dname))
+        else:
+            print("No exception caused by 'setattr(g1.stats, %s, 0)'" % dname)
 
+    print('- - - - - - - - - - - - - - ')
+    print("Try writing to an item of g1.stats.call_history")
+    try:
+        g1.stats.call_history[0] = "Hi there"
+    except BaseException as e:
+        print("Exception '%s' caused by trying to set g1.stats.call_history[0]" % e)
+    else:
+        print("No exception caused by trying to set g1.stats.call_history[0]")
+        print("g1.stats.call_history[0] =", g1.stats.call_history[0])
+
+    print('----------------------------')
     @log_calls()
     def h0(z):
         pass
@@ -853,9 +889,6 @@ if __name__ == "__main__":
     def h5():
         h4()()
     h5()
-
-
-
 
     import logging
 
@@ -896,7 +929,8 @@ if __name__ == "__main__":
     print("d.log_call_number =", d.log_call_number)
 
     # Check state of myfunc.log_calls_settings:
-    print("Initial myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
+    print("Initial myfunc.log_calls_settings as_OrderedDict = \n\t%s" % myfunc.log_calls_settings.as_OrderedDict())
+    print("Initial myfunc.log_calls_settings as_dict = \n\t%s" % myfunc.log_calls_settings.as_dict())
     print('-------Now do a full set of changes via __set__ of every descriptor')
     # and here's the descriptors' __set__ method being exercised
     d.enabled = 17
@@ -908,20 +942,39 @@ if __name__ == "__main__":
     d.loglevel = logging.CRITICAL
     d.args_sep = 'different_args_sep='
     d.record_history = True
-    d.max_history = -1
+    d.__setitem__('max_history', -1, _force_mutable=True)    # :D
     d.log_elapsed = True
     d.log_call_number = True
 
     # Check state of myfunc.log_calls_settings:
     print("Now, myfunc.log_calls_settings = %s" % myfunc.log_calls_settings.as_dict())
 
-    # Fail... with AttributeError?
+    # Fail with AttributeError?
+    print('Try accessing d.nosuchattribute')
     try:
         print('d.nosuchattribute =', d.nosuchattribute)
     except AttributeError as e:
         print("Exception '%s' caused by '%s'" % (e, 'd.nosuchattribute'))
+    else:
+        print("No exception caused by 'd.nosuchattribute'")
 
-    # This does NOT fail:
+    print('Try changing d.max_history')
+    try:
+        d.max_history = 17
+    except AttributeError as e:
+        print("Exception '%s' caused by '%s'" % (e, 'd.max_history = 17'))
+    else:
+        print("No exception caused by 'd.max_history = 17'")
+
+    print("Try changing d['max_history']")
+    try:
+        d['max_history'] = 17
+    except AttributeError as e:
+        print("Exception '%s' caused by '%s'" % (e, "d['max_history'] = 17"))
+    else:
+        print("No exception caused by \"d['max_history'] = 17\"")
+
+    # However, THIS does NOT fail:
     # but we don't care, no need to prevent user from doing that
     print("Doing 'd.nosuchattribute = 519'")
     d.nosuchattribute = 519
@@ -935,16 +988,7 @@ if __name__ == "__main__":
 
     print("==================================")
 
-    # TODO yep this would be a good unittest, a lousy doctest.
-    # TODO Unittests for attributes and dictionary access,
-    # todo  that is, for DecoSettingsMapping, DecoSetting, and descriptor class Descr
-    # todo   accessed via examples like above
-    # Do a unittest just for coverage ? of the lowlevel classes?
-    # What's coverage now?
-    # TODO Document these features (mapping AND attribute style access)!!! log_calls.md
-
-
-    print("settings, as_dict:", myfunc.log_calls_settings.as_dict())  # same as:
+    print("settings, as_dict:", myfunc.log_calls_settings.as_dict())
 
     myfunc.log_calls_settings.update(prefix='prix-fixe.', enabled=True, log_retval=False)
 
@@ -956,6 +1000,8 @@ if __name__ == "__main__":
     assert 'args_sep' in myfunc.log_calls_settings
     assert 'Fu Manchu' not in myfunc.log_calls_settings
 
+    print("myfunc.log_calls_settings.setting_names_list():",
+          myfunc.log_calls_settings.setting_names_list())
     print("myfunc.log_calls_settings as list: %s"
           % list(myfunc.log_calls_settings))
     # That's the iter, converted to a list.
@@ -964,12 +1010,15 @@ if __name__ == "__main__":
     for x in myfunc.log_calls_settings:
         print(x)
 
-    print( "_get_tagged_value for 'log_args':", myfunc.log_calls_settings._get_tagged_value('log_args') )
-
     print("for k, v in myfunc.log_calls_settings.items(): print(k, v)")
     for k, v in myfunc.log_calls_settings.items():
         print(k, '=', v)
 
+    print( "_get_tagged_value for 'log_args':", myfunc.log_calls_settings._get_tagged_value('log_args') )
+
+    print("repr for class settings i.e. myfunc.log_calls_settings.registered_class_settings_repr():")
+    print(myfunc.log_calls_settings.registered_class_settings_repr())
+    print("myfunc.log_calls_settings repr:")
     print( repr(myfunc.log_calls_settings) )
 
     # Now try it with an inner function
@@ -1012,6 +1061,6 @@ if __name__ == "__main__":
     print("staticmethod log_calls_settings:", Klass.statikmethod.log_calls_settings)
 
     # Gee whiz!! :D
-
+    print("\nRunning doctest...")
     import doctest
     doctest.testmod()   # (verbose=True)
