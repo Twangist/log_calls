@@ -110,22 +110,22 @@ class log_calls():
 
     # allow indirection for all except prefix 10/18/14 and max_call_history
     _setting_info_list = (
-        DecoSetting('enabled',          int,            False,         allow_falsy=True,  allow_indirect=True),
-        DecoSetting('log_args',         bool,           True,          allow_falsy=True,  allow_indirect=True),
-        DecoSetting('log_retval',       bool,           False,         allow_falsy=True,  allow_indirect=True),
-        DecoSetting('log_exit',         bool,           True,          allow_falsy=True,  allow_indirect=True),
-        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False, allow_indirect=True),
+        DecoSetting('enabled',          int,            False,         allow_falsy=True),
+        DecoSetting('log_args',         bool,           True,          allow_falsy=True),
+        DecoSetting('log_retval',       bool,           False,         allow_falsy=True),
+        DecoSetting('log_exit',         bool,           True,          allow_falsy=True),
+        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
-        DecoSetting('logger',           logging.Logger, None,          allow_falsy=True,  allow_indirect=True),
-        DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False, allow_indirect=True),
+        DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
+        DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
         # disallow indirect values, otherwise we have to make a descriptor etc etc
         # and reset/rejigger many things whenever this changes!!! So let's not.
         # value 0: don't record history; value > 0: store at most value records; value < 0 (-1): unbounded
 
-        DecoSetting('record_history',   bool,           0,             allow_falsy=True, allow_indirect=True),
+        DecoSetting('record_history',   bool,           0,             allow_falsy=True),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
-        DecoSetting('log_call_number',  bool,           False,         allow_falsy=True, allow_indirect=True),
-        DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True, allow_indirect=True),
+        DecoSetting('log_call_number',  bool,           False,         allow_falsy=True),
+        DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
 
         # TODO should we also track total calls not just logged?
         # todo  then what do we display, f [n/m] <== <module>   ????
@@ -298,21 +298,30 @@ class log_calls():
                       call_number_str,
                       ' <== '.join(call_list)))
 
-            # Gather all the things we need for _add_history (sic)
+            # Gather all the things we need for _add_history
             argcount = f.__code__.co_argcount
             argnames = f.__code__.co_varnames[:argcount]
             args_vals = list(zip(argnames, args))
             varargs = args[argcount:]
-            explicit_kwargs = {k: v for (k, v) in kwargs.items()
-                               if k in self.f_params
-                               and is_keyword_param(self.f_params[k])}
+            # explicit_kwargs = {k: v for (k, v) in kwargs.items()
+            #                    if k in self.f_params
+            #                    and is_keyword_param(self.f_params[k])}
+            explicit_kwargs = OrderedDict(
+                [(k, kwargs[k]) for k in self.f_params
+                 if k in kwargs
+                 and is_keyword_param(self.f_params[k])]
+            )
             implicit_kwargs = difference_update(
                 kwargs.copy(), explicit_kwargs)
-            defaulted_kwargs = {
-                k: self.f_params[k].default
-                for k in self.f_params
-                if is_keyword_param(self.f_params[k]) and k not in kwargs
-            }
+            # defaulted_kwargs = {
+            #     k: self.f_params[k].default
+            #     for k in self.f_params
+            #     if is_keyword_param(self.f_params[k]) and k not in kwargs
+            # }
+            defaulted_kwargs = OrderedDict(
+                [(k, self.f_params[k].default) for k in self.f_params
+                    if is_keyword_param(self.f_params[k]) and k not in kwargs]
+            )
 
             # Make & append args message
             # If function has no parameters or if not log_args,
@@ -337,6 +346,11 @@ class log_calls():
                 if implicit_kwargs:
                     args_vals.append( ("[**]%s" % self.kwargs_name,  implicit_kwargs) )
 
+                if args_vals:
+                    msg += args_sep.join('%s=%r' % pair for pair in args_vals)
+                else:
+                    msg += "<none>"
+
                 # TODO? -- make this next optional via setting?
                 # if implicit_kwargs, then f has a "kwargs"-like parameter;
                 # the defaulted kwargs are kw args in self.f_params which
@@ -345,14 +359,17 @@ class log_calls():
                 if defaulted_kwargs:
                     args_vals.append( ("(defaults used)",  defaulted_kwargs) )
 
-                if args_vals:
-                    msg += args_sep.join('%s=%r' % pair for pair in args_vals)
-                else:
-                    msg += "<none>"
-
                 #### TODO can this all be simplified using
                 #### todo inspect.getfullargspec(...)
                 #### todo  or inspect... signature... bind ( f, *args, **kwargs) ???
+
+                # TODO? -- make this next optional via setting?
+                # if implicit_kwargs, then f has a "kwargs"-like parameter;
+                # the defaulted kwargs are kw args in self.f_params which
+                # are NOT in implicit_kwargs, and their vals are defaults
+                # of those parameters. Do implicit first.
+                if defaulted_kwargs:
+                    msg += '\n' + indent + ("defaults:  %r" % defaulted_kwargs)
 
             logging_fn(msg)
 

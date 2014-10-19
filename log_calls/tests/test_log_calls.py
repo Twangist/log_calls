@@ -97,7 +97,8 @@ argument but is called with none, so log_calls displays "arguments: <none>".
     >>> g5()
     g5 <== called by <module>
     g3 <== called by g4 <== g5
-        arguments: (defaults used)={'optional': ''}
+        arguments: <none>
+        defaults:  OrderedDict([('optional', '')])
     g1 <== called by g2 <== g3
     g1 ==> returning to g2 ==> g3
     g3 ==> returning to g4 ==> g5
@@ -281,7 +282,8 @@ value '|' in the signature of f by supplying a value:
 or it can use f's default value by not supplying a sep argument:
     >>> f(1, 2, 3)
     *** f <== called by <module>
-        arguments: a=1|b=2|c=3|(defaults used)={'sep': '|'}
+        arguments: a=1|b=2|c=3
+        defaults:  OrderedDict([('sep', '|')])
     *** f ==> returning to <module>
 
 A decorated function doesn't have to explicitly declare the named parameter,
@@ -343,7 +345,8 @@ the same indirect parameter keywords:
     ...     print(a+b+c)
     >>> f(1,2,3, u='you')                   # doctest: +NORMALIZE_WHITESPACE
     f <== called by <module>
-        arguments: a=1, b=2, c=3, u='you', (defaults used)={'v': 9}
+        arguments: a=1, b=2, c=3, u='you'
+        defaults:  OrderedDict([('v', 9)])
     6
     f ==> returning to <module>
 
@@ -355,7 +358,7 @@ the same indirect parameter keywords:
             c=3
             u='you'
             [**]kwargs={'sep_': '\\n'}
-            (defaults used)={'v': 9}
+        defaults:  OrderedDict([('v', 9)])
     6
     f ==> returning to <module>
 
@@ -382,14 +385,11 @@ will use them:
             b=2
             c=3
             [**]kwargs={'sep_': '\\n'}
-            (defaults used)={...}
+        defaults:  OrderedDict([('u', ''), ('v', 9)])
     6
     f ==> returning to g
     g ==> returning to <module>
 
-NOTE: in the above, the "defaults used" for f are:
-            (defaults used)={'u': '', 'v': 9}
-but the item order can vary.
 
 An artificial example, using the most recent f and g
 - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -412,7 +412,8 @@ to tell it that the order doesn't matter.
     g <== called by h
         arguments: a=1, b=2, c=10, [*]g_args=('a', 'b'), [**]g_kwargs={...}
     f <== called by g
-        arguments: a=1, b=2, c=10, u='somebody', [**]kwargs={'sep_': ', '}, (defaults used)={'v': 9}
+        arguments: a=1, b=2, c=10, u='somebody', [**]kwargs={'sep_': ', '}
+        defaults:  OrderedDict([('v', 9)])
     13
     f ==> returning to g
     g ==> returning to h
@@ -445,7 +446,8 @@ Here we get output, without having to pass `debug=True`:
 
     >>> do_more_stuff_t(9)
     do_more_stuff_t <== called by <module>
-        arguments: a=9, (defaults used)={'debug': True}
+        arguments: a=9
+        defaults:  OrderedDict([('debug', True)])
     do_more_stuff_t ==> returning to <module>
 
 and here we get none:
@@ -798,39 +800,10 @@ any log_calls output:
 
 if __name__ == "__main__":
 
-
-    # @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
-    # def r(x, y, z, **kwargs):
-    #     print(x * y + z)
-    # r(1, 2, 3, enable=True)
-    # """
-    # Got:
-    #     5
-    # Expecting:
-    #     r <== called by <module>
-    #         arguments: x=1, y=2, z=3, [**]kwargs={'enable': True}
-    #     5
-    #     r ==> returning to <module>
-    # """
-    # exit(16)
-
-    ################################################################
-
-    @log_calls(enabled='enable')
-    def func1(a, b, c, **func1_kwargs): pass
-    @log_calls(enabled='enable')
-    def func2(z, **func2_kwargs): func1(z, z+1, z+2, **func2_kwargs)
-
-    func2(17, enable=True)
-
-    print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
-
-
-
-
     @log_calls(record_history=True, log_call_number=True, log_elapsed=True)
     def g1():
         pass
+
     def g2():
         g1()
 
@@ -838,16 +811,13 @@ if __name__ == "__main__":
     def g3(optional=''):    # g3 will have an 'arguments:' section
         g2()
     g3()
-    # def g4():
-    #     g3()
-    # @log_calls()
-    # def g5():
-    #     g4()
-    # g5()
+
     g1.log_calls_settings.log_exit = False
     for i in range(3):
         g1()
 
+    g1.log_calls_settings.enabled = False
+    g1()    # This 5th call won't be tallied in g1.stats.num_calls
 
     print("g1 has been called %d times" % g1.stats.num_calls)
     hist_str = '\n'.join(map(str, g1.stats.call_history))

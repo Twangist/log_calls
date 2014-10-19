@@ -52,14 +52,35 @@ from collections import OrderedDict
 import pprint
 from .helpers import is_keyword_param
 
+__all__ = ['DecoSetting', 'DecoSettingsMapping']
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # classes
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
-                         sans any value. """
-    def __init__(self, name, final_type, default, *, allow_falsy, allow_indirect, mutable=True):
+                         sans any value.
+    Callers can add additional fields by passing additional keyword args.
+    The additional fields & values are stored in an ordered dict
+    (self.) _user_attrs, AND descriptors are created so that the fields & values
+    are accessible as attributes on the DecoSetting object. The descriptors
+    delegate to the dict.
+    E.g. given
+        info = DecoSetting('setting1', ..., allow_falsy=True, new_attr1='Joe', new_attr2=39)
+    then
+        info._user_attrs == {'new_attr1': 'Joe', 'new_attr2': 39}
+    and
+        info.new_attr1 == 'Joe',
+        info.new_attr2 == 39.
+    Furthermore, after
+        info.new_attr2 = 117
+    we have
+        info._user_attrs == {'new_attr1': 'Joe', 'new_attr2': 117}
+    """
+    def __init__(self, name, final_type, default, *,
+                 allow_falsy, allow_indirect=True, mutable=True,
+                 **more_attributes):
         assert not default or isinstance(default, final_type)
         self.name = name                # key
         self.final_type = final_type    # bool int str logging.Logger ...
@@ -67,14 +88,39 @@ class DecoSetting():
         self.allow_falsy = allow_falsy  # is a falsy final val of setting allowed
         self.allow_indirect = allow_indirect  # are indirect values allowed
         self.mutable = mutable
+        # we need write fields in repr the same way every time,
+        # so even though more_attributes isn't ordered,
+        # we need to pick an order & stick to it
+        self._user_attrs = OrderedDict()
+        for k, v in more_attributes:
+            self._user_attrs[k] = v
+            setattr(self, k, self.DictLookupDescr(self._user_attrs, k))
+
+        class DictLookupDescr():
+            def __init__(self, d, key):
+                self._dict = d
+                self._key = key
+
+            def __get__(self, instance, owner):
+                return self._dict[self._key]
+
+            def __set__(self, instance, value):
+                self._dict[self._key] = value
 
     def __repr__(self):
         final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
         default = self.default if final_type != str else repr(self.default)
-        return ("DecoSetting(%s, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s)"
-                %
-                (self.name, final_type, default, self.allow_falsy, self.allow_indirect, self.mutable)
+        output = ("DecoSetting(%s, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s"
+                  %
+                  (self.name, final_type, default,
+                   self.allow_falsy, self.allow_indirect, self.mutable)
         )
+        # append user attrs
+        for k, v in self._user_attrs:
+            output += ", %s=%r" % (k, v)
+
+        output += ")"
+        return output
 
 
 class DecoSettingsMapping():

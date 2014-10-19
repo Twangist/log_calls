@@ -1,5 +1,11 @@
 __author__ = 'brianoneill'
 
+__all__ = [
+    'difference_update',
+    'is_keyword_param',
+    'get_args_kwargs_param_names'
+]
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper function(s)
@@ -7,7 +13,16 @@ __author__ = 'brianoneill'
 def difference_update(d, d_remove):
     """Change and return d.
     d: mutable mapping, d_remove: iterable.
-    There is such a method for sets, but unfortunately not for dicts."""
+    There is such a method for sets, but unfortunately not for dicts.
+
+    >>> d = {'a': 1, 'b': 2, 'c': 3}
+    >>> remove = ('b', 'outlier')
+    >>> d_altered = difference_update(d, remove)
+    >>> d_altered is d
+    True
+    >>> d == {'a': 1, 'c': 3}
+    True
+    """
     for k in d_remove:
         if k in d:
             del(d[k])
@@ -15,7 +30,42 @@ def difference_update(d, d_remove):
 
 
 def is_keyword_param(param):
-    return param and (
+    """param is a parameter (a value) from the ordered dict
+        inspect.signature(f).parameters
+    for some function f.
+    Return bool: True iff
+        param is not None
+        and
+            if it's a keyword-only parameter (possibly with no default value!),
+            or
+            if it's a positional-or-keyword param with a default value
+
+    Doctests:
+    >>> is_keyword_param(None) == False
+    True
+
+    >>> import inspect
+    >>> get_fparams = lambda f: inspect.signature(f).parameters
+    >>> def f(): pass
+    >>> is_keyword_param(get_fparams(f).get('anything')) == False
+    True
+    >>> def f(*args): pass
+    >>> is_keyword_param(get_fparams(f)['args']) == False
+    True
+
+    >>> def f(a, b, *filters, **kwargs): pass
+    >>> is_keyword_param(get_fparams(f)['a']) == is_keyword_param(get_fparams(f)['b']) == False
+    True
+    >>> is_keyword_param(get_fparams(f)['filters']) == is_keyword_param(get_fparams(f)['kwargs']) == False
+    True
+
+    >>> def f(x, y, z, *, mandatory, user='Joe', **other_users): pass
+    >>> is_keyword_param(get_fparams(f)['mandatory']) == True
+    True
+    >>> is_keyword_param(get_fparams(f)['user']) == True
+    True
+    """
+    return not not param and (
         param.kind == param.KEYWORD_ONLY
         or
         ((param.kind == param.POSITIONAL_OR_KEYWORD)
@@ -24,6 +74,24 @@ def is_keyword_param(param):
 
 
 def get_args_kwargs_param_names(fparams) -> (str, str):
+    """fparams is inspect.signature(f).parameters
+    for some function f.
+
+    Doctests:
+    >>> import inspect
+    >>> def f(): pass
+    >>> get_args_kwargs_param_names(inspect.signature(f).parameters)
+    (None, None)
+    >>> def f(*args): pass
+    >>> get_args_kwargs_param_names(inspect.signature(f).parameters)
+    ('args', None)
+    >>> def f(a, b, *filters, **kwargs): pass
+    >>> get_args_kwargs_param_names(inspect.signature(f).parameters)
+    ('filters', 'kwargs')
+    >>> def f(x, y, z, user='Joe', **other_users): pass
+    >>> get_args_kwargs_param_names(inspect.signature(f).parameters)
+    (None, 'other_users')
+    """
     args_name = None
     kwargs_name = None
     for name in fparams:
@@ -37,3 +105,6 @@ def get_args_kwargs_param_names(fparams) -> (str, str):
     return args_name, kwargs_name
 
 
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
