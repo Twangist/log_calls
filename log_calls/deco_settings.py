@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b6.8'
+__version__ = 'v0.1.10-b7'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -47,7 +47,6 @@ parameter of the decorated function can also end in a trailing '=', which
 is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
-
 from collections import OrderedDict
 import pprint
 from .helpers import is_keyword_param
@@ -318,12 +317,6 @@ class DecoSettingsMapping():
                                    except allow_indirect.
         A very (deco-)specific method, it seems
         """
-        # (TODO!?) THUS  is this really the right place/class for this method?
-        # todo    Certainly this method needs
-        # todo         DecoSetting for name                   and
-        # todo         self._tagged_values_dict[name]         and
-        # todo         self._deco_class_settings_dict[name]
-
         indirect, di_val = self._tagged_values_dict[name]  # di_ - direct or indirect
         if not indirect:
             return di_val

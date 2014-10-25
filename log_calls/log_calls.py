@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b6.8'
+__version__ = 'v0.1.10-b7'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -10,7 +10,6 @@ Argument logging is based on the Python 2 decorator:
     https://wiki.python.org/moin/PythonDecoratorLibrary#Easy_Dump_of_Function_Arguments
 with changes for Py3 and several enhancements, as described in doc/log_calls.md.
 """
-
 import inspect
 from functools import wraps, partial
 import logging
