@@ -839,6 +839,13 @@ if __name__ == "__main__":
     hist_str = '\n'.join(map(str, g1.stats.call_history))
     print("g1 call history: \n%s" % hist_str)
     print("g1.log_calls_settings.max_history =", g1.log_calls_settings.max_history)
+    print("Now call g3 1 times and look at its call history - only most recent 2 should be saved:")
+    g1.log_calls_settings.log_exit = False
+    g1.log_calls_settings.log_args = False
+    g1.log_calls_settings.log_elapsed = False
+    for i in range(3):
+        g1()
+    print("g1 call history: \n%s" % '\n'.join(map(str, g1.stats.call_history)))
 
     print('- - - - - - - - - - - - - - ')
     # ~Same for g3 (1 call)
@@ -846,6 +853,7 @@ if __name__ == "__main__":
     hist_str = '\n'.join(map(str, g3.stats.call_history))
     print("g3 call history: \n%s" % hist_str)
     print("g3 total elapsed time =", g3.stats.total_elapsed)
+
     print('- - - - - - - - - - - - - - ')
 
     print("Try writing to g1.stats descriptors")
@@ -1059,6 +1067,20 @@ if __name__ == "__main__":
     print("via Klass:")
     print("classmethod log_calls_settings:", Klass.klassmethod.log_calls_settings)
     print("staticmethod log_calls_settings:", Klass.statikmethod.log_calls_settings)
+
+    print("==================================")
+    print("More call_history_as_csv")
+    # keep per-call log concise, but we need args:
+    @log_calls(record_history=True, log_exit=False)
+    def myfunc(a, b, c=7, **kwargs):
+        pass
+
+    myfunc(1, 2)
+    myfunc(1, 2, 3)
+    myfunc(1, 2, c=4)
+    myfunc(1, 2, extraneous='foo')
+    print("call history for def myfunc(a, b, c=7, **kwargs):")
+    print(myfunc.stats.call_history_as_csv)
 
     # Gee whiz!! :D
     print("\nRunning doctest...")

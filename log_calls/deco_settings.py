@@ -191,7 +191,7 @@ class DecoSettingsMapping():
 
         return ("DecoSettingsMapping.register_class_settings([\n"
                 "    %s\n"
-                "])") % '\n    '.join(list_of_settingsinfo_reprs)
+                "])") % ',\n    '.join(list_of_settingsinfo_reprs)
 
     def setting_names_list(self):
         return list(self._deco_class_settings_dict)

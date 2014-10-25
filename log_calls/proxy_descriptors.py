@@ -11,7 +11,7 @@ __all__ = ['install_proxy_descriptor', 'KlassInstanceAttrProxy']
 
 def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, data=True, readonly=False):
     """
-    Create and install (setattr) on proxy_obj a descriptor named descr_name
+    Create and install (setattr) on proxy_obj a descriptor named descr_name,
     assuming proxy_obj has an attribute named attr_name_proxied_instance
     which 'points' to an object that already has an attr/descr named descr_name;
     the created descriptor will then just defer to that anterior attr/descr.
@@ -19,13 +19,17 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
     Suppose a, b are instances of classes A, B resp.,
     and suppose b has an attr 'my_a' that points to a:
         assert b.my_a is a
-    Suppose a has attributes 'x' 'y' and 'z' which b wants to reflect
-    aka proxy, so that the value of b.x will be (will invoke) a.x
-    and similarly for y, z.
-    b can set this up, as follows:
+    Thus proxy_obj == b,
+         attr_name_proxied_instance == 'my_a'.
+    Suppose a has an attribute 'x' which b wants to reflect
+    aka proxy, so that the value of b.x will be (will invoke) a.x.
+    b can set this up as follows:
         install_proxy_descriptor(b, 'my_a', 'x')   # b: b itself would say, self
 
-    data: True iff we should create & install a data descriptor, else a non-data-descr
+    data: True iff we should create & install a data descriptor,
+                   else create & install a non-data-descriptor.
+    readonly: True iff created data descriptor should be readonly
+                       (i.e. raise AttributeError on attempted 'set' operations).
     """
     class ProxyDataDescr():
         def __get__(this_descr, proxy, owner):
@@ -55,16 +59,12 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
                         getattr(proxy, attr_name_proxied_instance),
                         descr_name)
 
-    # if data:
-    #     proxy_descr = ProxyDataDescr()
-    # else:
-    #     proxy_descr = ProxyMethodDescr()
     proxy_descr = (ProxyDataDescr if data else ProxyMethodDescr)()
     setattr(proxy_obj.__class__, descr_name, proxy_descr)
 
 
 class KlassInstanceAttrProxy():
-    """attributes on (instances of) some other class Klass ==>
+    """Attributes on (instances of) some other class Klass ==>
             readonly data descriptors on (instances of) this class.
     This class keeps a record of which other klasses it has already created
     descriptors for (classes_proxied, initially empty set).

@@ -69,6 +69,20 @@ class TestDecoSetting(TestCase):
 ##############################################################################
 
 class TestDecoSettingsMapping(TestCase):
+
+    _settings = []
+    _descrs = []
+
+    @classmethod
+    def setUpClass(cls):
+        cls.info_plain = DecoSetting('set_once', int, 15,
+                                     allow_falsy=True, mutable=False)
+        cls.info_extended = DecoSetting('extended', tuple, ('Joe', "Schmoe"),
+                                        allow_falsy=True, allow_indirect=False,
+                                        extra1='Tom', extra2='Dick', extra3='Harry')
+
+
+
     def test_register_class_settings(self):
         self.fail()
 

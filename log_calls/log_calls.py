@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import datetime
-from collections import namedtuple, OrderedDict     # TODO ordered dict of args & vals useful for history?
+from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .helpers import difference_update, is_keyword_param, get_args_kwargs_param_names
@@ -40,7 +40,7 @@ CallRecord = namedtuple(
         'varargs',
         'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
         'retval',
-        'elapsed_sec',
+        'elapsed_secs',
         'timestamp',
         'function'
     )
@@ -57,7 +57,7 @@ class log_calls():
     "logs" means: prints to stdout, or, optionally, to a logger.
 
     The decorator takes various keyword arguments, all with sensible defaults.
-    Every parameter except prefix and max_call_history can take two kinds of values,
+    Every parameter except prefix and max_history can take two kinds of values,
     direct and indirect. Briefly, if the value of any of those parameters
     is a string that ends in in '=', then it's treated as the name of a keyword
     arg of the wrapped function, and its value when that function is called is
@@ -96,15 +96,11 @@ class log_calls():
                           This call would correspond to the n-th record
                           in the functions call history, if record_history
                           is true.
-                          (Default: False)
+                          (Default: True)
         log_elapsed:      If truthy, display how long it took the function
                           to execute, in seconds. (Default: False)
 
     """
-    # TODO: keyword parameters for control over stats
-    # todo  -- max_history: int (keep only the most recent N)
-    # todo     TODO implement upper bound!   circular buffer perhaps
-
     MAXLEN_RETVALS = 60
     LOG_CALLS_SENTINEL_ATTR = '_log_calls_sentinel_'        # name of attr
     LOG_CALLS_SENTINEL_VAR = "_log_calls-deco'd"
@@ -113,7 +109,7 @@ class log_calls():
     # *** DecoSettingsMapping "API" --
     # (1) initialize: call register_class_settings
 
-    # allow indirection for all except prefix 10/18/14 and max_call_history
+    # allow indirection for all except prefix and 10/18/14 max_history
     _setting_info_list = (
         DecoSetting('enabled',          int,            False,         allow_falsy=True),
         DecoSetting('log_args',         bool,           True,          allow_falsy=True),
@@ -126,7 +122,7 @@ class log_calls():
 
         DecoSetting('record_history',   bool,           False,         allow_falsy=True),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
-        DecoSetting('log_call_number',  bool,           False,         allow_falsy=True),
+        DecoSetting('log_call_number',  bool,           True,          allow_falsy=True),
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
     )
     DecoSettingsMapping.register_class_settings('log_calls',
@@ -178,17 +174,81 @@ class log_calls():
 
     @property
     def call_history_as_csv(self):
-        # TODO !
-        return "not,yet,implemented\n,'coming','soon'"
+        """
+        CallRecord(
+            'call_num',
+            'argnames', 'argvals',
+            'varargs',
+            'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
+            'retval',
+            'elapsed_secs',
+            'timestamp',
+            'function' )
+        So headings (columns) are:
+            call_num
+            each-arg *
+            varargs (str)
+            implicit_kwargs (str)
+            retval          (repr?)
+            elapsed_secs    (double? float?)
+            timestamp       (format somehow? what is it anyway)
+            function (it's a name/str)
+        """
+        all_args = list(self.f_params)
+        varargs_name, kwargs_name = get_args_kwargs_param_names(self.f_params)
+
+        csv = ''
+
+        # Write column headings line (append to csv str)
+        fields = ['call_num']
+        fields.extend(all_args)
+        fields.extend(['retval', 'elapsed_secs', 'timestamp', 'function'])
+        csv = ','.join(fields)
+        csv += '\n'
+
+        # Write data lines
+        for rec in self._call_history:
+            fields = [str(rec.call_num)]
+            # Do arg vals.
+            # make dict of ALL args/vals
+            all_args_vals_dict = {a: str(v) for (a, v) in zip(rec.argnames, rec.argvals)}
+            all_args_vals_dict.update(
+                {a: str(v) for (a, v) in rec.explicit_kwargs.items()}
+            )
+            all_args_vals_dict.update(
+                {a: str(v) for (a, v) in rec.defaulted_kwargs.items()}
+            )
+            for arg in all_args:
+                if arg == varargs_name:
+                    fields.append(str(rec.varargs))
+                elif arg == kwargs_name:
+                    fields.append(str(rec.implicit_kwargs))
+                else:
+                    fields.append(repr(all_args_vals_dict[arg]))
+            # and now the remaining fields
+            fields.append(repr(rec.retval))
+            fields.append(str(rec.elapsed_secs))
+            fields.append(rec.timestamp)        # it already IS a formatted str
+            fields.append(rec.function)
+
+            csv += ','.join(fields)
+            csv += '\n'
+
+        return csv
 
     @property
     def total_elapsed(self):
-        return sum((histrec.elapsed_sec for histrec in self._call_history))
+        return sum((histrec.elapsed_secs for histrec in self._call_history))
+
+    def _make_call_history(self):
+        return deque(maxlen=(self.max_history if self.max_history > 0 else None))
 
     def clear_history(self, max_history=0):
-        self._call_history = []
+        """Using clear_history it's possible to change max_history"""
         self._num_calls_logged = 0
         self._num_calls_total = 0
+        self.max_history = max_history  # set before calling _make_call_history
+        self._call_history = self._make_call_history()
         self._settings_mapping.__setitem__('max_history', max_history, _force_mutable=True)
 
     def _add_call(self, *, logged):
@@ -196,13 +256,13 @@ class log_calls():
         if logged:
             self._num_calls_logged += 1
 
-    def _add_to_history(self, f,
+    def _add_to_history(self,
                         call_num,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval=None,
-                        elapsed_sec=0,
+                        elapsed_secs=0,
                         timestamp_secs=0,
     ):
         "Only called for *logged* calls"
@@ -221,20 +281,17 @@ class log_calls():
             argnames = argnames[:n]
             argvals = argvals[:n]
 
-            # TODO: Use self.max_history if > 0
-            # todo  Need some kinda object with an insert method that always succeeds
-            # todo  and which can be converted to a tuple by property call_history
             self._call_history.append(
                     CallRecord(
-                        self._num_calls_logged,
+                        self._num_calls_logged+1,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval,
-                        elapsed_sec,
+                        elapsed_secs,
                         timestamp,
-                        function=f.__name__)
-        )
+                        function=self.f.__name__)
+            )
         self._add_call(logged=True)
 
     def __init__(
@@ -276,11 +333,13 @@ class log_calls():
         )
         # and the special cases:
         self.prefix = prefix
-        self.max_history = max_history  # > 0 --> size of 'buffer'; <= 0 --> unbounded TODO! implement
         # Accessed by descriptors on the __Mapping obj
         self._num_calls_total = 0
         self._num_calls_logged = 0
-        self._call_history = []
+        # max_history > 0 --> size of self._call_history; <= 0 --> unbounded
+        # Set before calling _make_call_history
+        self.max_history = max_history
+        self._call_history = self._make_call_history()
 
         self.f_params = None    # set properly by __call__
 
@@ -291,6 +350,9 @@ class log_calls():
         So, this method *returns* the decorator proper."""
         # First, save prefix + function name for function f
         prefixed_fname = self.prefix + f.__name__
+        # Might as well save f too !
+        self.f = f
+        # in addition to its parameters
         self.f_params = inspect.signature(f).parameters
         (self.args_name,
          self.kwargs_name) = get_args_kwargs_param_names(self.f_params)
@@ -315,7 +377,7 @@ class log_calls():
             # if nothing to do, hurry up & don't do it
             if not _get_final_value('enabled'):
                 ### # call f after adding to stats, return its retval
-                ### self._add_to_history(f, args, kwargs, logged=False)
+                ### self._add_to_history(args, kwargs, logged=False)
                 self._add_call(logged=False)    # bump self._num_calls_total
                 return f(*args, **kwargs)
 
@@ -362,7 +424,9 @@ class log_calls():
             # }
             defaulted_kwargs = OrderedDict(
                 [(k, self.f_params[k].default) for k in self.f_params
-                    if is_keyword_param(self.f_params[k]) and k not in kwargs]
+                    if is_keyword_param(self.f_params[k])
+                    and k not in kwargs
+                    and k not in argnames]
             )
 
             # Make & append args message
@@ -400,8 +464,7 @@ class log_calls():
                 if defaulted_kwargs:
                     args_vals.append( ("(defaults used)",  defaulted_kwargs) )
 
-                # TODO? -- make this next optional via setting?
-                # the defaulted kwargs are kw args in self.f_params which
+                # The defaulted kwargs are kw args in self.f_params which
                 # are NOT in implicit_kwargs, and their vals are defaults
                 # of those parameters. Write these on a separate line.
                 if defaulted_kwargs:
@@ -417,12 +480,12 @@ class log_calls():
             # then add elapsed time and retval (as str? repr?) etc to stats
             t0 = time.time()
             retval = f(*args, **kwargs)
-            elapsed_sec = (time.time() - t0)
-            self._add_to_history(f, argnames[:argcount], args[:argcount],
+            elapsed_secs = (time.time() - t0)
+            self._add_to_history(argnames[:argcount], args[:argcount],
                                  varargs,
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                                  retval,
-                                 elapsed_sec=elapsed_sec,
+                                 elapsed_secs=elapsed_secs,
                                  timestamp_secs=t0
             )
 
@@ -436,7 +499,7 @@ class log_calls():
 
             # log_elapsed
             if _get_final_value('log_elapsed'):
-                logging_fn(indent + "elapsed time: %f [sec]" % elapsed_sec)
+                logging_fn(indent + "elapsed time: %f [sec]" % elapsed_secs)
 
             # log_exit
             if _get_final_value('log_exit'):
@@ -498,9 +561,9 @@ class log_calls():
                 # Previous was decorated inner fn; don't add 'f_log_calls_wrapper_'
                 # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                 # Fixup: get prefixed named of wrapped function
+                # TODO Bit of a kludge eh
                 call_list[-1] = getattr(curr_frame.f_locals['f'],
                                         log_calls.LOG_CALLS_PREFIXED_NAME)
-                # call_list[-1] = curr_frame.f_locals['prefixed_fname']  # bit of a kludge eh TODO TODO
                 found = True
                 break
             call_list.append(curr_funcname)
@@ -529,17 +592,9 @@ class log_calls():
                         #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                         #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                         #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                    # # TODO FUCK BUT this doesn't work for methods eh
-                    # # No doesn't work for... prefixed fnames!
-                    # # todo BECAUSE <<<<< curr_funcname lacks prefix >>>>>
-                    # # todo Can we fix?
-                    # # WHAT IF WE COULD LOOK UP THE ATTRS OF ANY deco'd fn here,
-                    # # we could get its (static) prefix if it has one
-                    elif ('prefixed_fname' in locls
-                        #  and locls['prefixed_fname'] == curr_funcname   # TODO
-                         ):
-                        # TODO - why? curr_funcname will 'come around for real' next time through loop,
-                        # todo   so remove it from end now
+                    elif 'prefixed_fname' in locls:
+                        # curr_funcname will 'come around for real' next time through loop,
+                        # so remove it from end now
                         call_list = call_list[:-1]
                         # and curr_fn is None, so it won't have attr in next "if"
             if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
