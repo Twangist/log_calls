@@ -20,7 +20,7 @@ import datetime
 from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
-from .helpers import difference_update, is_keyword_param, get_args_kwargs_param_names
+from .helpers import difference_update, is_keyword_param, get_args_pos, get_args_kwargs_param_names
 from .proxy_descriptors import KlassInstanceAttrProxy
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
@@ -42,7 +42,8 @@ CallRecord = namedtuple(
         'retval',
         'elapsed_secs',
         'timestamp',
-        'function'
+        'prefixed_func_name',
+        'caller_chain',
     )
 )
 
@@ -175,16 +176,7 @@ class log_calls():
     @property
     def call_history_as_csv(self):
         """
-        CallRecord(
-            'call_num',
-            'argnames', 'argvals',
-            'varargs',
-            'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
-            'retval',
-            'elapsed_secs',
-            'timestamp',
-            'function' )
-        So headings (columns) are:
+        Headings (columns) are:
             call_num
             each-arg *
             varargs (str)
@@ -194,6 +186,7 @@ class log_calls():
             timestamp       (format somehow? what is it anyway)
             function (it's a name/str)
         """
+        csv_sep = '|'
         all_args = list(self.f_params)
         varargs_name, kwargs_name = get_args_kwargs_param_names(self.f_params)
 
@@ -202,8 +195,8 @@ class log_calls():
         # Write column headings line (append to csv str)
         fields = ['call_num']
         fields.extend(all_args)
-        fields.extend(['retval', 'elapsed_secs', 'timestamp', 'function'])
-        csv = ','.join(fields)
+        fields.extend(['retval', 'elapsed_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
+        csv = csv_sep.join(map(repr,fields))
         csv += '\n'
 
         # Write data lines
@@ -211,12 +204,12 @@ class log_calls():
             fields = [str(rec.call_num)]
             # Do arg vals.
             # make dict of ALL args/vals
-            all_args_vals_dict = {a: str(v) for (a, v) in zip(rec.argnames, rec.argvals)}
+            all_args_vals_dict = {a: repr(v) for (a, v) in zip(rec.argnames, rec.argvals)}
             all_args_vals_dict.update(
-                {a: str(v) for (a, v) in rec.explicit_kwargs.items()}
+                {a: repr(v) for (a, v) in rec.explicit_kwargs.items()}
             )
             all_args_vals_dict.update(
-                {a: str(v) for (a, v) in rec.defaulted_kwargs.items()}
+                {a: repr(v) for (a, v) in rec.defaulted_kwargs.items()}
             )
             for arg in all_args:
                 if arg == varargs_name:
@@ -224,14 +217,15 @@ class log_calls():
                 elif arg == kwargs_name:
                     fields.append(str(rec.implicit_kwargs))
                 else:
-                    fields.append(repr(all_args_vals_dict[arg]))
+                    fields.append(all_args_vals_dict[arg])
             # and now the remaining fields
             fields.append(repr(rec.retval))
             fields.append(str(rec.elapsed_secs))
             fields.append(rec.timestamp)        # it already IS a formatted str
-            fields.append(rec.function)
+            fields.append(repr(rec.prefixed_func_name))
+            fields.append(repr(rec.caller_chain))
 
-            csv += ','.join(fields)
+            csv += csv_sep.join(fields)
             csv += '\n'
 
         return csv
@@ -257,13 +251,14 @@ class log_calls():
             self._num_calls_logged += 1
 
     def _add_to_history(self,
-                        call_num,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
-                        retval=None,
-                        elapsed_secs=0,
-                        timestamp_secs=0,
+                        retval,
+                        elapsed_secs,
+                        timestamp_secs,
+                        prefixed_func_name,
+                        caller_chain
     ):
         "Only called for *logged* calls"
         record_history = self._settings_mapping.get_final_value(
@@ -290,7 +285,8 @@ class log_calls():
                         retval,
                         elapsed_secs,
                         timestamp,
-                        function=self.f.__name__)
+                        prefixed_func_name=prefixed_func_name,
+                        caller_chain=caller_chain)
             )
         self._add_call(logged=True)
 
@@ -403,31 +399,30 @@ class log_calls():
                       ' <== '.join(call_list)))
 
             # Gather all the things we need for _add_history
-            argcount = f.__code__.co_argcount
-            argnames = f.__code__.co_varnames[:argcount]
-            args_vals = list(zip(argnames, args))
+            # NEW --
+            # bound_args.arguments -- contains only explicitly bound arguments
+            bound_args = inspect.signature(f).bind(*args, **kwargs)
+            varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
+            argcount = varargs_pos if varargs_pos >= 0 else len(args)
             varargs = args[argcount:]
-            # explicit_kwargs = {k: v for (k, v) in kwargs.items()
-            #                    if k in self.f_params
-            #                    and is_keyword_param(self.f_params[k])}
+            # The first argcount-many things in bound_args
+            argnames = list(bound_args.arguments)[:argcount]
+
+            defaulted_kwargs = OrderedDict(
+                [(param.name, param.default) for param in self.f_params.values()
+                 if param.name not in bound_args.arguments
+                 and param.default != inspect._empty
+                ]
+            )
             explicit_kwargs = OrderedDict(
                 [(k, kwargs[k]) for k in self.f_params
-                 if k in kwargs
-                 and is_keyword_param(self.f_params[k])]
+                 if k in bound_args.arguments and k in kwargs]
             )
-            implicit_kwargs = difference_update(
-                kwargs.copy(), explicit_kwargs)
-            # defaulted_kwargs = {
-            #     k: self.f_params[k].default
-            #     for k in self.f_params
-            #     if is_keyword_param(self.f_params[k]) and k not in kwargs
-            # }
-            defaulted_kwargs = OrderedDict(
-                [(k, self.f_params[k].default) for k in self.f_params
-                    if is_keyword_param(self.f_params[k])
-                    and k not in kwargs
-                    and k not in argnames]
-            )
+            varargs_name, kwargs_name = get_args_kwargs_param_names(self.f_params)
+            implicit_kwargs = {
+                k: kwargs[k] for k in kwargs if k not in explicit_kwargs
+            }
+            args_vals = list(zip(argnames, args))
 
             # Make & append args message
             # If function has no parameters or if not log_args,
@@ -457,22 +452,11 @@ class log_calls():
                 else:
                     msg += "<none>"
 
-                # if implicit_kwargs, then f has a "kwargs"-like parameter;
-                # the defaulted kwargs are kw args in self.f_params which
-                # are NOT in implicit_kwargs, and their vals are defaults
-                # of those parameters. Do implicit first.
-                if defaulted_kwargs:
-                    args_vals.append( ("(defaults used)",  defaulted_kwargs) )
-
                 # The defaulted kwargs are kw args in self.f_params which
                 # are NOT in implicit_kwargs, and their vals are defaults
                 # of those parameters. Write these on a separate line.
                 if defaulted_kwargs:
                     msg += '\n' + indent + ("defaults:  %r" % defaulted_kwargs)
-
-                #### TODO can this all be simplified using
-                #### todo inspect.getfullargspec(...)
-                #### todo  or inspect... signature... bind ( f, *args, **kwargs) ???
 
             logging_fn(msg)
 
@@ -486,7 +470,9 @@ class log_calls():
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                                  retval,
                                  elapsed_secs=elapsed_secs,
-                                 timestamp_secs=t0
+                                 timestamp_secs=t0,
+                                 prefixed_func_name=prefixed_fname,
+                                 caller_chain=call_list
             )
 
             # log_retval

@@ -1070,6 +1070,7 @@ if __name__ == "__main__":
 
     print("==================================")
     print("More call_history_as_csv")
+    print("def myfunc(a, b, c=7, **kwargs):")
     # keep per-call log concise, but we need args:
     @log_calls(record_history=True, log_exit=False)
     def myfunc(a, b, c=7, **kwargs):
@@ -1079,8 +1080,34 @@ if __name__ == "__main__":
     myfunc(1, 2, 3)
     myfunc(1, 2, c=4)
     myfunc(1, 2, extraneous='foo')
-    print("call history for def myfunc(a, b, c=7, **kwargs):")
+    print("call history for myfunc:")
     print(myfunc.stats.call_history_as_csv)
+
+    print("- - - - - - - - - - - - - - - - - -")
+    print("More:")
+    print("def myfunc2(a, b, *other_args, x, y=7, **kwargs):")
+    # keep per-call log concise, but we need args:
+
+
+    @log_calls(prefix='X.', record_history=True, log_exit=False)
+    def myfunc2(a, b, *other_args, x, y=7, **kwargs):
+        return a + b + sum(other_args)
+
+    def temp(*args, **kwargs):
+        return myfunc2(*args, **kwargs)
+
+    @log_calls(log_exit=False)
+    def temp2(*args, **kwargs):
+        return temp(*args, **kwargs)
+
+    temp2(0, 1, x=101)
+    temp2(0, 1, 2, 3, x=101, y=7)
+    temp2(0, 1, 2, 3, 4, x=101, y=8)
+    temp2(0, 1, 2, 3, 4, x=102)
+    temp2(0, 1, 2, 3, x=103, extra='yomomma')
+    print("call history for myfunc2 called via temp:")
+    print(myfunc2.stats.call_history_as_csv)
+
 
     # Gee whiz!! :D
     print("\nRunning doctest...")

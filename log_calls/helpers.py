@@ -73,6 +73,15 @@ def is_keyword_param(param):
     )
 
 
+def get_args_pos(fparams) -> int:
+    """Position in params of function of varargs, >= 0 if it's present, else -1"""
+    for i, name in enumerate(fparams):
+        param = fparams[name]
+        if param.kind == param.VAR_POSITIONAL:
+            return i
+    return -1
+
+
 def get_args_kwargs_param_names(fparams) -> (str, str):
     """fparams is inspect.signature(f).parameters
     for some function f.
