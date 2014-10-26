@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b7'
+__version__ = 'v0.1.10-b8'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -399,8 +399,8 @@ class log_calls():
                       call_number_str,
                       ' <== '.join(call_list)))
 
-            # Gather all the things we need for _add_history
-            # NEW --
+            # Gather all the things we need (for log output, & for _add_history)
+            # NEW -- use inspect module's Signature.bind method.
             # bound_args.arguments -- contains only explicitly bound arguments
             bound_args = inspect.signature(f).bind(*args, **kwargs)
             varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature

@@ -1,5 +1,12 @@
 VERSIONS
 --------
+v0.1.10-b8 - Wrote test_proxy_descriptors, simplified proxy_descriptors
+             as a result. 100% coverage of proxy_descriptors.py.
+             Doctests for get_args_pos in helpers.py, 100% coverage.
+             test_deco_settings.py: 100% coverage of deco_settings.py.
+             TODO  test_log_calls.py,
+             todo  documentation (log_calls.md, readme.md)
+
 v0.1.10-b7 - Reworked __call__ routine to better use inspect module's
              introspection, specifically the bind method. Defaulted
              arg values weren't working quite right.
@@ -15,7 +22,7 @@ v0.1.10-b6 - New: stats object available on the deco'd function,
              with attributes num_calls, time_elapsed, call_history.
              Four new keyword parameters:
                 log_elapsed, log_call_number, record_history, max_history
-             Nice lil class KlassInstanceAttrProxy (stats is one of them).
+             Nice lil class ClassInstanceAttrProxy (stats is one of them).
              All tests from v0.1.10-b5 pass, but we still need more tests,
              and documentation -- now, even more of both than at v0.1.10-b5.
 
@@ -67,7 +74,7 @@ v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
              is returned by __call__.
              Updated the doc/tests test_log_calls.py to reflect these changes,
              plus probably other little improvements.
-             TODO: update the *.md files
+
 v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
              doctests moved to tests/test_log_calls.py. VERSIONS moved to
              CHANGES.txt (this file).

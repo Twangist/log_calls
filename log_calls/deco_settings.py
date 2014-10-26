@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b7'
+__version__ = 'v0.1.10-b8'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -287,9 +287,9 @@ class DecoSettingsMapping():
     def __str__(self):
         return str(self.as_dict())
 
-    def update(self, *, _class_settings_dict_=None, **d_settings):
+    def update(self, **d_settings):
         for k, v in d_settings.items():
-            self.__setitem__(k, v, _class_settings_dict_=_class_settings_dict_)      # i.e. self[k] = v ?!
+            self.__setitem__(k, v, _class_settings_dict_=self._deco_class_settings_dict)
 
     def as_OrderedDict(self):
         od = OrderedDict()
@@ -344,6 +344,7 @@ class DecoSettingsMapping():
                 val = default
 
         # fixup: "loggers" that aren't loggers, "strs" that arent strs, etc
-        if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
+#        if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
+        if (not val and not allow_falsy) or (not isinstance(val, final_type)):
             val = default
         return val
