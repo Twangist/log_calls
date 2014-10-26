@@ -1,11 +1,11 @@
 __author__ = 'brianoneill'
-__version__ = 'v0.1.10-b7'
+__version__ = 'v0.1.10-b8'
 __doc__ = """
-    See docstrings for install_proxy_descriptor and KlassInstanceAttrProxy.
+    See docstrings for install_proxy_descriptor and ClassInstanceAttrProxy.
 """
 from itertools import product, chain
 
-__all__ = ['install_proxy_descriptor', 'KlassInstanceAttrProxy']
+__all__ = ['install_proxy_descriptor', 'ClassInstanceAttrProxy' ]
 
 
 def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, data=True, readonly=False):
@@ -62,49 +62,47 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
     setattr(proxy_obj.__class__, descr_name, proxy_descr)
 
 
-class KlassInstanceAttrProxy():
-    """Attributes on (instances of) some other class Klass ==>
-            readonly data descriptors on (instances of) this class.
-    This class keeps a record of which other klasses it has already created
-    descriptors for (classes_proxied, initially empty set).
-
+class ClassInstanceAttrProxy():
+    """Attributes on (instances of) some other class  ==>
+            descriptors on (instances of) this class
+            (data descriptors are readonly).
     The transform '==>' is accomplished by install_proxy_descriptor.
 
-    Note that the attributes of instances of Klass that are exposed this way
-    can themselves be descriptors (e.g. properties).
+    This class keeps a record of which other classes it has already created
+    descriptors for (_classes_proxied, initially empty set).
+
+    Class whose instance class_instance is passed must implement classmethods:
+        get_descriptor_names()
+        get_method_descriptor_names()
+
+    Note that the attributes of instances of other class that are exposed
+    in this way can themselves be descriptors (e.g. properties).
     """
     # Only create descriptors on the class once:
     # for a given descr_name (attr name) they'd be the same :)
-    klasses_proxied = set()
-    # but ensure that different classes use disjoint attr/descr names
-    descr_name2klass = {}       # map descr_name --> klass
+    _classes_proxied = set()
 
-    def __init__(self, *, klass_instance):
-        """What makes these work is the klass_instance arg,
-        which a descriptor uses to access a klass_instance
+    def __init__(self, *, class_instance):
+        """What makes these work is the class_instance arg,
+        which a descriptor uses to access a class_instance
         and from that its attr of the same name."""
-        self.deco_instance = klass_instance
+        self._proxied_instance_ = class_instance
 
-        klassname = klass_instance.__class__.__name__
-        if klassname not in self.klasses_proxied:
+        classname = class_instance.__class__.__name__
+        if classname not in self._classes_proxied:
             # Create descriptors *** on the class ***, once only per class.
             # Same __get__/__set__ functions, called on different instances.
             # It doesn't work to create them on instances:
             #         setattr(self, ... ) doesn't fly.
-            klass_descr_names = chain(product(klass_instance.get_descriptor_names(), {True}),
-                                      product(klass_instance.get_method_descriptor_names(), {False}))
-            klass_descr_names = list(klass_descr_names)
-            # Make sure names in klass_descr_names is disjoint from descr_name2klass keys,
-            # else somebody else gets clobbered (say who! which other klass)
-            for descr_name, _ in klass_descr_names:
-                if descr_name in self.descr_name2klass:
-                    # Note: klassname is still not in klasses_proxied
-                    raise AttributeError("attribute/descriptor-name %s already registered by class %s"
-                                         % (descr_name, self.descr_name2klass[descr_name]))
-
-            for descr_name, is_data in klass_descr_names:
+            class_descr_names = chain(product(class_instance.get_descriptor_names(),
+                                              {True}),
+                                      product(class_instance.get_method_descriptor_names(),
+                                              {False})
+            )
+            for descr_name, is_data in list(class_descr_names):
                 # Create & add descriptor to this class. readonly only matters if is_data
-                install_proxy_descriptor(self, 'deco_instance', descr_name, data=is_data, readonly=is_data)
+                install_proxy_descriptor(self, '_proxied_instance_', descr_name,
+                                         data=is_data, readonly=is_data)
 
             # Record this class as 'already (successfully!) handled'
-            self.klasses_proxied.add(klassname)
+            self._classes_proxied.add(classname)

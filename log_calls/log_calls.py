@@ -20,7 +20,7 @@ from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .helpers import difference_update, is_keyword_param, get_args_pos, get_args_kwargs_param_names
-from .proxy_descriptors import KlassInstanceAttrProxy
+from .proxy_descriptors import ClassInstanceAttrProxy
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
 
@@ -143,24 +143,24 @@ class log_calls():
 
     @classmethod
     def get_descriptor_names(cls):
-        """Called by KlassInstanceAttrProxy when creating descriptors
+        """Called by ClassInstanceAttrProxy when creating descriptors
         that correspond to the attrs of this class named in the returned list.
-        KlassInstanceAttrProxy creates descriptors *once*.
+        ClassInstanceAttrProxy creates descriptors *once*.
         This enforces the rule that the descriptor names / attrs
         are the same for all (deco) instances, i.e. that they 're class-level."""
         return cls._descriptor_names
 
     @classmethod
     def get_method_descriptor_names(cls):
-        """Called by KlassInstanceAttrProxy when creating descriptors
+        """Called by ClassInstanceAttrProxy when creating descriptors
         that correspond to the methods of this class named in the returned list.
-        KlassInstanceAttrProxy creates descriptors *once*.
+        ClassInstanceAttrProxy creates descriptors *once*.
         This enforces the rule that the descriptor names / attrs
         are the same for all (deco) instances, i.e. that they 're class-level."""
         return cls._method_descriptor_names
 
     # A few generic properties, internal logging, and exposed
-    # as descriptors on the stats (KlassInstanceAttrProxy) obj
+    # as descriptors on the stats (ClassInstanceAttrProxy) obj
     @property
     def num_calls_total(self):
         """All calls, logged and not logged"""
@@ -510,7 +510,7 @@ class log_calls():
             prefixed_fname
         )
 
-        stats = KlassInstanceAttrProxy(klass_instance=self)
+        stats = ClassInstanceAttrProxy( class_instance=self)
         setattr(
             f_log_calls_wrapper_,
             'stats',
