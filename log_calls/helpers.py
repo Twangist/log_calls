@@ -3,6 +3,7 @@ __author__ = 'brianoneill'
 __all__ = [
     'difference_update',
     'is_keyword_param',
+    'get_args_pos',
     'get_args_kwargs_param_names'
 ]
 

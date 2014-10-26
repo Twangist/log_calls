@@ -42,6 +42,8 @@ CallRecord = namedtuple(
         'elapsed_secs',
         'timestamp',
         'prefixed_func_name',
+        # caller_chain: list of fn names, the last possibly a "prefixed name".
+        # From most-recent (immediate caller) to least-recent if len > 1.
         'caller_chain',
     )
 )
