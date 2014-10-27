@@ -192,12 +192,6 @@ class DecoSettingsMapping():
                 "    %s\n"
                 "])") % ',\n    '.join(list_of_settingsinfo_reprs)
 
-    def setting_names_list(self):
-        return list(self._deco_class_settings_dict)
-
-    def is_setting(self, name):
-        return name in self._deco_class_settings_dict
-
     def __setitem__(self, key, value, _class_settings_dict_=None, _force_mutable=False):
         """
         key: name of setting, e.g. 'prefix';
@@ -208,8 +202,8 @@ class DecoSettingsMapping():
                                to do self._deco_class_settings_dict() on each call
         _force_mutable: if key is already in self._tagged_values_dict and
                         it's not mutable, attempting to __setitem__ on it
-                        raises AttributeError, unless force_mutable is True
-                        in which case it can be written.
+                        raises KeyError, unless force_mutable is True
+                        in which case it will be written.
         Store pair (is_indirect, modded_val) at key in self._tagged_values_dict[key]
         where
             is_indirect: bool,
@@ -222,7 +216,7 @@ class DecoSettingsMapping():
         class_settings_dict = _class_settings_dict_ or self._deco_class_settings_dict
         if key not in class_settings_dict:
             raise KeyError(
-                "DecoSettingsMapping.__setitem__: KeyError - no such setting (key) as '%s'" % key)
+                "DecoSettingsMapping.__setitem__: no such setting (key) as '%s'" % key)
 
         info = class_settings_dict[key]
         final_type = info.final_type
@@ -233,8 +227,8 @@ class DecoSettingsMapping():
         # if the setting is set-once-only (not mutable),
         # raise AttributeError if it's already set, unless _force_mutable:
         if not info.mutable and not _force_mutable and key in self._tagged_values_dict:
-            raise AttributeError("%s' is write-once (current value: %r)"
-                                 % (key, self._tagged_values_dict[key][1]))
+            raise ValueError("%s' is write-once (current value: %r)"
+                             % (key, self._tagged_values_dict[key][1]))
         if not allow_indirect:
             self._tagged_values_dict[key] = False, value
             return
@@ -287,9 +281,24 @@ class DecoSettingsMapping():
     def __str__(self):
         return str(self.as_dict())
 
-    def update(self, **d_settings):
-        for k, v in d_settings.items():
-            self.__setitem__(k, v, _class_settings_dict_=self._deco_class_settings_dict)
+    def update(self, *dicts, **d_settings):
+        """Do __setitem__ for every key/value pair in every dictionary
+        in dicts + (d_settings,).
+        Allow but ignore attempts to write to immutable keys!
+        This permits the user to get the settings as_dict() or as_OrderedDict(),
+        make changes & use them,
+        and then restore the original settings, which will contain items
+        for immutable settings too. Otherwise the user would have to
+        remove all the immutable keys before doing update - ugh.
+        """
+        for d in dicts + (d_settings,):
+            for k, v in d.items():
+                # skip immutable settings
+                if (k in self._deco_class_settings_dict
+                    and not self._deco_class_settings_dict[k].mutable):
+                    continue
+                # otherwise, do it (whether it's a setting key or not)
+                self.__setitem__(k, v, _class_settings_dict_=self._deco_class_settings_dict)
 
     def as_OrderedDict(self):
         od = OrderedDict()

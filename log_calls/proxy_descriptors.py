@@ -47,7 +47,6 @@ def install_proxy_descriptor(proxy_obj, attr_name_proxied_instance, descr_name, 
                     value)
             else:
                 # no can do:
-                # TODO test!
                 raise AttributeError("%s is read-only on %r" % (descr_name, proxy))
 
     class ProxyMethodDescr():

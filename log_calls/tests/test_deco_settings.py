@@ -156,18 +156,6 @@ class TestDecoSettingsMapping(TestCase):
             collapse_whitespace(settings_repr)
         )
 
-    def test_setting_names_list(self):
-        self.assertEqual(list(self._settings_mapping.setting_names_list()),
-                         ['enabled', 'folderol', 'my_setting', 'your_setting']
-        )
-
-    def test_is_setting(self):
-        self.assertTrue(self._settings_mapping.is_setting('enabled'))
-        self.assertTrue(self._settings_mapping.is_setting('folderol'))
-        self.assertTrue(self._settings_mapping.is_setting('my_setting'))
-        self.assertTrue(self._settings_mapping.is_setting('your_setting'))
-        self.assertFalse(self._settings_mapping.is_setting('no_such_setting'))
-
     def test___getitem__(self):
         """Test descriptors too"""
         mapping = self._settings_mapping
@@ -202,7 +190,7 @@ class TestDecoSettingsMapping(TestCase):
         def set_item_not_mutable(s):
             mapping['your_setting'] = s
 
-        self.assertRaises(AttributeError, set_item_not_mutable, "HARK! Who goes there?")
+        self.assertRaises(ValueError, set_item_not_mutable, "HARK! Who goes there?")
 
         self.assertEqual(mapping['enabled'], False)
         self.assertEqual(mapping['folderol'], 'BAR')
@@ -217,7 +205,7 @@ class TestDecoSettingsMapping(TestCase):
         def set_attr_not_mutable(s):
             mapping.your_setting = s
 
-        self.assertRaises(AttributeError, set_attr_not_mutable, "This won't work either.")
+        self.assertRaises(ValueError, set_attr_not_mutable, "This won't work either.")
 
         self.assertEqual(mapping.enabled, True)
         self.assertEqual(mapping.folderol, 'bar')
@@ -284,11 +272,41 @@ class TestDecoSettingsMapping(TestCase):
 
     def test_update(self):
         mapping = self._settings_mapping
-        d = {'enabled': False, 'folderol': 'tomfoolery', 'my_setting': 'balderdash='}
-        mapping.update(**d)
+
+        d = {'enabled': False, 'folderol': 'tomfoolery', 'my_setting': 'balderdash=', 'your_setting': "Goodbye."}
+        mapping.update(**d)                                 # pass as keywords
         self.assertEqual(mapping.enabled, False)
         self.assertEqual(mapping.folderol, 'tomfoolery')
         self.assertEqual(mapping.my_setting, 'balderdash=')
+        self.assertEqual(mapping.your_setting, 'Howdy')     # NOT changed, and no exception
+
+        mapping.enabled = not mapping.enabled
+        mapping.folderol = 'nada'
+        mapping.my_setting = "something-new"
+        mapping.update(d)                                   # pass as dict
+        self.assertEqual(mapping.enabled, False)
+        self.assertEqual(mapping.folderol, 'tomfoolery')
+        self.assertEqual(mapping.my_setting, 'balderdash=')
+        self.assertEqual(mapping.your_setting, 'Howdy')     # NOT changed, and no exception
+
+        d1 = {'enabled': False, 'folderol': 'gibberish'}
+        d2 = {'enabled': True, 'my_setting': 'hokum='}
+
+        mapping.update(d1, d2)
+        self.assertEqual(mapping.enabled, True)
+        self.assertEqual(mapping.folderol, 'gibberish')
+        self.assertEqual(mapping.my_setting, 'hokum=')
+
+        mapping.update(d1, d2, **d)
+        self.assertEqual(mapping.enabled, False)
+        self.assertEqual(mapping.folderol, 'tomfoolery')
+        self.assertEqual(mapping.my_setting, 'balderdash=')
+
+        self.assertRaises(
+            KeyError,
+            mapping.update,
+            no_such_setting=True
+        )
 
     def test_as_OrderedDict(self):
         self.assertDictEqual(

@@ -86,22 +86,21 @@ class log_calls():
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         record_history:    If truthy, an array of records will be kept, one for each
-                           call to the function recording time of call, arguments
-                           and defaulted keyword arguments, return value,
-                           time elapsed. (Default: False)
-        max_history:       An int. value = 0 (default) => don't record history;
-                                   value > 0 => store at most value-many records,
-                                                oldest records overwritten;
-                                   value <=: unboundedly many records
-        log_call_number:  If truthy, display the number of the function call,
+                           call to the function; each records call number (1-based),
+                           arguments and defaulted keyword arguments, return value,
+                           time elapsed, time of call, caller (call chain), prefixed
+                           function name.(Default: False)
+        max_history:       An int. value >  0 --> store at most value-many records,
+                                                  oldest records overwritten;
+                                   value <= 0 --> unboundedly many records are stored.
+        log_call_numbers: If truthy, display the number of the function call,
                           e.g.   f [n] <== <module>   for n-th logged call.
                           This call would correspond to the n-th record
                           in the functions call history, if record_history
                           is true.
-                          (Default: True)
+                          (Default: False)
         log_elapsed:      If truthy, display how long it took the function
                           to execute, in seconds. (Default: False)
-
     """
     MAXLEN_RETVALS = 60
     LOG_CALLS_SENTINEL_ATTR = '_log_calls_sentinel_'        # name of attr
@@ -124,7 +123,7 @@ class log_calls():
 
         DecoSetting('record_history',   bool,           False,         allow_falsy=True),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
-        DecoSetting('log_call_number',  bool,           True,          allow_falsy=True),
+        DecoSetting('log_call_numbers',  bool,           False,         allow_falsy=True),
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
     )
     DecoSettingsMapping.register_class_settings('log_calls',
@@ -303,7 +302,7 @@ class log_calls():
             loglevel=logging.DEBUG,
             record_history=False,
             max_history=0,
-            log_call_number=False,
+            log_call_numbers=False,
             log_elapsed=False
     ):
         """(See class docstring)"""
@@ -325,7 +324,7 @@ class log_calls():
             loglevel=loglevel,
             record_history=record_history,
             max_history=max_history,
-            log_call_number=log_call_number,
+            log_call_numbers=log_call_numbers,
             log_elapsed=log_elapsed
         )
         # and the special cases:
@@ -390,9 +389,9 @@ class log_calls():
             # Our unit of indentation
             indent = " " * 4
 
-            # log_call_number
+            # log_call_numbers
             call_number_str = (('[%d] ' % (self._num_calls_logged+1))
-                               if _get_final_value('log_call_number')
+                               if _get_final_value('log_call_numbers')
                                else '')
             msg = ("%s %s<== called by %s"
                    % (prefixed_fname,
@@ -456,8 +455,11 @@ class log_calls():
                 # The defaulted kwargs are kw args in self.f_params which
                 # are NOT in implicit_kwargs, and their vals are defaults
                 # of those parameters. Write these on a separate line.
+                # Don't just print the OrderedDict -- cluttered appearance.
                 if defaulted_kwargs:
-                    msg += '\n' + indent + ("defaults:  %r" % defaulted_kwargs)
+                    msg += ('\n' + indent + "defaults:  " + end_args_line
+                            + args_sep.join('%s=%r' % pair for pair in defaulted_kwargs.items())
+                    )
 
             logging_fn(msg)
 
