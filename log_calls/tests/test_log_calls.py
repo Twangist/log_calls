@@ -8,43 +8,62 @@ from log_calls import log_calls
 #############################################################################
 def main_basic():
     """
-###The *enabled* parameter (default – *True*)
+##Basic usage
+Every example in this document uses `log_calls`, so without further ado:
 
-The most basic example:
+    >>> from log_calls import log_calls
+
+This section presents the basic parameters of `log_calls`. But first,
+let's see the most basic examples, which require no parameters at all:
 
     >>> @log_calls()
-    ... def fn0(a, b, c):
+    ... def f(a, b, c):
     ...     pass
-    >>> fn0(1, 2, 3)
-    fn0 <== called by <module>
+    >>> f(1, 2, 3)
+    f <== called by <module>
         arguments: a=1, b=2, c=3
-    fn0 ==> returning to <module>
+    f ==> returning to <module>
 
-The next most basic:
+Adding another decorated function to the call chain gives useful information too:
+
+    >>> @log_calls()
+    ... def g(a):
+    ...     f(a, 2*a, 3*a)
+    >>> g(3)
+    g <== called by <module>
+        arguments: a=3
+    f <== called by g
+        arguments: a=3, b=6, c=9
+    f ==> returning to g
+    g ==> returning to <module>
+
+###The *enabled* parameter (default – *True*)
+
+The next most basic example:
 
     >>> @log_calls(enabled=False)
-    ... def fn1(a, b, c):
+    ... def f(a, b, c):
     ...     pass
-    >>> fn1(1, 2, 3)                # no output
+    >>> f(1, 2, 3)                # no output
 
-###The `args_sep` parameter (default: `, `)
+###The `args_sep` parameter (default – `', '`)
 
 The `args_sep` parameter specifies the character or string used to separate
 arguments. If the string ends in  (or is) `\n`, additional whitespace
 is appended so that arguments line up nicely:
 
     >>> @log_calls(args_sep='\\n')
-    ... def fn2(a, b, c, **kwargs):
+    ... def f(a, b, c, **kwargs):
     ...     print(a + b + c)
-    >>> fn2(1, 2, 3, u='you')       # doctest: +NORMALIZE_WHITESPACE
-    fn2 <== called by <module>
+    >>> f(1, 2, 3, u='you')       # doctest: +NORMALIZE_WHITESPACE
+    f <== called by <module>
         arguments:
             a=1
             b=2
             c=3
             [**]kwargs={'u': 'you'}
     6
-    fn2 ==> returning to <module>
+    f ==> returning to <module>
 
 **NOTE**: *In all the doctest examples in this document, you'll see* `'\\n'`
 *where in actual code you'd write* `'\n'`. *This is a `doctest` quirk: all
@@ -52,30 +71,67 @@ the examples herein work (as tests, they pass), and they would fail if*
 `'\n'` *were used. The only alternative would be to use raw character strings
 and write* `r'\n'`, *which is not obviously better.*
 
-###The *log_exit* parameter (default – *True*)
+###The `log_args` parameter (default – *True*)
+When true, as seen above, arguments passed to the decorated function are
+logged. If the function's signature contains positional and/or keyword
+"varargs" (`*args` and/or `**kwargs`), these are included if they're nonempty.
+Any default values of keyword parameters with no corresponding argument are also
+logged, on a separate line.
 
-When `False`, this parameter suppresses the `... ==> returning to ...` line
-indicating the function's return to its caller.
+    >>> @log_calls()
+    ... def f_a(a, *args, something='that thing', **kwargs): pass
+    >>> f_a(1, 2, 3, foo='bar')
+    f_a <== called by <module>
+        arguments: a=1, [*]args=(2, 3), [**]kwargs={'foo': 'bar'}
+        defaults:  something='that thing'
+    f_a ==> returning to <module>
 
-    >>> @log_calls(log_exit=False)
-    ... def fn3(a, b, c):
-    ...     return a + b + c
-    >>> _ = fn3(1, 2, 3)
-    fn3 <== called by <module>
-        arguments: a=1, b=2, c=3
+Here, no argument information is logged at all:
+
+    >>> @log_calls(log_args=False)
+    ... def f_b(a, *args, something='that thing', **kwargs): pass
+    >>> f_b(1, 2, 3, foo='bar')
+    f_b <== called by <module>
+    f_b ==> returning to <module>
+
+If a function has no parameters, `log_calls` won't display any "arguments"
+section:
+
+    >>> @log_calls()
+    ... def f(): pass
+    >>> f()
+    f <== called by <module>
+    f ==> returning to <module>
+
+If a function has parameters but is passed no arguments, `log_calls`
+will display `arguments: <none>`, plus any default values used:
+
+    >>> @log_calls()
+    ... def ff(*args, **kwargs): pass
+    >>> ff()
+    ff <== called by <module>
+        arguments: <none>
+    ff ==> returning to <module>
+
+    >>> @log_calls()
+    ... def fff(*args, kw='doh', **kwargs): pass
+    >>> fff()
+    fff <== called by <module>
+        arguments: <none>
+        defaults:  kw='doh'
+    fff ==> returning to <module>
 
 ###The *log_retval* parameter (default – *False*)
-
-When `True`, this parameter displays the value returned by the function:
+When true, this parameter displays the value returned by the function:
 
     >>> @log_calls(log_retval=True)
-    ... def fn4(a, b, c):
+    ... def f(a, b, c):
     ...     return a + b + c
-    >>> _ = fn4(1, 2, 3)
-    fn4 <== called by <module>
+    >>> _ = f(1, 2, 3)
+    f <== called by <module>
         arguments: a=1, b=2, c=3
-        fn4 return value: 6
-    fn4 ==> returning to <module>
+        f return value: 6
+    f ==> returning to <module>
 
 Return values longer than 60 characters are truncated and end with
 a trailing ellipsis:
@@ -88,11 +144,176 @@ a trailing ellipsis:
     return_long_str return value: ************************************************************...
     return_long_str ==> returning to <module>
     '****************************************************************************************************'
+
+###The *log_exit* parameter (default – *True*)
+
+When false, this parameter suppresses the `... ==> returning to ...` line
+that indicates the function's return to its caller.
+
+    >>> @log_calls(log_exit=False)
+    ... def f(a, b, c):
+    ...     return a + b + c
+    >>> _ = f(1, 2, 3)
+    f <== called by <module>
+        arguments: a=1, b=2, c=3
+
+###The *log_call_numbers* parameter (default – False)
+log_calls keeps a running tally of the number of times a decorated function
+is called. You can display this number using the `log_call_numbers` parameter:
+
+    >>> @log_calls(log_call_numbers=True)
+    ... def f(): pass
+    >>> for i in range(2): f()
+    f [1] <== called by <module>
+    f [1] ==> returning to <module>
+    f [2] <== called by <module>
+    f [2] ==> returning to <module>
+
+**NOTE**: *As we'll see later [TODO: ANCHOR], logging for a decorated function
+can be turned on and off dynamically. In fact,* `log_calls` *also tracks the total
+number of calls to a decorated function, and that number is accessible too –
+see the section on [the* `stats.num_calls_total` *attribute](#stats.num_calls_total).
+When the* `log_call_numbers` *setting is true, the call number displayed is
+the logged call number - the rank of that call among the calls to the function
+when logging has been enabled. For example, suppose you call* `f` *17 times with logging
+enabled and with* `log_call_numbers` *enabled; then you turn logging off and call* `f`
+*3 times; finally you re-enable logging and call* `f` *again: the number displayed will
+be 18, not 21.*
+
+###The *log_elapsed* parameter (default – *False*)
+You can measure the performance of a function using the log_elapsed keyword. When true,
+log_calls reports the time the decorated function took to complete, in seconds:
+
+    >>> @log_calls(log_elapsed=True)
+    ... def f(n):
+    ...     for i in range(n):
+    ...         # do something time-critical
+    ...         pass
+    >>> f(5000)                 # doctest: +ELLIPSIS
+    f <== called by <module>
+        arguments: n=5000
+        elapsed time: ... [secs]
+    f ==> returning to <module>
+
+###The *prefix* parameter (default - `''`): decorating methods
+
+Especially useful for clarity when decorating methods, the `prefix` keyword
+parameter lets you specify a string with which to prefix the name of the
+method. `log_calls` uses the prefixed name in its output: when logging
+a call to, and a return from, the method; when reporting the method's return
+value, and when the method is at the end of a call or return chain.
+
+    >>> import math
+    >>> class Point():
+    ...     # NOTE: You can't decorate __init__ :D
+    ...     def __init__(self, x, y):
+    ...         self.x = x
+    ...         self.y = y
+    ...     @staticmethod
+    ...     @log_calls(prefix='Point.')
+    ...     def distance(pt1, pt2):
+    ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
+    ...     @log_calls(log_retval=True, prefix='Point.')
+    ...     def length(self):
+    ...         return self.distance(self, Point(0, 0))
+    ...     @log_calls(prefix='Point.')
+    ...     def diag_reflect(self):
+    ...         self.x, self.y = self.y, self.x
+    ...         return self
+    ...     def __repr__(self):
+    ...         return "Point" + str((self.x, self.y))
+
+    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
+    Point.diag_reflect <== called by <module>
+        arguments: self=Point(1, 2)
+    Point.diag_reflect ==> returning to <module>
+    Point(1, 2).diag_reflect() = Point(2, 1)
+
+    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS
+    Point.length <== called by <module>
+        arguments: self=Point(1, 2)
+    Point.distance <== called by Point.length
+        arguments: pt1=Point(1, 2), pt2=Point(0, 0)
+    Point.distance ==> returning to Point.length
+        Point.length return value: 2.236...
+    Point.length ==> returning to <module>
+    length of Point(1, 2) = 2.24
+
+###The remaining parameters
+The `logger` and `loglevel` parameters are discussed in the next section,
+[Logging](#Logging), and also in the section
+[Logging with indirect parameters](#Logging-with-indirect-parameters).
+The `record_history` and `max_history` parameters are discussed in
+the section [Call history and statistics](#call-history-and-statistics).
     """
     pass
 
 
-def main__call_chains__no_params_no_args():
+def main_logging():
+    """
+##[Logging](id:Logging)
+`log_calls` works well with loggers obtained from Python's `logging` module.
+First, we'll set up a logger with a single handler that writes to the console.
+Because `doctest` doesn't capture output written to `stderr` (the default stream
+to which console handlers write), we'll send the console handler's output to
+`stdout`, using the format `<loglevel>:<loggername>:<message>`.
+
+    >>> import logging
+    >>> import sys
+    >>> logging.basicConfig()
+    >>> logger = logging.getLogger('a_logger')
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('%(levelname)8s:%(name)s:%(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> logger.addHandler(ch)
+    >>> logger.setLevel(logging.DEBUG)
+
+###The *logger* parameter (default – *None*)
+
+The `logger` keyword parameter tells `log_calls` to write its output using
+that logger rather than the `print` function:
+
+    >>> @log_calls(logger=logger)
+    ... def somefunc(v1, v2):
+    ...     logger.debug(v1 + v2)
+    >>> somefunc(5, 16)             # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:somefunc <== called by <module>
+        arguments: v1=5, v2=16
+    DEBUG:a_logger:21
+    DEBUG:a_logger:somefunc ==> returning to <module>
+
+    >>> @log_calls(logger=logger)
+    ... def anotherfunc():
+    ...     somefunc(17, 19)
+    >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:anotherfunc <== called by <module>
+    DEBUG:a_logger:somefunc <== called by anotherfunc
+        arguments: v1=17, v2=19
+    DEBUG:a_logger:36
+    DEBUG:a_logger:somefunc ==> returning to anotherfunc
+    DEBUG:a_logger:anotherfunc ==> returning to <module>
+
+###The *loglevel* parameter (default – *logging.DEBUG*)
+
+`log_calls` also takes a `loglevel` keyword parameter, whose value must be
+one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
+`log_calls` writes output messages using `logger.log(loglevel, …)`. Thus,
+if the `logger`'s log level is higher than `loglevel`, no output will appear:
+
+    >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
+    >>> @log_calls(logger='logger_=', loglevel=logging.DEBUG)
+    ... def f(x, y, z, **kwargs):
+    ...     return y + z
+    >>> # No log_calls output from either tt or r,
+    >>> # because loglevel for tt and r < level of logger
+    >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    5
+
+    """
+    pass
+
+
+def main__call_chains():
     """
 ##Call chains
 
@@ -109,7 +330,7 @@ to functions decorated by `log_calls`.
     >>> def g2():
     ...     g1()
     >>> @log_calls()
-    ... def g3(optional=''):    # g3 will have an 'arguments:' section
+    ... def g3():
     ...     g2()
     >>> def g4():
     ...     g3()
@@ -119,26 +340,11 @@ to functions decorated by `log_calls`.
     >>> g5()
     g5 <== called by <module>
     g3 <== called by g4 <== g5
-        arguments: <none>
-        defaults:  optional=''
     g1 <== called by g2 <== g3
     g1 ==> returning to g2 ==> g3
     g3 ==> returning to g4 ==> g5
     g5 ==> returning to <module>
 
-###Functions with no parameters, calls with no arguments
-
-In the previous example, four of the five functions have no parameters,
-so `log_calls` shows no `arguments:` section for them. `g3` takes one
-optional argument but is called with none, so log_calls displays
-`arguments: <none>`. It also displays the default value used by the function
-for the parameter that wasn't given a value by any argument.
-    """
-    pass
-
-
-def main__call_chains__inner_functions():
-    """
 ###Call chains and inner functions
 
 When chasing back along the stack, `log_calls` also detects inner functions
@@ -199,55 +405,6 @@ it's defined in:
     j0 ==> returning to j1 ==> j2_inner
     j2_inner ==> returning to j2 ==> j3
     j3 ==> returning to <module>
-    """
-    pass
-
-
-def main__methods__prefixes():
-    """
-##Decorating methods: using the *prefix* keyword parameter
-
-Especially useful for clarity when decorating methods, the `prefix` keyword
-parameter lets you specify a string with which to prefix the name of the
-method. `log_calls` uses the prefixed name in its output: when logging
-a call to, and a return from, the method; when reporting the method's return
-value, and when the method is at the end of a call or return chain.
-
-    >>> import math
-    >>> class Point():
-    ...     # NOTE: You can't decorate __init__ :D
-    ...     def __init__(self, x, y):
-    ...         self.x = x
-    ...         self.y = y
-    ...     @staticmethod
-    ...     @log_calls(prefix='Point.')
-    ...     def distance(pt1, pt2):
-    ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
-    ...     @log_calls(log_retval=True, prefix='Point.')
-    ...     def length(self):
-    ...         return self.distance(self, Point(0, 0))
-    ...     @log_calls(prefix='Point.')
-    ...     def diag_reflect(self):
-    ...         self.x, self.y = self.y, self.x
-    ...         return self
-    ...     def __repr__(self):
-    ...         return "Point" + str((self.x, self.y))
-
-    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
-    Point.diag_reflect <== called by <module>
-        arguments: self=Point(1, 2)
-    Point.diag_reflect ==> returning to <module>
-    Point(1, 2).diag_reflect() = Point(2, 1)
-
-    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS
-    Point.length <== called by <module>
-        arguments: self=Point(1, 2)
-    Point.distance <== called by Point.length
-        arguments: pt1=Point(1, 2), pt2=Point(0, 0)
-    Point.distance ==> returning to Point.length
-        Point.length return value: 2.236...
-    Point.length ==> returning to <module>
-    length of Point(1, 2) = 2.24
     """
     pass
 
@@ -576,15 +733,11 @@ Only `log_calls` output:
     pass
 
 
-def main__logging():
+def main__more_on_logging():
     """
-##Logging
+##[More on logging](id:More-on-logging)
 
-`log_calls` works well with loggers obtained from Python's `logging` module.
-First, we'll set up a logger with a single handler that writes to the console.
-Because `doctest` doesn't capture output written to `stderr` (the default stream
-to which console handlers write), we'll send the console handler's output to
-`stdout`, using the default format for loggers, `<loglevel>:<loggername>:<message>`.
+The basic setup:
 
     >>> import logging
     >>> import sys
@@ -593,42 +746,16 @@ to which console handlers write), we'll send the console handler's output to
     >>> logger = logging.getLogger('mylogger')
     >>> logger.setLevel(logging.DEBUG)
 
-###The *logger* parameter (default – *None*)
 
-The `logger` keyword parameter tells `log_calls` to write its output using
-that logger rather than the `print` function:
+####Indirect values for the *logger* parameter
 
-    >>> @log_calls(logger=logger)
-    ... def somefunc(v1, v2):
-    ...     logger.debug(v1 + v2)
-    >>> somefunc(5, 16)       # doctest: +NORMALIZE_WHITESPACE
-    DEBUG:mylogger:somefunc <== called by <module>
-        arguments: v1=5, v2=16
-    DEBUG:mylogger:21
-    DEBUG:mylogger:somefunc ==> returning to <module>
-
-    >>> @log_calls(logger=logger)
-    ... def anotherfunc():
-    ...     somefunc(17, 19)
-    >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
-    DEBUG:mylogger:anotherfunc <== called by <module>
-    DEBUG:mylogger:somefunc <== called by anotherfunc
-        arguments: v1=17, v2=19
-    DEBUG:mylogger:36
-    DEBUG:mylogger:somefunc ==> returning to anotherfunc
-    DEBUG:mylogger:anotherfunc ==> returning to <module>
-
-###Indirect values for the `logger` parameter
-
-As usual, once you've used the `logger` keyword parameter to specify a logger,
-there's no way to change the destination of `log_calls` output subsequently.
-However, you can use an indirect value for the `logger` parameter to make
-the destination late-bound.
+You can use an indirect value for the `logger` parameter to make the logging
+destination late-bound.
 
 In the following example, although logger='logger_' is supplied to `log_calls`,
 no `logger_=foo` is passed to the wrapped function `r` in the actual call, and no
 `logger=bar` is supplied, so `log_calls` uses the default writing function, `print`.
-(Furthermore, no args separator is passed with the `sep` keyword, so `log_calls`
+(Furthermore, no args separator is passed with the `sep_` keyword, so `log_calls`
 uses the default separator ', '.)
 
     >>> @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
@@ -670,27 +797,9 @@ separator '\\n'):
     DEBUG:mylogger:r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
-###The *loglevel* parameter (default – *logging.DEBUG*)
-
-`log_calls` also takes a `loglevel` keyword parameter, whose value must be
-one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
-`log_calls` writes output messages using `logger.log(loglevel, …)`. Thus,
-if the `logger`'s log level is higher than `loglevel`, no output will appear:
+####Test of indirect *loglevel*
 
     >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
-    >>> @log_calls(logger='logger_=', loglevel=logging.DEBUG)
-    ... def tt(x, y, z, **kwargs):
-    ...     s(x, y, z, **kwargs)
-    >>> # No log_calls output from either tt or r,
-    >>> # because loglevel for tt and r < level of logger
-    >>> tt(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    5
-
-##Test of indirect loglevel
-
-logger's level is still logging.INFO:
-    >>> assert logger.level == logging.INFO
-
     >>> @log_calls(logger='logger_=', loglevel='loglevel_')
     ... def indirect_loglevel(a, x, y, **kwargs):
     ...     print(a * x**y)
@@ -712,8 +821,7 @@ but now we do get output:
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
 
-A realistic example
--------------------
+### A realistic example
 Let's add another handler, also sent to `stdout` but best thought of as writing
 to a log file. We'll set up the existing console handler with level `INFO`, and
 the "file" handler with level `DEBUG` - a typical setup: you want to log all
@@ -870,19 +978,18 @@ any log_calls output:
 
 def main_log_calls_settings():
     """
-## Attributes added by *log_calls* to a decorated function
-The `log_calls` decorator adds two attributes to a decorated function:
+##The *log_call_settings* attribute of a decorated function
+The `log_calls` decorator  adds two Attributes to a decorated function:
 
 * `log_calls_settings`
 * `stats`
 
 Each is an object which in turn exposes further attributes that allow you to
 access the settings and features of the decorator. The `log_calls_settings`
-object provides an interface to the settings of a decorated function.
-The `stats` object provides access to decorated function's call history and
-to a few of its statistics.
+object provides an interface to the settings of a decorated function. This
+section discusses `log_calls_settings`. The `stats` attribute is discussed
+in the section [Call history and statistics](#call-history-and-statistics).
 
-###The *log_calls_settings* attribute
 The `log_calls_settings` attribute of a decorated function lets you control
 the decorator's settings for that function, via a mapping (dict-like) interface,
 and equivalently, via further attributes of the object. The mapping keys and
@@ -892,16 +999,17 @@ It's an instance of the `DecoSettingsMapping` class, defined in `deco_settings.p
 That class has its own tests, in `log_calls/tests/test_deco_settings.py`,
 so there's no need to test it exhaustively here; we'll just go over how to use it.
 
-#### *__getitem__* and *__setitem__* – the mapping interface and the attribute interface to settings
+#### *\_\_getitem\_\_* and *\_\_setitem\_\_* – the mapping interface and the attribute interface to settings
 
-Once you've decorated a function with `log_calls`:
+Once you've decorated a function with `log_calls`,
 
     >>> @log_calls()
     ... def f(*args, **kwargs):
     ...     return 91
 
 you can access and change its settings via the `log_calls_settings` attribute
-of the decorated function:
+of the decorated function, which behaves like a dictionary. You can read and
+write settings using the `log_calls` keywords as keys:
 
     >>> f.log_calls_settings['enabled']
     True
@@ -915,6 +1023,52 @@ of the decorated function:
     >>> f.log_calls_settings['log_elapsed']
     False
     >>> f.log_calls_settings['log_elapsed'] = True
+
+It has a length:
+
+    >>> len(f.log_calls_settings)
+    12
+
+Its keys and items can be iterated through:
+
+    >>> keys = []
+    >>> for k in f.log_calls_settings: keys.append(k)
+    >>> keys                                            # doctest: +NORMALIZE_WHITESPACE
+    ['enabled', 'args_sep', 'log_args', 'log_retval',
+     'log_exit', 'log_call_numbers', 'log_elapsed',
+     'prefix',
+     'logger', 'loglevel',
+     'record_history', 'max_history']
+    >>> items = []
+    >>> for k, v in f.log_calls_settings.items(): items.append((k, v))
+    >>> items                                           # doctest: +NORMALIZE_WHITESPACE
+    [('enabled', False), ('args_sep', ', '), ('log_args', True), ('log_retval', True),
+     ('log_exit', True), ('log_call_numbers', False), ('log_elapsed', True),
+     ('prefix', ''),
+     ('logger', None), ('loglevel', 10),
+     ('record_history', False), ('max_history', 0)]
+
+You can use `in` to test for key membership:
+
+    >>> 'enabled' in f.log_calls_settings
+    True
+    >>> 'no_such_setting' in f.log_calls_settings
+    False
+
+Attempting to access a nonexistent setting raises `KeyError`:
+
+    >>> f.log_calls_settings['new_key']                 # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    KeyError: ...
+
+Unlike an ordinary dictionary, you can't add new keys – the `log_calls_settings`
+dictionary is closed to new members, and attempts to add one will raise `KeyError`:
+
+    >>> f.log_calls_settings['new_key'] = 'anything'    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    KeyError: ...
 
 You can use the same keywords as attributes of `log_calls_settings`
 instead of as keywords to the mapping interface; they're completely
@@ -930,7 +1084,7 @@ equivalent:
     f [1] <== called by <module>
         arguments: <none>
         f return value: 91
-        elapsed time: ... [sec]
+        elapsed time: ... [secs]
     f [1] ==> returning to <module>
     >>> f.log_calls_settings.log_args = False
     >>> f.log_calls_settings.log_elapsed = False
@@ -940,9 +1094,21 @@ equivalent:
     f [2] ==> returning to <module>
     91
 
+The only difference is that you *can* add a new attribute to `log_calls_settings`,
+simply by using it:
+
+    >>> f.log_calls_settings.new_attr = 'something'
+    >>> f.log_calls_settings.new_attr
+    'something'
+
+But, of course, the new attribute does not become a decorator setting:
+
+    >>> 'new_attr' in f.log_calls_settings
+    False
+
 #### The *update*, *as_OrderedDict* and *as_dict* methods
-The `log_calls_settings` object provides an `update` function so that
-you can update several settings all at once:
+The `log_calls_settings` object provides an `update` method so that
+you can update several settings at once:
 
     >>> f.log_calls_settings.update(
     ...     log_args=True, log_elapsed=False, log_call_numbers=False,
@@ -961,22 +1127,16 @@ can take one or more dicts, in particular a dictionary retrieved from one of
 the `as_*` methods. For example:
 
 Retrieve settings (here, we retrieve an OrderedDict because it's more doctest-friendly,
-but using as_dict() is sufficient):
+but using `as_dict()` is sufficient):
 
     >>> od = f.log_calls_settings.as_OrderedDict()
     >>> od                      # doctest: +NORMALIZE_WHITESPACE
-    OrderedDict([('enabled', True),
-                 ('log_args', True),
-                 ('log_retval', False),
-                 ('log_exit', True),
-                 ('args_sep', ', '),
-                 ('prefix', ''),
-                 ('logger', None),
-                 ('loglevel', 10),
-                 ('record_history', False),
-                 ('max_history', 0),
-                 ('log_call_numbers', False),
-                 ('log_elapsed', False)])
+    OrderedDict([('enabled', True),           ('args_sep', ', '),
+                 ('log_args', True),          ('log_retval', False),
+                 ('log_exit', True),          ('log_call_numbers', False),
+                 ('log_elapsed', False),      ('prefix', ''),
+                 ('logger', None),            ('loglevel', 10),
+                 ('record_history', False),   ('max_history', 0)])
 
 change settings temporarily:
 
@@ -989,29 +1149,68 @@ use the new settings for f:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f return value: 91
-        elapsed time: ... [sec]
+        elapsed time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
 dictionary rather than keywords:
 
     >>> f.log_calls_settings.update(od)
-    >>> f.log_calls_settings.as_OrderedDict()
-    blah_dict-as-before
+    >>> f.log_calls_settings.as_OrderedDict()   # doctest: +NORMALIZE_WHITESPACE
+    OrderedDict([('enabled', True),           ('args_sep', ', '),
+                 ('log_args', True),          ('log_retval', False),
+                 ('log_exit', True),          ('log_call_numbers', False),
+                 ('log_elapsed', False),      ('prefix', ''),
+                 ('logger', None),            ('loglevel', 10),
+                 ('record_history', False),   ('max_history', 0)])
 
-**NOTE**: *The `max_history` setting is immutable, and attempts to change it
+**NOTES**:
+
+1. *The `max_history` setting is immutable, and attempts to change it
 directly (e.g.* `f.log_calls_settings.max_history = anything`) *raise* `ValueError`.
-*Nevertheless, it* is *an item in the retrieved settings dictionaries. To allow
-for the use-case just illustrated, `update` is considerate enough to skip over
-immutable settings.*
+*Nevertheless, it* is *an item in the retrieved settings dictionaries. To allow for
+the use-case just illustrated, `update` is considerate enough to skip over immutable settings.*
 
-#### The *log_call_numbers* attribute (default – *False*)
-`log_calls` continues to track call numbers even when it isn't reporting
-them. The last call to f was the fourth, though that call number of
-the third call wasn't displayed.
+2. `log_calls` *continues to track call numbers even when it isn't reporting
+them. The last call to f was the 4th, as shown, although the call number of
+the third call wasn't displayed.*
+
+
+#### Using `log_calls_settings` to set indirect values
+is perfectly legitimate:
+
+    >>> @log_calls(enabled=False)
+    ... def g(*args, **kwargs):
+    ...     return sum(args)
+    >>> g.log_calls_settings.enabled = 'enable_log_calls='
+    >>> g(1, 2, 3, enable_log_calls=True)
+    g <== called by <module>
+        arguments: [*]args=(1, 2, 3), [**]kwargs={'enable_log_calls': True}
+    g ==> returning to <module>
+    6
 
     """
 
+def main_call_history_and_statistics():
+    """
+##[]Call history and statistics](id:call-history-and-statistics)
+
+###The *record_history* parameter (default – *False*)
+
+###The *max_history* parameter (default – 0)
+
+###The stats attribute
+####[]The *stats.num_calls_total* attribute](id:stats.num_calls_total)
+####The *stats.num_calls_logged* attribute
+####The *stats.call_history* attribute
+#####The CallRecord namedtuple
+
+####The *stats.call_history_as_csv* attribute
+####The *stats.total_elapsed* attribute
+
+####The *stats.clear_history(max_history=0)* method
+    """
+    pass
 
 if __name__ == "__main__":
 
@@ -1184,7 +1383,7 @@ if __name__ == "__main__":
     print('Try changing d.max_history')
     try:
         d.max_history = 17
-    except AttributeError as e:
+    except ValueError as e:
         print("Exception '%s' caused by '%s'" % (e, 'd.max_history = 17'))
     else:
         print("No exception caused by 'd.max_history = 17'")
@@ -1192,7 +1391,7 @@ if __name__ == "__main__":
     print("Try changing d['max_history']")
     try:
         d['max_history'] = 17
-    except AttributeError as e:
+    except ValueError as e:
         print("Exception '%s' caused by '%s'" % (e, "d['max_history'] = 17"))
     else:
         print("No exception caused by \"d['max_history'] = 17\"")

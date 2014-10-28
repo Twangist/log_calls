@@ -66,41 +66,40 @@ class log_calls():
     the final, indirect value of the decorator's parameter (for that call).
     See deco_settings.py docstring for details.
 
-        log_args:          Arguments passed to the (decorated) function will be logged
-                           (Default: True)
-        log_retval:        Log what the wrapped function returns IFF True/non-false.
+        log_args:          Arguments passed to the (decorated) function will be logged,
+                           if true (Default: True)
+        log_retval:        Log what the wrapped function returns, if true (truthy).
                            At most MAXLEN_RETVALS chars are printed. (Default: False)
         args_sep:          str used to separate args. The default is  ', ', which lists
                            all args on the same line. If args_sep ends in a newline '\n',
                            additional spaces are appended to that to make for a neater
                            display. Other separators in which '\n' occurs are left
                            unchanged, and are untested -- experiment/use at your own risk.
-        enabled:           If 'truthy', then logging will occur. (Default: True)
+        enabled:           If true, then logging will occur. (Default: True)
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
-        log_exit:          If True (the default), the decorator will log an exiting
-                           message after calling the function, and before returning
-                           what the function returned.
+        log_exit:          If true, the decorator will log an exiting message after
+                           calling the function, and before returning what the function
+                           returned. (Default: True)
         logger:            If not None (the default), a Logger which will be used
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
-        record_history:    If truthy, an array of records will be kept, one for each
-                           call to the function; each records call number (1-based),
+        log_call_numbers: If truthy, display the (1-based) number of the function call,
+                          e.g.   f [n] <== <module>   for n-th logged call.
+                          This call would correspond to the n-th record
+                          in the functions call history, if record_history is true.
+                          (Default: False)
+        log_elapsed:      If true, display how long it took the function to execute,
+                          in seconds. (Default: False)
+        record_history:    If true, an array of records will be kept, one for each
+                           call to the function; each holds call number (1-based),
                            arguments and defaulted keyword arguments, return value,
                            time elapsed, time of call, caller (call chain), prefixed
                            function name.(Default: False)
         max_history:       An int. value >  0 --> store at most value-many records,
                                                   oldest records overwritten;
                                    value <= 0 --> unboundedly many records are stored.
-        log_call_numbers: If truthy, display the number of the function call,
-                          e.g.   f [n] <== <module>   for n-th logged call.
-                          This call would correspond to the n-th record
-                          in the functions call history, if record_history
-                          is true.
-                          (Default: False)
-        log_elapsed:      If truthy, display how long it took the function
-                          to execute, in seconds. (Default: False)
     """
     MAXLEN_RETVALS = 60
     LOG_CALLS_SENTINEL_ATTR = '_log_calls_sentinel_'        # name of attr
@@ -113,28 +112,27 @@ class log_calls():
     # allow indirection for all except prefix and 10/18/14 max_history
     _setting_info_list = (
         DecoSetting('enabled',          int,            False,         allow_falsy=True),
+        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
         DecoSetting('log_args',         bool,           True,          allow_falsy=True),
         DecoSetting('log_retval',       bool,           False,         allow_falsy=True),
         DecoSetting('log_exit',         bool,           True,          allow_falsy=True),
-        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
+        DecoSetting('log_call_numbers',  bool,           False,         allow_falsy=True),
+        DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
         DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
         DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
-
         DecoSetting('record_history',   bool,           False,         allow_falsy=True),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
-        DecoSetting('log_call_numbers',  bool,           False,         allow_falsy=True),
-        DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
     )
     DecoSettingsMapping.register_class_settings('log_calls',
                                                 _setting_info_list)
 
     _descriptor_names = (
-        'num_calls_total',
         'num_calls_logged',
+        'num_calls_total',
+        'total_elapsed',
         'call_history',
         'call_history_as_csv',
-        'total_elapsed',
     )
     _method_descriptor_names = (
         'clear_history',
@@ -161,13 +159,17 @@ class log_calls():
     # A few generic properties, internal logging, and exposed
     # as descriptors on the stats (ClassInstanceAttrProxy) obj
     @property
+    def num_calls_logged(self):
+        return self._num_calls_logged
+
+    @property
     def num_calls_total(self):
         """All calls, logged and not logged"""
         return self._num_calls_total
 
     @property
-    def num_calls_logged(self):
-        return self._num_calls_logged
+    def total_elapsed(self):
+        return sum((histrec.elapsed_secs for histrec in self._call_history))
 
     @property
     def call_history(self):
@@ -230,10 +232,6 @@ class log_calls():
 
         return csv
 
-    @property
-    def total_elapsed(self):
-        return sum((histrec.elapsed_secs for histrec in self._call_history))
-
     def _make_call_history(self):
         return deque(maxlen=(self.max_history if self.max_history > 0 else None))
 
@@ -293,17 +291,17 @@ class log_calls():
     def __init__(
             self,
             enabled=True,
+            args_sep=', ',
             log_args=True,
             log_retval=False,
             log_exit=True,
-            args_sep=', ',
+            log_call_numbers=False,
+            log_elapsed=False,
             prefix='',
             logger=None,
             loglevel=logging.DEBUG,
             record_history=False,
             max_history=0,
-            log_call_numbers=False,
-            log_elapsed=False
     ):
         """(See class docstring)"""
         # Set up pseudo-dict
@@ -315,17 +313,17 @@ class log_calls():
             deco_class=self.__class__,
             # the rest are what DecoSettingsMapping calls **values_dict
             enabled=enabled,
+            args_sep=args_sep,
             log_args=log_args,
             log_retval=log_retval,
             log_exit=log_exit,
-            args_sep=args_sep,
+            log_call_numbers=log_call_numbers,
+            log_elapsed=log_elapsed,
             prefix=prefix,
             logger=logger,
             loglevel=loglevel,
             record_history=record_history,
             max_history=max_history,
-            log_call_numbers=log_call_numbers,
-            log_elapsed=log_elapsed
         )
         # and the special cases:
         self.prefix = prefix
@@ -488,7 +486,7 @@ class log_calls():
 
             # log_elapsed
             if _get_final_value('log_elapsed'):
-                logging_fn(indent + "elapsed time: %f [sec]" % elapsed_secs)
+                logging_fn(indent + "elapsed time: %f [secs]" % elapsed_secs)
 
             # log_exit
             if _get_final_value('log_exit'):
