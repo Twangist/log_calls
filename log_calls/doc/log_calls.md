@@ -330,10 +330,10 @@ to which console handlers write), we'll send the console handler's output to
     >>> import logging
     >>> import sys
     >>> logging.basicConfig()
-    >>> logger = logging.getLogger('a_logger')
     >>> ch = logging.StreamHandler(stream=sys.stdout)
     >>> c_formatter = logging.Formatter('%(levelname)8s:%(name)s:%(message)s')
     >>> ch.setFormatter(c_formatter)
+    >>> logger = logging.getLogger('a_logger')
     >>> logger.addHandler(ch)
     >>> logger.setLevel(logging.DEBUG)
 
@@ -366,15 +366,16 @@ that logger rather than the `print` function:
 
 `log_calls` also takes a `loglevel` keyword parameter, whose value must be
 one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
-`log_calls` writes output messages using `logger.log(loglevel, …)`. Thus,
-if the `logger`'s log level is higher than `loglevel`, no output will appear:
+– or a custom logging level if you've added any. `log_calls` writes output messages 
+using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher than 
+`loglevel`, no output will appear:
 
     >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
     >>> @log_calls(logger='logger_=', loglevel=logging.DEBUG)
     ... def f(x, y, z, **kwargs):
     ...     return y + z
-    >>> # No log_calls output from either tt or r,
-    >>> # because loglevel for tt and r < level of logger
+    >>> # No log_calls output from f
+    >>> # because loglevel for f < level of logger
     >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     5
 
@@ -574,20 +575,6 @@ In other words, if you specify an indirect value for the* `enabled` *parameter
 then the default effective value of the enabled setting is* `False`* -- 
 calls are not logged unless the named parameter is found and its value is true.*
 
-####Additional tests for *log_args*, *log_retval*, *log_exit* with indirect values
-
-    >>> @log_calls(log_args='logargs=', log_retval='logretval=', log_exit='logexit=')
-    ... def f(x, **kwargs):
-    ...     return x**2
-    >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
-    f <== called by <module>
-        arguments: x=2, [**]kwargs={'logexit': False}
-
-    >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
-    f <== called by <module>
-        f return value: 25
-    f ==> returning to <module>
-
 ###Controlling format 'from above'
 
 This indirection mechanism allows a calling function to control the appearance
@@ -650,8 +637,57 @@ and their names are available to `log_calls`, which will use those names:
     f ==> returning to g
     g ==> returning to <module>
 
+###Enabling with *int*s rather than *bool*s
 
-####An artificial example, using the most recent *f* and *g*
+Sometimes it's desirable for a function to print or log debugging messages 
+as it executes. It's the oldest form of debugging! Instead of a simple bool,
+you can use a nonnegative int as the enabling value and treat it as a level 
+of verbosity.
+
+    >>> DEBUG_MSG_BASIC = 1
+    >>> DEBUG_MSG_VERBOSE = 2
+    >>> DEBUG_MSG_MOREVERBOSE = 3  # etc.
+    >>> @log_calls(enabled_kwd='debuglevel')
+    ... def do_stuff_with_commentary(*args, debuglevel=0):
+    ...     if debuglevel >= DEBUG_MSG_VERBOSE:
+    ...         print("*** extra debugging info ***")
+
+No output:
+
+    >>> do_stuff_with_commentary()
+
+Only `log_calls` output:
+
+    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_BASIC)
+    do_stuff_with_commentary <== called by <module>
+        arguments: debuglevel=1
+    do_stuff_with_commentary ==> returning to <module>
+
+`log_calls` output plus the function's debugging reportage:
+
+    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_VERBOSE)
+    do_stuff_with_commentary <== called by <module>
+        arguments: debuglevel=2
+    *** extra debugging info ***
+    do_stuff_with_commentary ==> returning to <module>
+
+###Additional tests and examples
+####Additional tests for *log_args*, *log_retval*, *log_exit* with indirect values
+
+    >>> @log_calls(log_args='logargs=', log_retval='logretval=', log_exit='logexit=')
+    ... def f(x, **kwargs):
+    ...     return x**2
+    >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
+    f <== called by <module>
+        arguments: x=2, [**]kwargs={'logexit': False}
+
+    >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
+    f <== called by <module>
+        f return value: 25
+    f ==> returning to <module>
+
+
+###An artificial example, using the most recent *f* and *g*
 
 NOTE: In the following example,
 
@@ -750,48 +786,9 @@ but here we do:
     >>> bar()         # no output: enabled=<keyword> overrides enabled=True
 
 
-###Enabling with *int*s rather than *bool*s
+##[More on logging](id:More-on-logging)
 
-Sometimes it's desirable for a function to print or log debugging messages 
-as it executes. It's the oldest form of debugging! Instead of a simple bool,
-you can use a nonnegative int as the enabling value and treat it as a level 
-of verbosity.
-
-    >>> DEBUG_MSG_BASIC = 1
-    >>> DEBUG_MSG_VERBOSE = 2
-    >>> DEBUG_MSG_MOREVERBOSE = 3  # etc.
-    >>> @log_calls(enabled_kwd='debuglevel')
-    ... def do_stuff_with_commentary(*args, debuglevel=0):
-    ...     if debuglevel >= DEBUG_MSG_VERBOSE:
-    ...         print("*** extra debugging info ***")
-
-No output:
-
-    >>> do_stuff_with_commentary()
-
-Only `log_calls` output:
-
-    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_BASIC)
-    do_stuff_with_commentary <== called by <module>
-        arguments: debuglevel=1
-    do_stuff_with_commentary ==> returning to <module>
-
-`log_calls` output plus the function's debugging reportage:
-
-    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_VERBOSE)
-    do_stuff_with_commentary <== called by <module>
-        arguments: debuglevel=2
-    *** extra debugging info ***
-    do_stuff_with_commentary ==> returning to <module>
-
-
-##[Logging with indirect values](id:Logging-with-indirect-values)
-
-`log_calls` works well with loggers obtained from Python's `logging` module.
-First, we'll set up a logger with a single handler that writes to the console. 
-Because `doctest` doesn't capture output written to `stderr` (the default stream 
-to which console handlers write), we'll send the console handler's output to 
-`stdout`, using the default format for loggers, `<loglevel>:<loggername>:<message>`.
+The basic setup:
 
     >>> import logging
     >>> import sys
@@ -800,44 +797,19 @@ to which console handlers write), we'll send the console handler's output to
     >>> logger = logging.getLogger('mylogger')
     >>> logger.setLevel(logging.DEBUG)
 
-###The *logger* parameter (default – *None*)
-
-The `logger` keyword parameter tells `log_calls` to write its output using
-that logger rather than the `print` function:
-
-    >>> @log_calls(logger=logger)
-    ... def somefunc(v1, v2):
-    ...     logger.debug(v1 + v2)
-    >>> somefunc(5, 16)       # doctest: +NORMALIZE_WHITESPACE
-    DEBUG:mylogger:somefunc <== called by <module>
-        arguments: v1=5, v2=16
-    DEBUG:mylogger:21
-    DEBUG:mylogger:somefunc ==> returning to <module>
-
-    >>> @log_calls(logger=logger)
-    ... def anotherfunc():
-    ...     somefunc(17, 19)
-    >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
-    DEBUG:mylogger:anotherfunc <== called by <module>
-    DEBUG:mylogger:somefunc <== called by anotherfunc
-        arguments: v1=17, v2=19
-    DEBUG:mylogger:36
-    DEBUG:mylogger:somefunc ==> returning to anotherfunc
-    DEBUG:mylogger:anotherfunc ==> returning to <module>
 
 ####Indirect values for the *logger* parameter
-As usual, once you've used the `logger` keyword parameter to specify a logger,
-there's no way to change the destination of `log_calls` output subsequently. 
-However, you can use an indirect value for the `logger` parameter to make 
-the destination late-bound.
+
+You can use an indirect value for the `logger` parameter to make the logging
+destination late-bound.
 
 In the following example, although logger='logger_' is supplied to `log_calls`,
 no `logger_=foo` is passed to the wrapped function `r` in the actual call, and no
 `logger=bar` is supplied, so `log_calls` uses the default writing function, `print`.
-(Furthermore, no args separator is passed with the `sep` keyword, so `log_calls`
+(Furthermore, no args separator is passed with the `sep_` keyword, so `log_calls`
 uses the default separator ', '.)
 
-    >>> @log_calls(enabled_kwd='enable', args_sep_kwd='sep_', logger_kwd='logger_')
+    >>> @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
     ... def r(x, y, z, **kwargs):
     ...     print(x * y + z)
     >>> r(1, 2, 3, enable=True)
@@ -853,13 +825,13 @@ separator '\\n'):
 
     >>> def s(x, y, z, **kwargs):
     ...     r(x, y, z, **kwargs)
-    >>> @log_calls(enabled_kwd='enable', args_sep_kwd='sep_', logger_kwd='logger_')
+    >>> @log_calls(enabled='enable=', args_sep='sep_=', logger='logger_=')
     ... def t(x, y, z, **kwargs):
     ...     s(x, y, z, **kwargs)
 
     >>> # kwargs == {'logger_': <logging.Logger object at 0x...>,
     >>> #            'enable': True, 'sep_': '\\n'}
-    >>> t(1,2,3, enable=True, sep_='\\n', logger_=logger) # doctest: +SKIP, +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> t(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     DEBUG:mylogger:t <== called by <module>
         arguments:
             x=1
@@ -876,27 +848,9 @@ separator '\\n'):
     DEBUG:mylogger:r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
-###The *loglevel* parameter (default – *logging.DEBUG*)
-
-`log_calls` also takes a `loglevel` keyword parameter, whose value must be
-one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
-`log_calls` writes output messages using `logger.log(loglevel, …)`. Thus,
-if the `logger`'s log level is higher than `loglevel`, no output will appear:
-
-    >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
-    >>> @log_calls(logger_kwd='logger_', loglevel=logging.DEBUG)
-    ... def tt(x, y, z, **kwargs):
-    ...     s(x, y, z, **kwargs)
-    >>> # No log_calls output from either tt or r,
-    >>> # because loglevel for tt and r < level of logger
-    >>> tt(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    5
-
 ####Test of indirect *loglevel*
 
-logger's level is still logging.INFO:
-    >>> assert logger.level == logging.INFO
-
+    >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
     >>> @log_calls(logger='logger_=', loglevel='loglevel_')
     ... def indirect_loglevel(a, x, y, **kwargs):
     ...     print(a * x**y)
@@ -919,7 +873,6 @@ but now we do get output:
     INFO:mylogger:indirect_loglevel ==> returning to <module>
 
 ### A realistic example
-
 Let's add another handler, also sent to `stdout` but best thought of as writing
 to a log file. We'll set up the existing console handler with level `INFO`, and
 the "file" handler with level `DEBUG` - a typical setup: you want to log all
@@ -946,7 +899,7 @@ often-called, and another that's "higher-level"/infrequently called.
 Set logger level to `DEBUG`:
   the console handler logs calls only for `infrequent`,
   but the "file" handler logs calls for both functions.
-  
+
     >>> logger.setLevel(logging.DEBUG)
     >>> infrequent()       # doctest: +NORMALIZE_WHITESPACE
     [FILE]     INFO:mylogger: infrequent <== called by <module>
@@ -957,8 +910,8 @@ Set logger level to `DEBUG`:
     INFO:mylogger:infrequent ==> returning to <module>
 
 Now set logger level to `INFO`:
-  both handlers log calls only for `infrequent`:
-  
+  both handlers logs calls only for `infrequent`:
+
     >>> logger.setLevel(logging.INFO)
     >>> infrequent()       # doctest: +NORMALIZE_WHITESPACE
     [FILE]     INFO:mylogger: infrequent <== called by <module>

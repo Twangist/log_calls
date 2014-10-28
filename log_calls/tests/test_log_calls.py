@@ -261,12 +261,13 @@ to which console handlers write), we'll send the console handler's output to
     >>> import logging
     >>> import sys
     >>> logging.basicConfig()
-    >>> logger = logging.getLogger('a_logger')
     >>> ch = logging.StreamHandler(stream=sys.stdout)
     >>> c_formatter = logging.Formatter('%(levelname)8s:%(name)s:%(message)s')
     >>> ch.setFormatter(c_formatter)
+    >>> logger = logging.getLogger('a_logger')
     >>> logger.addHandler(ch)
     >>> logger.setLevel(logging.DEBUG)
+
 
 ###The *logger* parameter (default – *None*)
 
@@ -297,15 +298,16 @@ that logger rather than the `print` function:
 
 `log_calls` also takes a `loglevel` keyword parameter, whose value must be
 one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
-`log_calls` writes output messages using `logger.log(loglevel, …)`. Thus,
-if the `logger`'s log level is higher than `loglevel`, no output will appear:
+– or a custom logging level if you've added any. `log_calls` writes output messages
+using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher than
+`loglevel`, no output will appear:
 
     >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
     >>> @log_calls(logger='logger_=', loglevel=logging.DEBUG)
     ... def f(x, y, z, **kwargs):
     ...     return y + z
-    >>> # No log_calls output from either tt or r,
-    >>> # because loglevel for tt and r < level of logger
+    >>> # No log_calls output from f
+    >>> # because loglevel for f < level of logger
     >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     5
 
@@ -533,8 +535,8 @@ Additional tests for *log_args*, *log_retval*, *log_exit* with indirect values
         f return value: 25
     f ==> returning to <module>
 
-Controlling format 'from above'
--------------------------------
+###Controlling format 'from above'
+
 This indirection mechanism allows a calling function to control the appearance
 of logged calls to functions lower in the call chain, provided they all use
 the same indirect parameter keywords.
@@ -595,6 +597,39 @@ and their names are available to `log_calls`, which will use those names:
     f ==> returning to g
     g ==> returning to <module>
 
+###Enabling with *int*s rather than *bool*s
+
+Sometimes it's desirable for a function to print or log debugging messages
+as it executes. It's the oldest form of debugging! Instead of a simple bool,
+you can use a nonnegative int as the enabling value and treat it as a level
+of verbosity.
+
+    >>> DEBUG_MSG_BASIC = 1
+    >>> DEBUG_MSG_VERBOSE = 2
+    >>> DEBUG_MSG_MOREVERBOSE = 3  # etc.
+    >>> @log_calls(enabled='debuglevel=')
+    ... def do_stuff_with_commentary(*args, debuglevel=0):
+    ...     if debuglevel >= DEBUG_MSG_VERBOSE:
+    ...         print("*** extra debugging info ***")
+
+No output:
+
+    >>> do_stuff_with_commentary()
+
+Only `log_calls` output:
+
+    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_BASIC)
+    do_stuff_with_commentary <== called by <module>
+        arguments: debuglevel=1
+    do_stuff_with_commentary ==> returning to <module>
+
+`log_calls` output plus the function's debugging reportage:
+
+    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_VERBOSE)
+    do_stuff_with_commentary <== called by <module>
+        arguments: debuglevel=2
+    *** extra debugging info ***
+    do_stuff_with_commentary ==> returning to <module>
 
 ###An artificial example, using the most recent *f* and *g*
 
@@ -627,7 +662,7 @@ to tell it that the order doesn't matter.
     g ==> returning to h
     h ==> returning to <module>
 
-##More examples of dynamically enabling/disabling *log_calls* output
+###More examples of dynamically enabling/disabling *log_calls* output
 
 Suppose you use `enabled='debug'` to decorate a function `f`. Then a call to `f`
 will be logged if one of the following conditions holds:
@@ -641,7 +676,7 @@ will be logged if one of the following conditions holds:
 **NOTE**: *When referring to values, I'll use* true *with lowercase* t *to mean
 "truthy", and* false *with lowercase* f *to mean "falsy" .*
 
-###Examples of condition 1. (explicit parameter)
+####Examples of condition 1. (explicit parameter)
 
 It's instructive to consider examples where the wrapped function explicitly
 provides the keyword named by the `enabled` parameter.
@@ -681,7 +716,7 @@ but here we do get output:
         arguments: a=4, debug=True
     do_more_stuff_f ==> returning to <module>
 
-###Examples of condition 2. (implicit parameter)
+####Examples of condition 2. (implicit parameter)
 
     >>> @log_calls(enabled='debug=')
     ... def bar(**kwargs):
@@ -693,41 +728,6 @@ but here we do get output:
     bar ==> returning to <module>
 
     >>> bar()         # no output: enabled=<keyword> overrides enabled=True
-
-
-##Enabling with *int*s rather than *bool*s
-
-Sometimes it's desirable for a function to print or log debugging messages
-as it executes. It's the oldest form of debugging! Instead of a simple bool,
-you can use a nonnegative int as the enabling value and treat it as a level
-of verbosity.
-
-    >>> DEBUG_MSG_BASIC = 1
-    >>> DEBUG_MSG_VERBOSE = 2
-    >>> DEBUG_MSG_MOREVERBOSE = 3  # etc.
-    >>> @log_calls(enabled='debuglevel=')
-    ... def do_stuff_with_commentary(*args, debuglevel=0):
-    ...     if debuglevel >= DEBUG_MSG_VERBOSE:
-    ...         print("*** extra debugging info ***")
-
-No output:
-
-    >>> do_stuff_with_commentary()
-
-Only `log_calls` output:
-
-    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_BASIC)
-    do_stuff_with_commentary <== called by <module>
-        arguments: debuglevel=1
-    do_stuff_with_commentary ==> returning to <module>
-
-`log_calls` output plus the function's debugging reportage:
-
-    >>> do_stuff_with_commentary(debuglevel=DEBUG_MSG_VERBOSE)
-    do_stuff_with_commentary <== called by <module>
-        arguments: debuglevel=2
-    *** extra debugging info ***
-    do_stuff_with_commentary ==> returning to <module>
 
     """
     pass
