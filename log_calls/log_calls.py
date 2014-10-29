@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b8'
+__version__ = 'v0.1.10-b10'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -19,7 +19,9 @@ import datetime
 from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
-from .helpers import difference_update, is_keyword_param, get_args_pos, get_args_kwargs_param_names
+from .helpers import (difference_update, is_keyword_param,
+                      get_args_pos, get_args_kwargs_param_names,
+                      dict_to_sorted_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
 
 __all__ = ['log_calls', 'difference_update', '__version__', '__author__']
@@ -130,7 +132,7 @@ class log_calls():
     _descriptor_names = (
         'num_calls_logged',
         'num_calls_total',
-        'total_elapsed',
+        'elapsed_secs_logged',
         'call_history',
         'call_history_as_csv',
     )
@@ -168,8 +170,10 @@ class log_calls():
         return self._num_calls_total
 
     @property
-    def total_elapsed(self):
-        return sum((histrec.elapsed_secs for histrec in self._call_history))
+    def elapsed_secs_logged(self):
+        # REDONE: This value is accumulated for logged calls
+        # whether or not history is being recorded.
+        return self._elapsed_secs_logged
 
     @property
     def call_history(self):
@@ -217,7 +221,7 @@ class log_calls():
                 if arg == varargs_name:
                     fields.append(str(rec.varargs))
                 elif arg == kwargs_name:
-                    fields.append(str(rec.implicit_kwargs))
+                    fields.append(dict_to_sorted_str(rec.implicit_kwargs))     # str(rec.implicit_kwargs)
                 else:
                     fields.append(all_args_vals_dict[arg])
             # and now the remaining fields
@@ -239,7 +243,10 @@ class log_calls():
         """Using clear_history it's possible to change max_history"""
         self._num_calls_logged = 0
         self._num_calls_total = 0
-        self.max_history = max_history  # set before calling _make_call_history
+
+        self._elapsed_secs_logged = 0.0
+
+        self.max_history = int(max_history)  # set before calling _make_call_history
         self._call_history = self._make_call_history()
         self._settings_mapping.__setitem__('max_history', max_history, _force_mutable=True)
 
@@ -286,6 +293,8 @@ class log_calls():
                         prefixed_func_name=prefixed_func_name,
                         caller_chain=caller_chain)
             )
+        self._elapsed_secs_logged += elapsed_secs
+
         self._add_call(logged=True)
 
     def __init__(
@@ -334,6 +343,10 @@ class log_calls():
         # Set before calling _make_call_history
         self.max_history = max_history
         self._call_history = self._make_call_history()
+
+        # Accumulate this (for logged calls only)
+        # even when record_history is false:
+        self._elapsed_secs_logged = 0.0
 
         self.f_params = None    # set properly by __call__
 
@@ -548,12 +561,14 @@ class log_calls():
                 # Previous was decorated inner fn; don't add 'f_log_calls_wrapper_'
                 # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                 # Fixup: get prefixed named of wrapped function
-                # TODO Bit of a kludge eh
+                # TODO Bit of a kludge eh - we have only the name, not the obj
                 call_list[-1] = getattr(curr_frame.f_locals['f'],
                                         log_calls.LOG_CALLS_PREFIXED_NAME)
                 found = True
                 break
+
             call_list.append(curr_funcname)
+
             if curr_funcname == '<module>':
                 break
 

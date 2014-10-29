@@ -1,5 +1,5 @@
 __author__ = 'brianoneill'
-__version__ = 'v0.1.10-b8'
+__version__ = 'v0.1.10-b10'
 __doc__ = """
     See docstrings for install_proxy_descriptor and ClassInstanceAttrProxy.
 """
