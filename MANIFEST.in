@@ -4,6 +4,6 @@ include log_calls/doc/*
 
 # include LICENSE.txt
 # include CHANGES.txt
- include *.txt
+include *.txt
 
 global-exclude temp_*.*

@@ -1,5 +1,8 @@
 __author__ = 'brianoneill'
 __version__ = '0.1.11'
+__doc__ = """
+    0.1.11 -- 100% coverage of proxy_descriptors.py
+"""
 
 from unittest import TestCase
 from log_calls import install_proxy_descriptor, ClassInstanceAttrProxy
