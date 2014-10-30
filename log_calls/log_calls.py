@@ -1,14 +1,17 @@
 __author__ = "Brian O'Neill"  # BTO
 __version__ = '0.1.11'
 __doc__ = """
-Decorator that eliminates boilerplate code for debugging by writing
-caller name(s) and args+values to stdout or, optionally, to a logger.
+Configurable decorator for debugging and profiling that writes
+caller name(s), args+values, function return values, execution time,
+number of call, to stdout or to a logger. log_calls can track
+call history and provide it in CSV format.
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
+See docs/log_calls.md for details, usage info and examples.
 
 Argument logging is based on the Python 2 decorator:
     https://wiki.python.org/moin/PythonDecoratorLibrary#Easy_Dump_of_Function_Arguments
-with changes for Py3 and several enhancements, as described in doc/log_calls.md.
+with changes for Py3 and several enhancements, as described in docs/log_calls.md.
 """
 import inspect
 from functools import wraps, partial

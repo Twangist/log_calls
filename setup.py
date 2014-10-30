@@ -1,11 +1,11 @@
 __doc__ = """
-Configurable decorator for debugging that writes caller name(s),
-args+values, function return values, execution time, number of call,
-to stdout or to a logger. log_calls can track call history and
-provide it in CSV format.
+Configurable decorator for debugging and profiling that writes
+caller name(s), args+values, function return values, execution time,
+number of call, to stdout or to a logger. log_calls can track
+call history and provide it in CSV format.
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
-See log_calls.md for details, usage info and examples.
+See docs/log_calls.md for details, usage info and examples.
 """
 import log_calls
 
@@ -21,6 +21,7 @@ setup(
     keywords='debugging decorator logging function call caller arguments',
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
+    test_suite='log_calls.tests',
     include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

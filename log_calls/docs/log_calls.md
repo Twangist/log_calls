@@ -601,13 +601,13 @@ We have to use OrderedDicts here because of doctest:
 
     >>> from collections import OrderedDict
     >>> @log_calls(log_call_numbers=True, log_retval=True, indent=True)
-    ... def depth(d):
+    ... def depth(d, key=None):
     ...     if not isinstance(d, dict):
     ...         return 0    # base case
     ...     elif not d:
     ...         return 1
     ...     else:
-    ...         return max(map(depth, d.values())) + 1
+    ...         return max(map(depth, d.values(), d.keys())) + 1
     >>> depth(
     ...     OrderedDict(
     ...         (('a', 0),
@@ -617,29 +617,35 @@ We have to use OrderedDicts here because of doctest:
     ... )
     depth [1] <== called by <module>
         arguments: d=OrderedDict([('a', 0), ('b', OrderedDict([('c1', 10), ('c2', 11)])), ('c', 'text')])
+        defaults:  key=None
         depth [2] <== called by depth [1]
-            arguments: d=0
+            arguments: d=0, key='a'
             depth [2] return value: 0
         depth [2] ==> returning to depth [1]
         depth [3] <== called by depth [1]
-            arguments: d=OrderedDict([('c1', 10), ('c2', 11)])
+            arguments: d=OrderedDict([('c1', 10), ('c2', 11)]), key='b'
             depth [4] <== called by depth [3]
-                arguments: d=10
+                arguments: d=10, key='c1'
                 depth [4] return value: 0
             depth [4] ==> returning to depth [3]
             depth [5] <== called by depth [3]
-                arguments: d=11
+                arguments: d=11, key='c2'
                 depth [5] return value: 0
             depth [5] ==> returning to depth [3]
             depth [3] return value: 1
         depth [3] ==> returning to depth [1]
         depth [6] <== called by depth [1]
-            arguments: d='text'
+            arguments: d='text', key='c'
             depth [6] return value: 0
         depth [6] ==> returning to depth [1]
         depth [1] return value: 2
     depth [1] ==> returning to <module>
     2
+
+**NOTE**: *The optional* `key` *parameter is for instructional purposes only, 
+so you can see the key that's paired with the value of* `d` *in the caller's
+dictionary. Typically the signature of this function would be just* `def depth(d)`,
+*and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
 ##[Dynamic control of settings using the *log_calls_settings* attribute](id:Dynamic-control-log_calls_settings)
 
@@ -1479,7 +1485,7 @@ of the same name; attempts to do so raise `ValueError`:
         ...
     ValueError: ...
 
-The only way to change its value is with the [`clear_history`](#clear_history-method) method.
+The only way to change its value is with the [`clear_history`](#clear_history-method) method, discussed below.
 
 ####The *stats.call_history_as_csv* attribute
 The value `stats.call_history_as_csv` attribute is a text representation
