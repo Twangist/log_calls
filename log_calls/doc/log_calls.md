@@ -17,7 +17,7 @@ The decorator can write its messages to stdout using the `print` function, or to
 This document will explain all of these features and illustrate how to use them.
 
 ## Version
-This document describes version v0.1.11 of `log_calls`.
+This document describes version 0.1.11 of `log_calls`.
 
 ##Dependencies
 

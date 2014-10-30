@@ -1,6 +1,6 @@
 VERSIONS
 --------
-v0.1.11     - (All that.)
+0.1.11      - (All that.)
 v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
               on the stack, so now we can & do display call #s
               of deco'd callers when they're enabled and have call

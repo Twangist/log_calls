@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.11'
+__version__ = '0.1.11'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
