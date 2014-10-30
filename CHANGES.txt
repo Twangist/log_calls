@@ -1,13 +1,54 @@
 VERSIONS
 --------
-v0.1.10-b6 - Lots of changes.
-             Still no base class for log_calls, but architecture of that
-             becomes clearer.
-             New: stats object available on the deco'd function,
-             with attributes num_calls, time_elapsed, call_history
-             Four new keyword parameters: log_elapsed, log_call_numbers,
-             record_history, log_history
-             Nice lil class KlassInstanceAttrProxy (stats is one of them).
+v0.1.11     - (All that.)
+v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
+              on the stack, so now we can & do display call #s
+              of deco'd callers when they're enabled and have call
+              numbers enabled.
+              Used the same technique to implement indentation,
+              cf. the 'indent' keyword parameter.
+
+v0.1.10-b10 - Doc log_calls.md done but for Installation & (hopefully
+              automatic) testing sections up top... and but for TOC
+              also up top somewhere. 197 tests in the runnable doc.
+              test_log_calls.py done, slightly more tests than the .md
+              so probably 200+.
+
+              Revamped update() method of DecoSettingsMapping:
+                * now has a *dicts parameter,
+                * skips over immutable settings so user can just
+                  pass back a settings dict obtained from e.g. as_dict()
+
+              For benefit of stats.call_history_as_csv, kwargs fields
+              are guaranteed have their items sorted by key
+
+v0.1.10-b9 - test_log_calls.py, log_calls.md alllmost done,
+             redid stats.total_elapsed - it's available whether or not
+             call history is being recorded. Total time spent in
+             *logged* calls. For consistency with num_calls_* properties,
+             renamed it elapsed_secs_logged
+
+v0.1.10-b8 - Wrote test_proxy_descriptors, simplified proxy_descriptors
+             as a result. 100% coverage of proxy_descriptors.py.
+             Doctests for get_args_pos in helpers.py, 100% coverage.
+             test_deco_settings.py: 100% coverage of deco_settings.py.
+
+v0.1.10-b7 - Reworked __call__ routine to better use inspect module's
+             introspection, specifically the bind method. Defaulted
+             arg values weren't working quite right.
+             Implemented stats.call_history_as_csv, made the fn name
+             field in CallRecord the prefixed function name, and added
+             a caller_chain field to CallRecord.
+             Descriptors on stats object:
+                num_calls_total, num_calls_logged, call_history,
+                call_history_as_csv, total_elapsed, clear_history (method)
+            Need more tests, even more than before.
+
+v0.1.10-b6 - New: stats object available on the deco'd function,
+             with attributes num_calls, time_elapsed, call_history.
+             Four new keyword parameters:
+                log_elapsed, log_call_number, record_history, max_history
+             Nice lil class ClassInstanceAttrProxy (stats is one of them).
              All tests from v0.1.10-b5 pass, but we still need more tests,
              and documentation -- now, even more of both than at v0.1.10-b5.
 
@@ -15,7 +56,7 @@ v0.1.10-b5 - Base class for log_calls that does count logging?
              Possible to Hide some of the housekeeping obligations?
              call __call__ and bump counters? Arrogate 'enabled' keyword
              shared by all decos, let's say, every one with this base class.
-             or _blah_enabled? For now no.
+             or _blah_enabled? For now, no.
 
              Realization that (the hideously named) DecoSettingsMapping is a mechanism
              for letting multiple decorators each share their own namespaces,
@@ -29,13 +70,7 @@ v0.1.10-b5 - Base class for log_calls that does count logging?
              or decofn.deco_settings['log_calls'].my_attribute
              where decofn.deco_settings['log_calls'].my_attribute is a descriptor
              provided by subclass, and so it can access attrs of "instance"
-             i.e. the __Mapping it's bound to. Suppose at creation it's also bound
-             to an instance of log_calls' base class... make up something...
-
-                def __get__(self, instance, ownercls):
-                    return getattr(instance, name)
-             which could be a property that yields num_calls
-             or could be a property that
+             i.e. the __Mapping it's bound to.
 
 v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
              for each setting (e.g. f.log_calls_settings.enabled, you can
@@ -65,7 +100,7 @@ v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
              is returned by __call__.
              Updated the doc/tests test_log_calls.py to reflect these changes,
              plus probably other little improvements.
-             TODO: update the *.md files
+
 v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
              doctests moved to tests/test_log_calls.py. VERSIONS moved to
              CHANGES.txt (this file).

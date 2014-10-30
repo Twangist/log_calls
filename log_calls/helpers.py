@@ -3,7 +3,9 @@ __author__ = 'brianoneill'
 __all__ = [
     'difference_update',
     'is_keyword_param',
-    'get_args_kwargs_param_names'
+    'get_args_pos',
+    'get_args_kwargs_param_names',
+    'dict_to_sorted_str'
 ]
 
 
@@ -73,6 +75,30 @@ def is_keyword_param(param):
     )
 
 
+def get_args_pos(fparams) -> int:
+    """Position in params of function of varargs, >= 0 if it's present, else -1.
+    fparams is inspect.signature(f).parameters
+        for some function f.
+
+    Doctests:
+    >>> import inspect
+    >>> def f(a, b, c, x=8, **kwargs): pass
+    >>> get_args_pos(inspect.signature(f).parameters)
+    -1
+    >>> def ff(a, b, *other_args, **kwargs): pass
+    >>> get_args_pos(inspect.signature(ff).parameters)
+    2
+    >>> def fff(*args): pass
+    >>> get_args_pos(inspect.signature(fff).parameters)
+    0
+    """
+    for i, name in enumerate(fparams):
+        param = fparams[name]
+        if param.kind == param.VAR_POSITIONAL:
+            return i
+    return -1
+
+
 def get_args_kwargs_param_names(fparams) -> (str, str):
     """fparams is inspect.signature(f).parameters
     for some function f.
@@ -103,6 +129,23 @@ def get_args_kwargs_param_names(fparams) -> (str, str):
         if args_name and kwargs_name:
             break   # found both: done
     return args_name, kwargs_name
+
+
+def dict_to_sorted_str(d):
+    """Return a str representation of dict d where keys are in ascending order.
+    >>> d = {'c': 3, 'a': 1, 'b': 2}
+    >>> print(dict_to_sorted_str(d))
+    {'a': 1, 'b': 2, 'c': 3}
+    >>> d2 = {'Z': 'zebulon', 'X': 'alphanumeric', 'Y': 'yomomma'}
+    >>> print(dict_to_sorted_str(d2))
+    {'X': 'alphanumeric', 'Y': 'yomomma', 'Z': 'zebulon'}
+    """
+    lst = [(k, v) for (k, v) in d.items()]
+    lst.sort(key=lambda p: p[0])
+    ret = ('{' +
+           ', '.join(["%s: %s" % (repr(k), repr(v)) for (k, v) in lst ]) +
+           '}')
+    return ret
 
 
 if __name__ == "__main__":
