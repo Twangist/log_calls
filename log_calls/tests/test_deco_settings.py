@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b8'
+__version__ = 'v0.1.11'
 __doc__ = """
     v0.1.10-b7 -- 100% coverage of deco_settings.py
 """
@@ -125,9 +125,9 @@ class TestDecoSettingsMapping(TestCase):
             __init__(self, *, deco_class, **values_dict)"""
         self.assertEqual(self._settings_mapping.deco_class, self.__class__)
 
-    ## TODO howdya test THIS?
+    ## TO DO - howdya test THIS?
     ## Implicitly, it gets tested and the descriptors it creates get tested.
-    ##classmethod.
+    ## make_setting_descriptor is a classmethod.
     # def test_make_setting_descriptor(self):
     #     descr = DecoSettingsMapping.make_setting_descriptor('key')
     #     self.fail()

@@ -16,6 +16,9 @@ The decorator can write its messages to stdout using the `print` function, or to
 
 This document will explain all of these features and illustrate how to use them.
 
+## Version
+This document describes version v0.1.11 of `log_calls`.
+
 ##Dependencies
 
 None – this package requires no others.
@@ -246,6 +249,20 @@ is called. You can display this number using the `log_call_numbers` parameter:
     f [2] <== called by <module>
     f [2] ==> returning to <module>
 
+The call number is also displayed when log_retval is true:
+
+    >>> @log_calls(log_call_numbers=True, log_retval=True)
+    ... def f():
+    ...     return 81
+    >>> _ = f()
+    f [1] <== called by <module>
+        f [1] return value: 81
+    f [1] ==> returning to <module>
+
+This is particularly valuable in the presence of recursion, for example.
+See the [recursion example](#recursion-example) later, where the feature
+is used to good effect.
+
 **NOTE**: *As we'll see later [TODO: ANCHOR], logging for a decorated function
 can be turned on and off dynamically. In fact,* `log_calls` *also tracks the total
 number of calls to a decorated function, and that number is accessible too –
@@ -319,6 +336,10 @@ value, and when the method is at the end of a call or return chain.
 ###The remaining parameters
 The `logger` and `loglevel` parameters are discussed in the next section,
 [Using loggers](#Logging), and in the later section [More on using loggers](#More-on-using-loggers).
+
+The `indent` parameter is discussed in the section on Call chains, in
+the subsection [The `indent` parameter](#indent-parameter).
+
 The [`record_history`](#record_history-parameter) and [`max_history`](#max_history-parameter)
 parameters are discussed in the own subsections of the later section
 [Call history and statistics](#call-history-and-statistics).
@@ -388,14 +409,16 @@ the first `log_calls`-decorated function on the stack. If there is such
 a function, it displays the entire list of functions on the stack
 up to and including that function when logging calls and returns.
 Without this, you'd have to guess at what was called in between calls
-to functions decorated by `log_calls`.
+to functions decorated by `log_calls`. If you specified a prefix
+for the decorated caller on the end of a call chain, the prefixed
+name will be used:
 
     >>> @log_calls()
     ... def g1():
     ...     pass
     >>> def g2():
     ...     g1()
-    >>> @log_calls()
+    >>> @log_calls(prefix='mid.')
     ... def g3():
     ...     g2()
     >>> def g4():
@@ -405,21 +428,87 @@ to functions decorated by `log_calls`.
     ...     g4()
     >>> g5()
     g5 <== called by <module>
-    g3 <== called by g4 <== g5
-    g1 <== called by g2 <== g3
-    g1 ==> returning to g2 ==> g3
-    g3 ==> returning to g4 ==> g5
+    mid.g3 <== called by g4 <== g5
+    g1 <== called by g2 <== mid.g3
+    g1 ==> returning to g2 ==> mid.g3
+    mid.g3 ==> returning to g4 ==> g5
+    g5 ==> returning to <module>
+
+###[The *indent* parameter (default - *False*)](id:indent-parameter)
+The `indent` parameter, when true, indents each new level of logged messages
+by an additional 4 spaces. This helps you visualize the hierarchy of calls.
+`log_calls` indents only when using `print`; not when using loggers.
+
+We'll need a few examples to illustrate this feature, and we'll continue
+to use it throughout this section.
+
+A decorated function's logged output is indented only as much as is necessary.
+Here, the even numbered functions don't indent, so the indented functions
+that they call are indented just one level more than their "inherited"
+indentation level:
+
+    >>> @log_calls(indent=True)
+    ... def g1():
+    ...     pass
+    >>> @log_calls()    # no extra indentation for g1
+    ... def g2():
+    ...     g1()
+    >>> @log_calls(indent=True)
+    ... def g3():
+    ...     g2()
+    >>> @log_calls()    # no extra indentation for g3
+    ... def g4():
+    ...     g3()
+    >>> @log_calls(indent=True)
+    ... def g5():
+    ...     g4()
+    >>> g5()
+    g5 <== called by <module>
+    g4 <== called by g5
+        g3 <== called by g4
+        g2 <== called by g3
+            g1 <== called by g2
+            g1 ==> returning to g2
+        g2 ==> returning to g3
+        g3 ==> returning to g4
+    g4 ==> returning to g5
+    g5 ==> returning to <module>
+
+Here, g3 has logging disabled, so calls to it are not logged. `log_calls` chases
+back to the nearest *enabled* decorated function, so there aren't gaps in call
+chains. The indentation levels are as you'd hope them to be:
+
+    >>> @log_calls(indent=True)
+    ... def g1():
+    ...     pass
+    >>> def g2():
+    ...     g1()
+    >>> @log_calls(enabled=False, indent=True)    # not logged, causes no indentation for g1
+    ... def g3():
+    ...     g2()
+    >>> @log_calls(indent=True)
+    ... def g4():
+    ...     g3()
+    >>> @log_calls(indent=True)
+    ... def g5():
+    ...     g4()
+    >>> g5()
+    g5 <== called by <module>
+        g4 <== called by g5
+            g1 <== called by g2 <== g3 <== g4
+            g1 ==> returning to g2 ==> g3 ==> g4
+        g4 ==> returning to g5
     g5 ==> returning to <module>
 
 ###Call chains and inner functions
 
 When chasing back along the stack, `log_calls` also detects inner functions that it has decorated:
 
-    >>> @log_calls()
+    >>> @log_calls(indent=True)
     ... def h0(z):
     ...     pass
     >>> def h1(x):
-    ...     @log_calls()
+    ...     @log_calls(indent=True)
     ...     def h1_inner(y):
     ...         h0(x*y)
     ...     return h1_inner
@@ -428,47 +517,129 @@ When chasing back along the stack, `log_calls` also detects inner functions that
     >>> def h3():
     ...     h2()
     >>> def h4():
-    ...     @log_calls()
+    ...     @log_calls(indent=True)
     ...     def h4_inner():
     ...         h3()
     ...     return h4_inner
-    >>> @log_calls()
+    >>> @log_calls(indent=True)
     ... def h5():
     ...     h4()()
     >>> h5()
     h5 <== called by <module>
-    h4_inner <== called by h5
-    h1_inner <== called by h2 <== h3 <== h4_inner
-        arguments: y=3
-    h0 <== called by h1_inner
-        arguments: z=6
-    h0 ==> returning to h1_inner
-    h1_inner ==> returning to h2 ==> h3 ==> h4_inner
-    h4_inner ==> returning to h5
+        h4_inner <== called by h5
+            h1_inner <== called by h2 <== h3 <== h4_inner
+                arguments: y=3
+                h0 <== called by h1_inner
+                    arguments: z=6
+                h0 ==> returning to h1_inner
+            h1_inner ==> returning to h2 ==> h3 ==> h4_inner
+        h4_inner ==> returning to h5
     h5 ==> returning to <module>
 
-... even when the inner function is called from within the outer function it's defined in:
-
-    >>> @log_calls()
+    >>> @log_calls(indent=True)
     ... def j0():
     ...     pass
     >>> def j1():
     ...     j0()
     >>> def j2():
-    ...     @log_calls()
+    ...     @log_calls(indent=True)
     ...     def j2_inner():
     ...         j1()
     ...     j2_inner()
-    >>> @log_calls()
+    >>> @log_calls(indent=True)
     ... def j3():
     ...     j2()
     >>> j3()
     j3 <== called by <module>
-    j2_inner <== called by j2 <== j3
-    j0 <== called by j1 <== j2_inner
-    j0 ==> returning to j1 ==> j2_inner
-    j2_inner ==> returning to j2 ==> j3
+        j2_inner <== called by j2 <== j3
+            j0 <== called by j1 <== j2_inner
+            j0 ==> returning to j1 ==> j2_inner
+        j2_inner ==> returning to j2 ==> j3
     j3 ==> returning to <module>
+
+###Call chains and *log_call_numbers*
+If a decorated function g calls another decorated function f,
+and f is enabled and has log_call_numbers set to true,
+then the call number of f will be displayed in the call chain.
+
+####Basic examples:
+
+    >>> @log_calls()
+    ... def f(): pass
+    >>> def not_decorated(): f()
+    >>> @log_calls(log_call_numbers=True)
+    ... def g(): not_decorated()
+    >>> g()
+    g [1] <== called by <module>
+    f <== called by not_decorated <== g [1]
+    f ==> returning to not_decorated ==> g [1]
+    g [1] ==> returning to <module>
+
+    >>> @log_calls()
+    ... def f(): pass
+    >>> def not_decorated(): f()
+    >>> @log_calls(enabled=False, log_call_numbers=True)
+    ... def g(): not_decorated()
+    >>> g()
+    f <== called by not_decorated <== g <== <module>
+    f ==> returning to not_decorated ==> g ==> <module>
+
+    >>> @log_calls()
+    ... def f(): pass
+    >>> def not_decorated(): f()
+    >>> @log_calls(enabled=True, log_call_numbers=True)
+    ... def g(): not_decorated()
+    >>> g()
+    g [1] <== called by <module>
+    f <== called by not_decorated <== g [1]
+    f ==> returning to not_decorated ==> g [1]
+    g [1] ==> returning to <module>
+
+####[Indentation and call numbers with recursion](id:recursion-example)
+This feature is especially useful in recursive and mutually recursive situations.
+We have to use OrderedDicts here because of doctest:
+
+    >>> from collections import OrderedDict
+    >>> @log_calls(log_call_numbers=True, log_retval=True, indent=True)
+    ... def depth(d):
+    ...     if not isinstance(d, dict):
+    ...         return 0    # base case
+    ...     elif not d:
+    ...         return 1
+    ...     else:
+    ...         return max(map(depth, d.values())) + 1
+    >>> depth(
+    ...     OrderedDict(
+    ...         (('a', 0),
+    ...          ('b', OrderedDict( (('c1', 10), ('c2', 11)) )),
+    ...          ('c', 'text'))
+    ...     )
+    ... )
+    depth [1] <== called by <module>
+        arguments: d=OrderedDict([('a', 0), ('b', OrderedDict([('c1', 10), ('c2', 11)])), ('c', 'text')])
+        depth [2] <== called by depth [1]
+            arguments: d=0
+            depth [2] return value: 0
+        depth [2] ==> returning to depth [1]
+        depth [3] <== called by depth [1]
+            arguments: d=OrderedDict([('c1', 10), ('c2', 11)])
+            depth [4] <== called by depth [3]
+                arguments: d=10
+                depth [4] return value: 0
+            depth [4] ==> returning to depth [3]
+            depth [5] <== called by depth [3]
+                arguments: d=11
+                depth [5] return value: 0
+            depth [5] ==> returning to depth [3]
+            depth [3] return value: 1
+        depth [3] ==> returning to depth [1]
+        depth [6] <== called by depth [1]
+            arguments: d='text'
+            depth [6] return value: 0
+        depth [6] ==> returning to depth [1]
+        depth [1] return value: 2
+    depth [1] ==> returning to <module>
+    2
 
 ##[Dynamic control of settings using the *log_calls_settings* attribute](id:Dynamic-control-log_calls_settings)
 
@@ -548,7 +719,7 @@ write settings using the `log_calls` keywords as keys:
 It has a length:
 
     >>> len(f.log_calls_settings)
-    12
+    13
 
 Its keys and items can be iterated through:
 
@@ -557,7 +728,7 @@ Its keys and items can be iterated through:
     >>> keys                                            # doctest: +NORMALIZE_WHITESPACE
     ['enabled', 'args_sep', 'log_args', 'log_retval',
      'log_exit', 'log_call_numbers', 'log_elapsed',
-     'prefix',
+     'indent', 'prefix',
      'logger', 'loglevel',
      'record_history', 'max_history']
     >>> items = []
@@ -565,7 +736,7 @@ Its keys and items can be iterated through:
     >>> items                                           # doctest: +NORMALIZE_WHITESPACE
     [('enabled', False), ('args_sep', ', '), ('log_args', True), ('log_retval', True),
      ('log_exit', True), ('log_call_numbers', False), ('log_elapsed', True),
-     ('prefix', ''),
+     ('indent', False), ('prefix', ''),
      ('logger', None), ('loglevel', 10),
      ('record_history', False), ('max_history', 0)]
 
@@ -604,7 +775,7 @@ equivalent:
     >>> _ = f()                                 # doctest: +ELLIPSIS
     f [1] <== called by <module>
         arguments: <none>
-        f return value: 91
+        f [1] return value: 91
         elapsed time: ... [secs]
     f [1] ==> returning to <module>
     >>> f.log_calls_settings.log_args = False
@@ -655,7 +826,8 @@ but using `as_dict()` is sufficient):
     OrderedDict([('enabled', True),           ('args_sep', ', '),
                  ('log_args', True),          ('log_retval', False),
                  ('log_exit', True),          ('log_call_numbers', False),
-                 ('log_elapsed', False),      ('prefix', ''),
+                 ('log_elapsed', False),      ('indent', False),
+                 ('prefix', ''),
                  ('logger', None),            ('loglevel', 10),
                  ('record_history', False),   ('max_history', 0)])
 
@@ -669,7 +841,7 @@ use the new settings for f:
 
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
-        f return value: 91
+        f [4] return value: 91
         elapsed time: ... [secs]
     f [4] ==> returning to <module>
 
@@ -1294,6 +1466,21 @@ Here's `g`'s call history:
 The first call (`call_num=1`) was discarded to make room for the last call
 (`call_num=3`) because the call history size is set to 2.
 
+You cannot change `max_history` using the mapping interface or the attribute
+of the same name; attempts to do so raise `ValueError`:
+
+    >>> g.log_calls_settings.max_history = 17   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: ...
+
+    >>> g.log_calls_settings['max_history'] = 17   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: ...
+
+The only way to change its value is with the [`clear_history`](#clear_history-method) method.
+
 ####The *stats.call_history_as_csv* attribute
 The value `stats.call_history_as_csv` attribute is a text representation
 of a decorated function's call history in CSV format. You can save this string
@@ -1342,10 +1529,10 @@ items within that field are guaranteed to be in sorted order (otherwise this
 last example would sometimes fail as a doctest).
 
 ####[The *stats.clear_history(max_history=0)* method](id:clear_history-method)
-The `stats.clear_history(max_history=0)` method, as you might expect, clears
-the call history of a decorated function. Not only does it clear the history
-list, it also resets all counters: `num_calls_total` and `num_calls_logged`
-are reset to 0, and `elapsed_secs_logged` is reset to 0.0.
+As you might expect, the `stats.clear_history(max_history=0)` method clears 
+the call history of a decorated function. In addition, it resets all counters:
+`num_calls_total` and `num_calls_logged` are reset to 0, and 
+`elapsed_secs_logged` is reset to 0.0.
 
 **It is the only way to change the value of the `max_history` setting**, via
 the optional keyword parameter for which you can supply any (integer) value,
@@ -1388,6 +1575,7 @@ Keyword parameter | Default value | Description
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
        `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds.
+       `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
        `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
        `logger`     | `None`          | If not `None`, a `Logger` which will be used to write all messages. Otherwise, `print` is used.
        `loglevel`   | `logging.DEBUG` | Logging level, ignored unless a logger is specified. This should be one of the logging levels recognized by the `logging` module – one of the constants defined by that module, or a custom level you've added.

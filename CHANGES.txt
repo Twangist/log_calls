@@ -1,23 +1,18 @@
 VERSIONS
 --------
+v0.1.11     - (All that.)
+v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
+              on the stack, so now we can & do display call #s
+              of deco'd callers when they're enabled and have call
+              numbers enabled.
+              Used the same technique to implement indentation,
+              cf. the 'indent' keyword parameter.
+
 v0.1.10-b10 - Doc log_calls.md done but for Installation & (hopefully
               automatic) testing sections up top... and but for TOC
               also up top somewhere. 197 tests in the runnable doc.
               test_log_calls.py done, slightly more tests than the .md
-              so probably 200+. 98% coverage: one exception trap
-              marked "never happens" and evidently that's true;
-              the other two lines not covered reveal the weakest
-              part of the deco:
-                    when chasing back along the call stack,
-                    it can always find the fn name, but not always
-                    the fn obj itself. This sux, there must be a way.
-                    If we could always get the fn object,
-                    then we could access ALL the settings of the fn,
-                    including its call # if that's turned on
-                    (which would be *really* informative to display,
-                    e.g. recursions, mutual recursions).
-                    As well as for that "suffix=<paramname>" keyword/
-                    feature we have in mind, as a souped-up "call#"
+              so probably 200+.
 
               Revamped update() method of DecoSettingsMapping:
                 * now has a *dicts parameter,

@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.1.10-b10'
+__version__ = 'v0.1.11'
 __doc__ = """
 Decorator that eliminates boilerplate code for debugging by writing
 caller name(s) and args+values to stdout or, optionally, to a logger.
@@ -68,25 +68,19 @@ class log_calls():
     the final, indirect value of the decorator's parameter (for that call).
     See deco_settings.py docstring for details.
 
-        log_args:          Arguments passed to the (decorated) function will be logged,
-                           if true (Default: True)
-        log_retval:        Log what the wrapped function returns, if true (truthy).
-                           At most MAXLEN_RETVALS chars are printed. (Default: False)
+        enabled:           If true, then logging will occur. (Default: True)
         args_sep:          str used to separate args. The default is  ', ', which lists
                            all args on the same line. If args_sep ends in a newline '\n',
                            additional spaces are appended to that to make for a neater
                            display. Other separators in which '\n' occurs are left
                            unchanged, and are untested -- experiment/use at your own risk.
-        enabled:           If true, then logging will occur. (Default: True)
-        prefix:            str to prefix the function name with when it is used
-                           in logged messages: on entry, in reporting return value
-                           (if log_retval) and on exit (if log_exit). (Default: '')
+        log_args:          Arguments passed to the (decorated) function will be logged,
+                           if true (Default: True)
+        log_retval:        Log what the wrapped function returns, if true (truthy).
+                           At most MAXLEN_RETVALS chars are printed. (Default: False)
         log_exit:          If true, the decorator will log an exiting message after
                            calling the function, and before returning what the function
                            returned. (Default: True)
-        logger:            If not None (the default), a Logger which will be used
-                           (instead of the print function) to write all messages.
-        loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         log_call_numbers: If truthy, display the (1-based) number of the function call,
                           e.g.   f [n] <== <module>   for n-th logged call.
                           This call would correspond to the n-th record
@@ -94,6 +88,15 @@ class log_calls():
                           (Default: False)
         log_elapsed:      If true, display how long it took the function to execute,
                           in seconds. (Default: False)
+        indent:            if true, log messages for each level of log_calls-decorated
+                           functions will be indented by 4 spaces, when printing
+                           and not using a logger (default: False)
+        prefix:            str to prefix the function name with when it is used
+                           in logged messages: on entry, in reporting return value
+                           (if log_retval) and on exit (if log_exit). (Default: '')
+        logger:            If not None (the default), a Logger which will be used
+                           (instead of the print function) to write all messages.
+        loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         record_history:    If true, an array of records will be kept, one for each
                            call to the function; each holds call number (1-based),
                            arguments and defaulted keyword arguments, return value,
@@ -104,9 +107,10 @@ class log_calls():
                                    value <= 0 --> unboundedly many records are stored.
     """
     MAXLEN_RETVALS = 60
-    LOG_CALLS_SENTINEL_ATTR = '_log_calls_sentinel_'        # name of attr
-    LOG_CALLS_SENTINEL_VAR = "_log_calls-deco'd"
-    LOG_CALLS_PREFIXED_NAME = 'log_calls-prefixed-name'     # name of attr
+    LOG_CALLS_SENTINEL_ATTR = '$_log_calls_sentinel_'        # name of attr
+    LOG_CALLS_SENTINEL_VAR = "$_log_calls-deco'd"
+    LOG_CALLS_PREFIXED_NAME = '$log_calls-prefixed-name'     # name of attr
+    LOG_CALLS_WRAPPER_FN_OBJ = '$f_log_calls_wrapper_-BACKPTR'  # LATE ADDITION
 
     # *** DecoSettingsMapping "API" --
     # (1) initialize: call register_class_settings
@@ -118,8 +122,9 @@ class log_calls():
         DecoSetting('log_args',         bool,           True,          allow_falsy=True),
         DecoSetting('log_retval',       bool,           False,         allow_falsy=True),
         DecoSetting('log_exit',         bool,           True,          allow_falsy=True),
-        DecoSetting('log_call_numbers',  bool,           False,         allow_falsy=True),
+        DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
+        DecoSetting('indent',           bool,           False,         allow_falsy=True),
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
         DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
         DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
@@ -265,7 +270,8 @@ class log_calls():
                         prefixed_func_name,
                         caller_chain
     ):
-        "Only called for *logged* calls"
+        """Only called for *logged* calls.
+        Call counters are already bumped."""
         record_history = self._settings_mapping.get_final_value(
                                 'record_history',
                                 explicit_kwargs, defaulted_kwargs, implicit_kwargs,
@@ -283,7 +289,7 @@ class log_calls():
 
             self._call_history.append(
                     CallRecord(
-                        self._num_calls_logged+1,
+                        self._num_calls_logged,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
@@ -295,8 +301,6 @@ class log_calls():
             )
         self._elapsed_secs_logged += elapsed_secs
 
-        self._add_call(logged=True)
-
     def __init__(
             self,
             enabled=True,
@@ -306,6 +310,7 @@ class log_calls():
             log_exit=True,
             log_call_numbers=False,
             log_elapsed=False,
+            indent=False,   # probably better than =True
             prefix='',
             logger=None,
             loglevel=logging.DEBUG,
@@ -328,6 +333,7 @@ class log_calls():
             log_exit=log_exit,
             log_call_numbers=log_call_numbers,
             log_elapsed=log_elapsed,
+            indent=indent,
             prefix=prefix,
             logger=logger,
             loglevel=loglevel,
@@ -381,36 +387,56 @@ class log_calls():
                 return self._settings_mapping.get_final_value(
                     setting_name, kwargs, fparams=self.f_params)
 
-            # if nothing to do, hurry up & don't do it
-            if not _get_final_value('enabled'):
+            # if nothing to do, hurry up & don't do it.
+            # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
+            # to find these next 4 _xxx variables (really!)
+            _do_it = _get_final_value('enabled')
+            self._add_call(logged=_do_it)    # bump self._num_calls_total
+
+            _log_call_numbers = _get_final_value('log_call_numbers')
+            backptr = getattr(f, self.LOG_CALLS_WRAPPER_FN_OBJ)
+            # counters just got bumped
+            _active_call_number = (backptr.stats.num_calls_logged
+                                   if _log_call_numbers else
+                                   0)
+            # Get list of callers up to & including first log_call's-deco'd fn
+            # (or just caller, if no such fn)
+            call_list, prev_indent_level = self.call_chain_to_next_log_calls_fn()
+            # Bump _extra_indent_level if last fn on call_list is deco'd AND enabled,
+            # o/w it's the _extra_indent_level which that fn 'inherited'.
+            # _extra_indent_level: prev_indent_level, or prev_indent_level + 1
+            do_indent = _get_final_value('indent')
+            _extra_indent_level = (prev_indent_level +
+                                   int(not not do_indent and not not _do_it))
+            if not _do_it:
                 ### # call f after adding to stats, return its retval
                 ### self._add_to_history(args, kwargs, logged=False)
-                self._add_call(logged=False)    # bump self._num_calls_total
                 return f(*args, **kwargs)
+
+            # Our unit of indentation
+            indent = " " * 4
 
             logger = _get_final_value('logger')
             loglevel = _get_final_value('loglevel')
             # Establish logging function
             logging_fn = partial(logger.log, loglevel) if logger else print
 
-            # Get list of callers up to & including first log_call's-deco'd fn
-            # (or just caller, if no such fn)
-            call_list = self.call_chain_to_next_log_calls_fn()
-
-            # Our unit of indentation
-            indent = " " * 4
+            # Only do global indentation for print, not for loggers
+            global_indent = ((_extra_indent_level * indent)
+                             * int(not logger)
+                            )
 
             # log_call_numbers
-            call_number_str = (('[%d] ' % (self._num_calls_logged+1))
-                               if _get_final_value('log_call_numbers')
-                               else '')
-            msg = ("%s %s<== called by %s"
-                   % (prefixed_fname,
-                      call_number_str,
-                      ' <== '.join(call_list)))
+            call_number_str = (('[%d] ' % _active_call_number)
+                               if _log_call_numbers else '')
+            msg = (global_indent +
+                   ("%s %s<== called by %s"
+                    % (prefixed_fname,
+                       call_number_str,
+                       ' <== '.join(call_list))))
 
             # Gather all the things we need (for log output, & for _add_history)
-            # NEW -- use inspect module's Signature.bind method.
+            # Use inspect module's Signature.bind method.
             # bound_args.arguments -- contains only explicitly bound arguments
             bound_args = inspect.signature(f).bind(*args, **kwargs)
             varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
@@ -445,10 +471,10 @@ class log_calls():
                 # ~Kludge / incomplete treatment of seps that contain \n
                 end_args_line = ''
                 if args_sep[-1] == '\n':
-                    args_sep = '\n' + (indent * 2)
+                    args_sep = '\n' + global_indent + (indent * 2)
                     end_args_line = args_sep
 
-                msg += ('\n' + indent + "arguments: " + end_args_line)
+                msg += ('\n' + global_indent + indent + "arguments: " + end_args_line)
 
                 if varargs:
                     args_vals.append( ("[*]%s" % self.args_name, varargs) )
@@ -468,7 +494,7 @@ class log_calls():
                 # of those parameters. Write these on a separate line.
                 # Don't just print the OrderedDict -- cluttered appearance.
                 if defaulted_kwargs:
-                    msg += ('\n' + indent + "defaults:  " + end_args_line
+                    msg += ('\n' + global_indent + indent + "defaults:  " + end_args_line
                             + args_sep.join('%s=%r' % pair for pair in defaulted_kwargs.items())
                     )
 
@@ -479,6 +505,7 @@ class log_calls():
             t0 = time.time()
             retval = f(*args, **kwargs)
             elapsed_secs = (time.time() - t0)
+
             self._add_to_history(argnames[:argcount], args[:argcount],
                                  varargs,
                                  explicit_kwargs, defaulted_kwargs, implicit_kwargs,
@@ -488,25 +515,28 @@ class log_calls():
                                  prefixed_func_name=prefixed_fname,
                                  caller_chain=call_list
             )
-
             # log_retval
             if _get_final_value('log_retval'):
                 retval_str = str(retval)
                 if len(retval_str) > log_calls.MAXLEN_RETVALS:
                     retval_str = retval_str[:log_calls.MAXLEN_RETVALS] + "..."
-                logging_fn(indent + "%s return value: %s"
-                           % (prefixed_fname, retval_str))
+                logging_fn(global_indent + indent + "%s %sreturn value: %s"
+                           % (prefixed_fname, call_number_str, retval_str))
 
             # log_elapsed
             if _get_final_value('log_elapsed'):
-                logging_fn(indent + "elapsed time: %f [secs]" % elapsed_secs)
+                logging_fn(global_indent + indent + "elapsed time: %f [secs]" % elapsed_secs)
 
             # log_exit
             if _get_final_value('log_exit'):
-                logging_fn("%s %s==> returning to %s"
+                exit_msg = (
+                    global_indent +
+                    ("%s %s==> returning to %s"
                            % (prefixed_fname,
                               call_number_str,
                               ' ==> '.join(call_list)))
+                )
+                logging_fn(exit_msg)
             return retval
 
         # Add a sentinel as an attribute to f_log_calls_wrapper_
@@ -522,7 +552,12 @@ class log_calls():
             self.LOG_CALLS_PREFIXED_NAME,
             prefixed_fname
         )
-
+        # LATE ADDITION: A back-pointer
+        setattr(
+            f,
+            self.LOG_CALLS_WRAPPER_FN_OBJ,
+            f_log_calls_wrapper_
+        )
         stats = ClassInstanceAttrProxy( class_instance=self)
         setattr(
             f_log_calls_wrapper_,
@@ -553,61 +588,86 @@ class log_calls():
         if any.  If there's no log_calls-deco'd function on the stack,
         or anyway if none are discernible, return [caller_of_caller]."""
         curr_frame = sys._getframe(2)   # caller-of-caller's frame
-        found = False
+
         call_list = []
-        while curr_frame:
-            curr_funcname = curr_frame.f_code.co_name
-            if curr_funcname == 'f_log_calls_wrapper_':
-                # Previous was decorated inner fn; don't add 'f_log_calls_wrapper_'
-                # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
-                # Fixup: get prefixed named of wrapped function
-                # TODO Bit of a kludge eh - we have only the name, not the obj
-                call_list[-1] = getattr(curr_frame.f_locals['f'],
-                                        log_calls.LOG_CALLS_PREFIXED_NAME)
-                found = True
-                break
+        prev_indent_level = -1
 
-            call_list.append(curr_funcname)
+        found = False
+        found_enabled = False
+        break_both = False      # both loops
+        while not found_enabled and not break_both:
+            while 1:    # until found a deco'd fn or <module> reached
+                curr_funcname = curr_frame.f_code.co_name
+                if curr_funcname == 'f_log_calls_wrapper_':
+                    # Previous was decorated inner fn; don't add 'f_log_calls_wrapper_'
+                    # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
+                    # Fixup: get prefixed named of wrapped function
+                    inner_fn = curr_frame.f_locals['f']
+                    call_list[-1] = getattr(inner_fn,
+                                            log_calls.LOG_CALLS_PREFIXED_NAME)
+                    wrapper_frame = curr_frame
+                    # # LATE ADDITION
+                    # curr_fn = getattr(inner_fn, log_calls.LOG_CALLS_WRAPPER_FN_OBJ)
+                    found = True
+                    break   # inner loop
 
-            if curr_funcname == '<module>':
-                break
+                call_list.append(curr_funcname)
 
-            globs = curr_frame.f_back.f_globals
-            curr_fn = None
-            if curr_funcname in globs:
-                curr_fn = globs[curr_funcname]
-            # If curr_funcname is a decorated inner function,
-            # then it's not in globs. If it's called from outside
-            # it's enclosing function, it's caller is 'f_log_calls_wrapper_'
-            # so we'll see that on next iteration.
-            else:
-                try:
-                    # if it's a decorated inner function that's called
-                    # by its enclosing function, detect that:
-                    locls = curr_frame.f_back.f_back.f_locals
-                except AttributeError:  # "never happens"
-                    # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
-                    pass
+                if curr_funcname == '<module>':
+                    break_both = True
+                    break   # inner loop
+
+                globs = curr_frame.f_back.f_globals
+                curr_fn = None
+                if curr_funcname in globs:
+                    wrapper_frame = curr_frame.f_back
+                    curr_fn = globs[curr_funcname]
+                # If curr_funcname is a decorated inner function,
+                # then it's not in globs. If it's called from outside
+                # it's enclosing function, it's caller is 'f_log_calls_wrapper_'
+                # so we'll see that on next iteration.
                 else:
-                    if curr_funcname in locls:
-                        curr_fn = locls[curr_funcname]
-                        #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
-                        #         "curr_frame.f_back.f_back.f_code.co_name = %s"
-                        #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                    elif 'prefixed_fname' in locls:
-                        # curr_funcname will 'come around for real' next time through loop,
-                        # so remove it from end now
-                        call_list = call_list[:-1]
-                        # and curr_fn is None, so it won't have attr in next "if"
-            if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
-                found = True
-                break
-            curr_frame = curr_frame.f_back
+                    try:
+                        # if it's a decorated inner function that's called
+                        # by its enclosing function, detect that:
+                        locls = curr_frame.f_back.f_back.f_locals
+                    except AttributeError:  # "never happens"
+                        # print("**** %s not found (inner fn?)" % curr_funcname)       # <<<DEBUG>>>
+                        pass
+                    else:
+                        wrapper_frame = curr_frame.f_back
+                        if curr_funcname in locls:
+                            curr_fn = locls[curr_funcname]
+                            #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
+                            #         "curr_frame.f_back.f_back.f_code.co_name = %s"
+                            #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
+                        elif 'prefixed_fname' in locls:
+                            # curr_funcname will 'come around for real' next time through loop,
+                            # so remove it from end now
+                            call_list = call_list[:-1]
+                            # and curr_fn is None, so it won't have attr in next "if"
+                if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
+                    found = True
+                    break   # inner loop
+                curr_frame = curr_frame.f_back
 
-        # So:
-        # If found, then call_list[-1] is log_calls-wrapped;
-        # if not found, truncate call_list to first element.
-        if not found:
-            call_list = call_list[:1]
+            # If found, then call_list[-1] is log_calls-wrapped
+            if found:
+                # look in stack frame (!) for
+                #   _do_it, _log_call_numbers, _active_call_number
+                enabled = wrapper_frame.f_locals['_do_it']
+                log_call_numbers = wrapper_frame.f_locals['_log_call_numbers']
+                active_call_number = wrapper_frame.f_locals['_active_call_number']
+                # only change prev_indent_level once, for nearest deco'd fn
+                if prev_indent_level < 0:
+                    prev_indent_level = wrapper_frame.f_locals['_extra_indent_level']
+                if enabled and log_call_numbers:
+                    call_list[-1] += " [" + str(active_call_number) + "]"
+                found_enabled = enabled     # done with outer loop too if enabled
+                if not enabled:
+                    curr_frame = curr_frame.f_back
+            else:   # not found
+                # if not found, truncate call_list to first element.
+                call_list = call_list[:1]
 
-        return call_list
+        return call_list, prev_indent_level
