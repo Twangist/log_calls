@@ -1,5 +1,5 @@
 #*log_calls* <br>A decorator for debugging and profiling
-<br>
+
 ---
 `log_calls` is a Python 3 decorator that can display a great deal of useful information about calls to a decorated function, such as:
 
@@ -20,6 +20,8 @@ It can also collect profiling data and statistics, accessible dynamically:
 
 The decorator can print its messages, to stdout or another stream, or can write
 to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also dynamically get and set these settings using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
+
+In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking a lot of ad hoc, boilerplate code.
 
 This document will explain all of these features and illustrate how to use them, somewhat exhaustively: this is both thorough documentation and a test suite. The TL;DR version is README.md, also in the `log_calls/docs` directory. It doesn't dot every `i` and cross every `t` but will get you started effectively.
 
@@ -43,6 +45,7 @@ This document will explain all of these features and illustrate how to use them,
 </ul>
 <h5><a href="#Basic-usage">Basic Usage</a></h5>
 <ul>
+<li><a href="#No-parameters">Using no parameters</a></li>
 <li><a href="#enabled-parameter">The <em>enabled</em> parameter</a></li>
 <li><a href="#args_sep-parameter">The <em>args_sep</em> parameter</a></li>
 <li><a href="#log_args-parameter">The <em>log_args</em> parameter</a></li>
@@ -53,7 +56,6 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#indent-parameter">The <em>indent</em> parameter</a></li>
 <li><a href="#prefix-parameter">The <em>prefix</em> parameter</a></li>
 <li><a href="#file-parameter">The <em>file</em> parameter</a></li>
-<li><a href="#The-other-parameters">The other parameters</a> (<a href="#logger-parameter"><em>logger</em></a>, <a href="#loglevel-parameter"><em>loglevel</em></a>, <a href="#record_history-parameter"><em>record_history</em></a>, <a href="#max_history-parameter"><em>max_history</em></a>)</li>
 </ul>
 <h5><a href="#Logging">Using loggers</a></h5>
 <ul>
@@ -88,17 +90,17 @@ This document will explain all of these features and illustrate how to use them,
 <h5><a href="#call-history-and-statistics">Call history and statistics – the <em>stats</em> attribute and the <em>*_history</em> parameters</a></h5>
 <ul>
 <li><a href="#stats-attribute">The <em>stats</em> attribute and <em>its</em> attributes</a></li>
-<li><a href="#stats.num_calls_logged">The <em>stats.num_calls_logged</em> attribute</a></li>
-<li><a href="#stats.num_calls_total">The <em>stats.num_calls_total</em> attribute</a></li>
-<li><a href="#elapsed_secs_logged">The <em>stats.elapsed_secs_logged</em> attribute</a></li>
+<li><a href="#stats.num_calls_logged">The <em>num_calls_logged</em> attribute</a></li>
+<li><a href="#stats.num_calls_total">The <em>num_calls_total</em> attribute</a></li>
+<li><a href="#elapsed_secs_logged">The <em>elapsed_secs_logged</em> attribute</a></li>
 <li><a href="#record_history-parameter">The <em>record_history</em> parameter</a></li>
 <li><a href="#max_history-parameter">The <em>max_history</em> parameter</a></li>
-<li><a href="#stats.call_history">The <em>stats.call_history</em> attribute</a></li>
+<li><a href="#stats.call_history">The <em>call_history</em> attribute</a></li>
 <ul>
 <li><a href="#CallRecord-namedtuple">The <em>CallRecord</em> namedtuple</a></li>
 </ul>
-<li><a href="#stats.call_history_as_csv">The <em>stats.call_history_as_csv</em> attribute</a></li>
-<li><a href="#stats.clear_history">The <em>stats.clear_history()</em> method</a></li>
+<li><a href="#stats.call_history_as_csv">The <em>call_history_as_csv</em> attribute</a></li>
+<li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
 <h5><a href="#realistic-examples">Realistic examples</a></h5>
 <ul>
@@ -110,11 +112,14 @@ This document will explain all of these features and illustrate how to use them,
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version 0.1.13 of `log_calls`.
+This document describes version `0.1.13` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-This package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1 but hasn't been tested with those earlier versions. Python 3.2 introduced improvements to `unittest` which the master test runner `run_tests.py` uses, so that script may not function properly on earlier versions.)
+Th log_calls package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1 but hasn't been tested with those earlier versions. Python 3.2 introduced improvements to `unittest` which the master test runner `run_tests.py` uses, and which
+`unittest` itself uses when run from the command line as recommended below; thus, 
+test discovery may not work properly on earlier versions of Python 3.x, whereas
+the individual test suites in 'log_calls/tests' may all pass.)
 
 ###[Installation](id:Installation)
 You have two simple options:
@@ -135,7 +140,7 @@ You have two simple options:
 Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
 
 ###[Running the tests](id:Testing)
-Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others), and all tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
+Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others),. All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
 You can run the test suites either before or after installing `log_calls`.
 
@@ -155,7 +160,7 @@ As an alternative, just run `run_tests.py`, in the same directory as `setup.py`:
 
 which takes switches `-q` for "quiet", `-v` for "verbose", and `-h` for "help".
 
-In any case, the output you see should end with this:
+In any case, the output you see should end like so:
 
     ----------------------------------------------------------------------
     Ran 38 tests in 0.069s
@@ -183,7 +188,7 @@ test suites in `log_calls/tests/`. Furthermore, the tests subdirectory `log_call
 
 ###[The *log_calls-path-to-docs* command](id:log_calls-path-command)
 
-The log_calls package includes one executable script Python script, `log_calls-path-to-docs`, which the installer copies to one of two places on your `PATH`:
+The log_calls package includes one executable Python script, `log_calls-path-to-docs`, which the installer copies to one of two places on your `PATH`:
 
 * `/usr/local/bin`, or
 * the `bin` directory of the *virtualenv* in which you installed the package, if you installed the package in one. 
@@ -234,11 +239,29 @@ Changes and improvements to the arg logging of that decorator:
 `log_calls` provides a lot of flexibility. This document contains many examples covering a wide range of uses, and includes several _tips und tricks_.
 
 ##[Basic usage](id:Basic-usage)
+`log_calls` has many features, and thus many, mostly independent, keyword parameters
+(14 in all). This section introduces all but four of them, one at a time,
+though of course you can use multiple parameters in any call to the decorator::
+
+* [`enabled`](#enabled-parameter)
+* [`args_sep`](#args_sep-parameter)
+* [`log_args`](#log_args-parameter)
+* [`log_retval`](#log_retval-parameter)
+* [`log_exit`](#log_exit-parameter)
+* [`log_call_numbers`](#log_call_numbers-parameter)
+* [`log_elapsed`](#log_elapsed-parameter)
+* [`indent`](#indent-parameter)
+* [`prefix`](#prefix-parameter)
+* [`file`](#file-parameter)
+
+The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much history ([max_history](#max_history-parameter)), are discussed in [Call history and statistics – the *stats* attribute and the *\*_history* parameters](#call-history-and-statistics).
+
 Every example in this document uses `log_calls`, so without further ado:
 
     >>> from log_calls import log_calls
 
-This section presents the basic parameters of `log_calls`. But first, let's see the most basic examples, which require no parameters at all:
+###[Using no parameters](id:No-parameters)
+First, let's see the simplest possible examples, using no parameters at all:
 
     >>> @log_calls()
     ... def f(a, b, c):
@@ -551,14 +574,6 @@ Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
         f ==> returning to f
     f ==> returning to <module>
 
-###[The other parameters](id:The-other-parameters)
-The `logger` and `loglevel` parameters are discussed in the next section,
-[Using loggers](#Logging), and in the example [Using a logger with multiple handlers that have different loglevels](#logging-multiple-handlers).
-
-The [`record_history`](#record_history-parameter) and [`max_history`](#max_history-parameter)
-parameters are discussed in the own subsections of the later section
-[Call history and statistics](#call-history-and-statistics).
-
 ##[Using loggers](id:Logging)
 `log_calls` works well with loggers obtained from Python's `logging` module.
 First, we'll set up a logger with a single handler that writes to the console.
@@ -616,6 +631,9 @@ using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher t
     >>> # because loglevel for f < level of logger
     >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     5
+
+The use of loggers, and of these parameters, is explored further in the later 
+example [Using a logger with multiple handlers that have different loglevels](#logging-multiple-handlers).
 
 ##[Call chains](id:Call-chains)
 
@@ -852,22 +870,21 @@ Python processes the definition is "frozen" for the created function object.
 Subsequently changing the value of the variable will *not* affect the behavior
 of the decorator.
 
-For example, suppose `DEBUG` is a module-level variable initialized to `False`, 
-and you use this code:
-
-        @log_calls(enabled=DEBUG)
-        def foo(a, *args, **kwargs):  # ...
-        
-If later you set `Debug = True` and call `foo`, that call won't be logged, because
-the decorated `foo`'s *enabled* setting is bound to the original value of `DEBUG`,
-established when the definition was processed. To illustrate with a doctest:
+For example, suppose `DEBUG` is a module-level variable initialized to `False`:
 
     >>> DEBUG = False
+
+and you use this code:
+
     >>> @log_calls(enabled=DEBUG)
     ... def foo(**kwargs):
     ...     pass
+    >>> foo()       # No log_calls output: DEBUG is False
 
-    >>> foo()       # No log_calls output
+If later you set `Debug = True` and call `foo`, that call won't be logged,
+because the decorated `foo`'s *enabled* setting is bound to the original value
+of `DEBUG`, established when the definition was processed:
+
     >>> DEBUG = True
     >>> foo()       # Still no log_calls output
 
@@ -882,10 +899,11 @@ The `log_calls` decorator adds an attribute `log_calls_settings`
 to a decorated function, through which you can access the decorator settings
 for that function. This attribute is an object which lets you control
 the settings for a decorated function via a mapping (dict-like) interface,
-and equivalently, via further attributes of the object. The mapping keys and
-the attribute names are simply the `log_calls` keywords. `log_calls_settings`
-also provides further methods for interacting with the settings in dict-like ways.
-It's an instance of the `DecoSettingsMapping` class, defined in `deco_settings.py`.
+and equivalently, via attributes of the object. The mapping keys and
+the attribute names are simply the `log_calls` keywords. `log_calls_settings` 
+also implements many of the standard `dict` methods for interacting with the 
+settings in familiar ways. It's an instance of the `DecoSettingsMapping` class, 
+defined in `deco_settings.py`.
 That class has its own tests, in `log_calls/tests/test_deco_settings.py`,
 so there's no need to test it exhaustively here; we'll just go over how to use it.
 
@@ -914,7 +932,7 @@ write settings using the `log_calls` keywords as keys:
     False
     >>> f.log_calls_settings['log_elapsed'] = True
 
-It has a length:
+The `log_calls_settings` attribute has a length:
 
     >>> len(f.log_calls_settings)
     14
@@ -1017,7 +1035,7 @@ in addition to taking keyword arguments, as shown above, the `update()` method
 can take one or more dicts – in particular, a dictionary retrieved from one of
 the `as_*` methods. For example:
 
-Retrieve settings (here, we retrieve an `OrderedDict` because it's more doctest-friendly,
+Retrieve settings (here, as an `OrderedDict` because it's more doctest-friendly,
 but using `as_dict()` is sufficient):
 
     >>> od = f.log_calls_settings.as_OrderedDict()
@@ -1076,7 +1094,8 @@ a function object from the source code of a decorated function. Even if you
 use a variable as the value of a setting, subsequently changing the variable's 
 value has no effect on the decorator's setting.
 
-To overcome this limitation, `log_calls` lets you specify any parameter 
+`log_calls` provides a second way to overcome this limitation. The decorator
+lets you specify any parameter 
 except `prefix` or `max_history` with one level of indirection, by using 
 *indirect values*: an indirect value is a string that names a keyword argument 
 *of the decorated function*. It can be an explicit keyword argument present 
@@ -1087,12 +1106,11 @@ explicit keyword parameters with default values, are both searched for the named
 parameter; if it is found and of the correct type, *its* value is used; otherwise 
 a default value is used.
 
-To specify an indirect value for a parameter whose normal type is `str`, 
-append an `'='` to the value. (Presently, `args_sep` is the only parameter 
-this applies to.) For consistency's sake, any parameter value that names 
-a keyword parameter of the decorated function can also end in a trailing `'='`, 
-which is stripped. Thus, `enabled='enable_='` indicates an indirect value 
-supplied by the keyword (argument or parameter) `enable_` of the decorated function.
+To specify an indirect value for a parameter whose normal type is `str` (only 
+`args_sep`, at present), append an `'='` to the value.  For consistency's sake, 
+any indirect value can end in a trailing `'='`, which is stripped. Thus, 
+`enabled='enable_='` indicates an indirect value supplied by the keyword (argument or 
+parameter) `enable_` of the decorated function.
 
 Thus, in:
 
@@ -1158,10 +1176,10 @@ of logged calls to functions lower in the call chain, provided they all use
 the same indirect parameter keywords.
 
 In the next example, the separator value supplied to `g` by keyword argument
-propagates to `f`. Note that the arguments `42` and `99` end up in the "varargs" tuple 
-of `g`. We've non-generic names for the *varargs* to illustrate that whatever you call
-these parameters, their roles are unambiguous and their names are available to
-`log_calls`, which will use them:
+propagates to `f`. Note that the arguments `42` and `99` end up in `g`'s
+positional *varargs* tuple. We've used non-generic names for the *varargs* 
+to illustrate that whatever you call these parameters, their roles are 
+unambiguous and their names are available to `log_calls`, which will use them:
 
     >>> @log_calls(args_sep='sep=')
     ... def f(a, b, c, **kwargs): pass
@@ -1312,7 +1330,9 @@ Now call it 2 times:
     f [2] <== called by <module>
         arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
 
-###[The *stats.num_calls_logged* attribute](id:stats.num_calls_logged)
+and start to explore the `stats` attribute.
+
+###[The *num_calls_logged* attribute](id:stats.num_calls_logged)
 The `stats.num_calls_logged` attribute contains the number of the most
 recent logged call to a decorated function. Thus, `f.stats.num_calls_logged`
 will equal 2:
@@ -1320,7 +1340,9 @@ will equal 2:
     >>> f.stats.num_calls_logged
     2
 
-###[The *stats.num_calls_total* attribute](id:stats.num_calls_total)
+This counter gets incremented when a decorated function is called that has logging enabled, even if its `log_call_numbers` setting is false.
+
+###[The *num_calls_total* attribute](id:stats.num_calls_total)
 The `stats.num_calls_total` attribute holds the *total* number of calls
 to a decorated function. This counter gets incremented even when logging
 is disabled for a function.
@@ -1353,7 +1375,7 @@ value as `f.stats.num_calls_logged` after the call:
     >>> f.stats.num_calls_logged
     3
 
-###[The *stats.elapsed_secs_logged* attribute](id:elapsed_secs_logged)
+###[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
 The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
 all logged calls to a decorated function, in seconds. It's not possible to doctest
 this so we'll just exhibit its value for the 3 logged calls to `f` above:
@@ -1388,10 +1410,10 @@ With logging enabled, let's call f three times:
 
 No surprises there. But now, f has a call history, which we'll examine next.
 
-###[The *stats.call_history* attribute](id:stats.call_history)
+###[The *call_history* attribute](id:stats.call_history)
 The `stats.call_history` attribute of a decorated function provides the call history
 of logged calls to the function as a tuple of records. Here's `f`'s call history,
-in human-readable form (ok, almost human-readable!). The CSV presentation pairs
+in hand-formatted to be human-readable (ok, almost human-readable!). The CSV presentation pairs
 the `argnames` with their values `argvals` (the `argnames` become column headings), 
 making it even more human-readable, especially when viewed in a program that 
 presents CSVs nicely:
@@ -1488,7 +1510,7 @@ of the same name; attempts to do so raise `ValueError`:
 
 The only way to change its value is with the [`stats.clear_history()`](#stats.clear_history) method, discussed below.
 
-###[The *stats.call_history_as_csv* attribute](id:stats.call_history_as_csv)
+###[The *call_history_as_csv* attribute](id:stats.call_history_as_csv)
 The value `stats.call_history_as_csv` attribute is a text representation
 of a decorated function's call history in CSV format. You can save this string
 and import it into the program or tool of your choice for further analysis.
@@ -1535,7 +1557,7 @@ As usual, `log_calls` will use whatever names you use for varargs parameters
 items within that field are guaranteed to be in sorted order (otherwise this
 last example would sometimes fail as a doctest).
 
-###[The *stats.clear_history(max_history=0)* method](id:stats.clear_history)
+###[The *clear_history(max_history=0)* method](id:stats.clear_history)
 As you might expect, the `stats.clear_history(max_history=0)` method clears 
 the call history of a decorated function. In addition, it resets all counters:
 `num_calls_total` and `num_calls_logged` are reset to 0, and 
@@ -1557,8 +1579,8 @@ values of all relevant settings and counters:
     >>> f.stats.elapsed_secs_logged     # doctest: +SKIP
     1.4066696166992188e-05
 
-Let's clear `f`'s history, setting `max_history` to 33, and check that settings
-and stats counters are as promised:
+Now let's clear `f`'s history, setting `max_history` to 33, and check that settings
+and `stats` tallies are reset:
 
     >>> f.stats.clear_history(max_history=33)
     >>> f.log_calls_settings.max_history
