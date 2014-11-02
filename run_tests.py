@@ -1,8 +1,9 @@
 #! /usr/bin/env python
-import unittest
 import os
 import sys
-
+import inspect
+import log_calls
+import unittest
 
 def usage():
     """Usage: <path>/run_tests.py [-v | -q | -h]
@@ -26,6 +27,7 @@ if len(sys.argv) > 1:
         verbosity = 2
 
 home, _ = os.path.split(__file__)
+tests_dir = os.path.join(home, 'log_calls', 'tests')
 unittest.TextTestRunner(verbosity=verbosity).run(
-    unittest.defaultTestLoader.discover(home)
+    unittest.defaultTestLoader.discover(tests_dir)
 )

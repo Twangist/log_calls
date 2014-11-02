@@ -1,7 +1,7 @@
 __author__ = 'brianoneill'
-__version__ = '0.1.11'
+__version__ = '0.1.13'
 __doc__ = """
-    0.1.11 -- 100% coverage of proxy_descriptors.py
+    100% coverage of proxy_descriptors.py
 """
 
 from unittest import TestCase

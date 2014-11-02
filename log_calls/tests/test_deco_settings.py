@@ -1,8 +1,7 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.11'
+__version__ = '0.1.13'
 __doc__ = """
-    0.1.11 -- 100% coverage of deco_settings.py
-    v0.1.10-b7 -- 100% coverage of deco_settings.py
+    100% coverage of deco_settings.py
 """
 
 from unittest import TestCase

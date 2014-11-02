@@ -1,5 +1,10 @@
 VERSIONS
 --------
+0.1.13      - Docs and test_log_calls.py reorganized, mere
+              "extra examples" moved to test_log_calls_more.py.
+              Tweak to call chain search to make the docs correct
+              about treatment of disabled deco'd functions.
+0.1.12      - The `file` parameter.
 0.1.11      - (All that.)
 v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
               on the stack, so now we can & do display call #s
@@ -8,11 +13,11 @@ v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
               Used the same technique to implement indentation,
               cf. the 'indent' keyword parameter.
 
-v0.1.10-b10 - Doc log_calls.md done but for Installation & (hopefully
-              automatic) testing sections up top... and but for TOC
-              also up top somewhere. 197 tests in the runnable doc.
-              test_log_calls.py done, slightly more tests than the .md
-              so probably 200+.
+v0.1.10-b10 - Doc log_calls.md done but for Installation & testing
+              sections up top... and TOC also up top somewhere.
+              197 tests in the runnable doc.
+              test_log_calls.py done, slightly more tests than
+              the .md so probably 200+.
 
               Revamped update() method of DecoSettingsMapping:
                 * now has a *dicts parameter,

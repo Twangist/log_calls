@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.11'
+__version__ = '0.1.13'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -17,6 +17,7 @@ import inspect
 from functools import wraps, partial
 import logging
 import sys
+import io   # so we can refer to io.TextIOBase
 import time
 import datetime
 from collections import namedtuple, OrderedDict, deque
@@ -97,6 +98,10 @@ class log_calls():
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
+        file:              If `logger` is `None`, a stream (an instance of type `io.TextIOBase`)
+                           to which `log_calls` will print its messages. This value is
+                           supplied to the `file` keyword parameter of the `print` function.
+                           (Default: sys.stdout)
         logger:            If not None (the default), a Logger which will be used
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
@@ -129,6 +134,7 @@ class log_calls():
         DecoSetting('log_elapsed',      bool,           False,         allow_falsy=True),
         DecoSetting('indent',           bool,           False,         allow_falsy=True),
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
+        DecoSetting('file',             io.TextIOBase,  '',            allow_falsy=True,  allow_indirect=False),
         DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
         DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
         DecoSetting('record_history',   bool,           False,         allow_falsy=True),
@@ -315,6 +321,7 @@ class log_calls():
             log_elapsed=False,
             indent=False,   # probably better than =True
             prefix='',
+            file=None,      # detectable value so we late-bind to sys.stdout
             logger=None,
             loglevel=logging.DEBUG,
             record_history=False,
@@ -338,6 +345,7 @@ class log_calls():
             log_elapsed=log_elapsed,
             indent=indent,
             prefix=prefix,
+            file=file,
             logger=logger,
             loglevel=loglevel,
             record_history=record_history,
@@ -419,10 +427,17 @@ class log_calls():
             # Our unit of indentation
             indent = " " * 4
 
+            outfile = _get_final_value('file')
+            flush = (not not outfile)
+            if not outfile:
+                outfile = sys.stdout    # possibly rebound by doctest
+
             logger = _get_final_value('logger')
             loglevel = _get_final_value('loglevel')
             # Establish logging function
-            logging_fn = partial(logger.log, loglevel) if logger else print
+            logging_fn = (partial(logger.log, loglevel)
+                          if logger else
+                         lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=flush, **pkwargs))
 
             # Only do global indentation for print, not for loggers
             global_indent = ((_extra_indent_level * indent)
@@ -597,8 +612,8 @@ class log_calls():
 
         found = False
         found_enabled = False
-        break_both = False      # both loops
-        while not found_enabled and not break_both:
+        hit_bottom = False      # break both loops: reached <module>
+        while not found_enabled and not hit_bottom:
             while 1:    # until found a deco'd fn or <module> reached
                 curr_funcname = curr_frame.f_code.co_name
                 if curr_funcname == 'f_log_calls_wrapper_':
@@ -617,7 +632,7 @@ class log_calls():
                 call_list.append(curr_funcname)
 
                 if curr_funcname == '<module>':
-                    break_both = True
+                    hit_bottom = True
                     break   # inner loop
 
                 globs = curr_frame.f_back.f_globals
@@ -644,7 +659,7 @@ class log_calls():
                             #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                             #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                             #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                        elif 'prefixed_fname' in locls:
+                        elif 'prefixed_fname' in locls:       # also "never happens"
                             # curr_funcname will 'come around for real' next time through loop,
                             # so remove it from end now
                             call_list = call_list[:-1]
@@ -671,6 +686,8 @@ class log_calls():
                     curr_frame = curr_frame.f_back
             else:   # not found
                 # if not found, truncate call_list to first element.
-                call_list = call_list[:1]
+                hit_bottom = True
 
+        if hit_bottom:
+            call_list = call_list[:1]
         return call_list, prev_indent_level
