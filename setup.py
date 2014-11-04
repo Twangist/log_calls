@@ -32,7 +32,7 @@ function can ensure uniform settings for all log_calls-decorated functions in
 call chains beneath it.
 
 In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking
-a lot of ad hoc, boilerplate code.
+a lot of ad hoc, boilerplate code - and can keep your code free of that clutter.
 
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.

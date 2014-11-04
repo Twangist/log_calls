@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.13'
+__version__ = '0.1.14rc1'
 
 from log_calls import helpers
 import doctest

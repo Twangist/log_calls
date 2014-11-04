@@ -1,7 +1,7 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.13'
+__version__ = '0.1.14rc1'
 
-from log_calls import log_calls
+from log_calls import log_calls, record_history_only
 
 import doctest
 import unittest
@@ -381,7 +381,7 @@ that logger rather than the `print` function:
     ...     logger.debug(v1 + v2)
     >>> somefunc(5, 16)             # doctest: +NORMALIZE_WHITESPACE
     DEBUG:a_logger:somefunc <== called by <module>
-        arguments: v1=5, v2=16
+    DEBUG:a_logger:    arguments: v1=5, v2=16
     DEBUG:a_logger:21
     DEBUG:a_logger:somefunc ==> returning to <module>
 
@@ -391,7 +391,7 @@ that logger rather than the `print` function:
     >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
     DEBUG:a_logger:anotherfunc <== called by <module>
     DEBUG:a_logger:somefunc <== called by anotherfunc
-        arguments: v1=17, v2=19
+    DEBUG:a_logger:    arguments: v1=17, v2=19
     DEBUG:a_logger:36
     DEBUG:a_logger:somefunc ==> returning to anotherfunc
     DEBUG:a_logger:anotherfunc ==> returning to <module>
@@ -736,18 +736,20 @@ Its keys and items can be iterated through:
     >>> keys = []
     >>> for k in f.log_calls_settings: keys.append(k)
     >>> keys                                            # doctest: +NORMALIZE_WHITESPACE
-    ['enabled', 'args_sep', 'log_args', 'log_retval',
-     'log_exit', 'log_call_numbers', 'log_elapsed',
-     'indent', 'prefix', 'file',
+    ['enabled', 'args_sep', 'log_args',
+     'log_retval', 'log_elapsed', 'log_exit',
+     'indent', 'log_call_numbers',
+     'prefix', 'file',
      'logger', 'loglevel',
      'record_history', 'max_history']
     >>> items = []
     >>> for k, v in f.log_calls_settings.items(): items.append((k, v))
     >>> items                                           # doctest: +NORMALIZE_WHITESPACE
-    [('enabled', False), ('args_sep', ', '), ('log_args', True), ('log_retval', True),
-     ('log_exit', True), ('log_call_numbers', False), ('log_elapsed', True),
-     ('indent', False), ('prefix', ''), ('file', None),
-     ('logger', None), ('loglevel', 10),
+    [('enabled', False),   ('args_sep', ', '),    ('log_args', True),
+     ('log_retval', True), ('log_elapsed', True), ('log_exit', True),
+     ('indent', False),         ('log_call_numbers', False),
+     ('prefix', ''),            ('file', None),
+     ('logger', None),          ('loglevel', 10),
      ('record_history', False), ('max_history', 0)]
 
 You can use `in` to test for key membership:
@@ -836,8 +838,8 @@ but using `as_dict()` is sufficient):
     >>> od                      # doctest: +NORMALIZE_WHITESPACE
     OrderedDict([('enabled', True),           ('args_sep', ', '),
                  ('log_args', True),          ('log_retval', False),
-                 ('log_exit', True),          ('log_call_numbers', False),
-                 ('log_elapsed', False),      ('indent', False),
+                 ('log_elapsed', False),      ('log_exit', True),
+                 ('indent', False),           ('log_call_numbers', False),
                  ('prefix', ''),              ('file', None),
                  ('logger', None),            ('loglevel', 10),
                  ('record_history', False),   ('max_history', 0)])
@@ -1604,55 +1606,18 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-    # # Try it with an inner function
-    # @log_calls()
-    # def f(): pass
-    #
-    # def g(): f()
-    #
-    # def outer():
-    #     @log_calls(enabled='doit=', args_sep='sepr8r_=', logger='lgr_=')
-    #     def inner():
-    #         g()
-    #     return inner
-    #
-    # inn = outer()
-    # print("inner function's log_calls_settings: \n%s"
-    #       % inn.log_calls_settings)
-    #
-    # inn()
 
-    # print("==================================")
+    # @record_history_only(record_history=True, max_history=0)
+    # def record_me(a, b, x):
+    #     return a * x + b
     #
-    # # instance methods, classmethods, staticmethods
-    # class Klass():
-    #     def __init__(self):
-    #         pass
-    #     @log_calls(enabled=False, args_sep=' + ', logger='lager=', prefix='Klass.instance.')
-    #     def instance_method(self, **kwargs):
-    #         pass
+    # for x in range(15):
+    #     record_me(3, 5, x)
     #
-    #     @classmethod
-    #     @log_calls(enabled=True, log_retval=True, log_args=False, prefix='Klass.klass.')
-    #     def klassmethod(cls, **kwargs):
-    #         return 78
+    # history = record_me.stats.call_history
+    # import pprint
+    # pprint.pprint(history)
     #
-    #     @staticmethod
-    #     @log_calls(enabled=True, prefix='Klass.statik.')
-    #     def statikmethod(x, y, **kwargs):
-    #         return -1
-    #
-    # obj = Klass()
-    # print("via instance of Klass:")
-    # print("instance method log_calls_settings:", obj.instance_method.log_calls_settings)
-    # print("classmethod log_calls_settings:", obj.klassmethod.log_calls_settings)
-    # print("staticmethod log_calls_settings:", obj.statikmethod.log_calls_settings)
-    # print("via Klass:")
-    # print("classmethod log_calls_settings:", Klass.klassmethod.log_calls_settings)
-    # print("staticmethod log_calls_settings:", Klass.statikmethod.log_calls_settings)
-    #
-    # print("\nRunning doctest...")
-
 
     doctest.testmod()   # (verbose=True)
 

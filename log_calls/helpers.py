@@ -31,6 +31,29 @@ def difference_update(d, d_remove):
     return d    # so that we can pass a call to this fn as an arg, or chain
 
 
+def prefix_multiline_str(prefix: str, multiline_str: str):
+    """
+    :param prefix: string with which to prefix each line of multiline_str
+    :param multiline_str: a possibly multiline string
+    :return: prefix + (multiline_str with each \n replaced by \n + prefix)
+    >>> prefix_multiline_str("abc: ", None)
+    None
+    >>> prefix_multiline_str("abc: ", "")
+    'abc: '
+    >>> prefix_multiline_str("abc: ", "xyz")
+    'abc: xyz'
+    >>> print(prefix_multiline_str("abc: ", "x\\ny\\nz"))
+    abc: x
+    abc: y
+    abc: z
+    """
+    if multiline_str is None:
+        return None
+    if '\n' not in multiline_str:
+        return prefix + multiline_str
+    return prefix + multiline_str.replace('\n', '\n' + prefix)
+
+
 def is_keyword_param(param):
     """param is a parameter (a value) from the ordered dict
         inspect.signature(f).parameters
