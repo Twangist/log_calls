@@ -21,7 +21,8 @@ It can also collect profiling data and statistics, accessible dynamically:
 The decorator can print its messages, to stdout or another stream, or can write
 to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also dynamically get and set these settings using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
 
-In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking a lot of ad hoc, boilerplate code.
+In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking
+a lot of ad hoc, boilerplate code - and can keep your code free of that clutter.
 
 This document will explain all of these features and illustrate how to use them, somewhat exhaustively: this is both thorough documentation and a test suite. The TL;DR version is README.md, also in the `log_calls/docs` directory. It doesn't dot every `i` and cross every `t` but will get you started effectively.
 
@@ -35,10 +36,10 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#Installation">Installation</a></li>
 <li><a href="#Testing">Running the tests</a></li>
 <ul>
-<li><a href="#tests-before-install">Running the tests before installation</a>
-</li>
-<li><a href="#tests-after-install">Running the tests after installation</a>
-</li>
+<li><a href="#tests-before-install">Running the tests before installation</a></li>
+<li><a href="#tests-after-install">Running the tests after installation</a></li>
+<li><a href="#tests-ok">What to expect</a></li>
+
 <li><a href="#run-this-document">Run this document</a></li>
 </ul>
 <li><a href="#Acknowledgements">Acknowledgements</a></li>
@@ -102,6 +103,7 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#stats.call_history_as_csv">The <em>call_history_as_csv</em> attribute</a></li>
 <li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
+<h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
 <h5><a href="#realistic-examples">Realistic examples</a></h5>
 <ul>
 <li><a href="#logging-multiple-handlers">Using a logger with multiple handlers that have different loglevels</a></li>
@@ -112,7 +114,7 @@ This document will explain all of these features and illustrate how to use them,
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.1.13` of `log_calls`.
+This document describes version `0.1.14` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
@@ -160,20 +162,21 @@ As an alternative, just run `run_tests.py`, in the same directory as `setup.py`:
 
 which takes switches `-q` for "quiet", `-v` for "verbose", and `-h` for "help".
 
-In any case, the output you see should end like so:
-
-    ----------------------------------------------------------------------
-    Ran 38 tests in 0.069s
-    
-    OK
-
-indicating that all went well. If any test fails, it will say so.
-
 ####[Running the tests after installation](id:tests-after-install)
 You can run the tests for `log_calls` after installing it, by using the command:
 
     $ python -m unittest discover log_calls.tests
     
+####[What to expect](id:tests-ok)
+All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
+
+    ----------------------------------------------------------------------
+    Ran 48 tests in 0.122s
+    
+    OK
+
+indicating that all went well. If any test fails, it will say so.
+
 ####[Run this document](id:run-this-document)
 Through the magic of `doctest`, this is runnable documentation. When run in the `log_calls/docs/` directory, which contains the file `log_calls.md`, the command:
 
@@ -537,6 +540,9 @@ value; and when the method is at the end of a [call or return chain](#Call-chain
         Point.length return value: 2.236...
     Point.length ==> returning to <module>
     length of Point(1, 2) = 2.24
+
+The test suite `tests/test_log_calls_more.py` contains more examples of using
+`log_calls` with methods of all kinds – instance methods, classmethods and staticmethods.
 
 ###[The *file* parameter (default - *sys.stdout*)](id:file-parameter)
 The `file` parameter specifies a stream (an instance of `io.TextIOBase`) to which
@@ -1591,6 +1597,23 @@ and `stats` tallies are reset:
     0
     >>> f.stats.elapsed_secs_logged
     0.0
+
+##[The *record_history* decorator](id:record_history-decorator)
+The `record_history` decorator is a stripped-down version of `log_calls` which
+records calls to a decorated function but writes no messages. You can think
+of it as `log_calls` with the `record_history` and `log_call_numbers` settings
+always true, and without any of the message-logging apparatus.
+
+Just as the settings of `log_calls` for a decorated function are accessible
+dynamically through the `log_calls_settings` attribute, the settings of
+`record_history` are exposed via a `record_history_settings` attribute.
+`record_history_settings` is an object of the same type as `log_calls_settings`,
+so it has the same methods and behaviors described in the [`log_calls_settings`](#Dynamic-control-log_calls_settings) section.
+
+Functions decorated by `record_history` have a full-featured `stats` attribute,
+as described in the [Call history and statistics](#call-history-and-statistics) section.
+
+See the [documentation for `record_history`](./record_history.html) for examples and tests.
 
 ##[Realistic examples](id:realistic-examples)
 

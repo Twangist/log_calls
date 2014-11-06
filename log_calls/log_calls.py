@@ -29,15 +29,12 @@ from .helpers import (difference_update, prefix_multiline_str,
                       dict_to_sorted_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
 
-__all__ = ['log_calls', 'record_history_only', '__version__', '__author__']
+__all__ = ['log_calls', 'record_history', '__version__', '__author__']
 
 
 #------------------------------------------------------------------------------
 # log_calls
 #------------------------------------------------------------------------------
-# Need 'call_num' in case 'max_history' is set to some N > 0,
-# so that only the N most recent records are retained:
-# it's easier to identify calls if they're tagged with call #.
 CallRecord = namedtuple(
     "CallRecord",
     (
@@ -55,7 +52,10 @@ CallRecord = namedtuple(
     )
 )
 
-# context arg for pre_call_handler has these keys:
+
+#-----------------------------------------------------------------------------
+# DecoSetting subclasses with pre-call handlers.
+# The `context` arg for pre_call_handler methods has these keys:
 #     decorator
 #     settings      # of decorator
 #     indent
@@ -72,10 +72,7 @@ CallRecord = namedtuple(
 #     call_list
 #     args
 #     kwargs
-
-# convenience:
-arg_eq_val_str = lambda pair: '%s=%r' % pair
-
+#-----------------------------------------------------------------------------
 
 class DecoSettingEnabled(DecoSetting):
     def __init__(self, name, **kwargs):
@@ -111,6 +108,10 @@ class DecoSettingArgs(DecoSetting):
 
         msg = indent + "arguments: " + end_args_line
 
+        # A convenience function
+        def map_to_arg_eq_val_strs(pairs):
+            return map(lambda pair: '%s=%r' % pair, pairs)
+
         args_vals = list(zip(context['argnames'], context['argvals']))
 
         if context['varargs']:
@@ -124,7 +125,7 @@ class DecoSettingArgs(DecoSetting):
         if args_vals:
             #msg += args_sep.join('%s=%r' % pair for pair in args_vals)
             msg += args_sep.join(
-                    map(arg_eq_val_str, args_vals))
+                        map_to_arg_eq_val_strs(args_vals))
         else:
             msg += "<none>"
 
@@ -135,16 +136,19 @@ class DecoSettingArgs(DecoSetting):
         if context['defaulted_kwargs']:
             msg += ('\n' + indent + "defaults:  " + end_args_line
                     + args_sep.join(
-                        map(arg_eq_val_str, context['defaulted_kwargs'].items()))
+                        map_to_arg_eq_val_strs(context['defaulted_kwargs'].items()))
             )
 
         return msg
 
 
-# context for post_call_handler has these additional keys:
+#-----------------------------------------------------------------------------
+# DecoSetting subclasses with post-call handlers.
+# The `context` for post_call_handler methods has these additional keys:
 #     elapsed_secs
 #     timestamp
 #     retval
+#-----------------------------------------------------------------------------
 
 class DecoSettingRetval(DecoSetting):
     MAXLEN_RETVALS = 60
@@ -200,16 +204,18 @@ class DecoSettingHistory(DecoSetting):
         return None
 
 
-class log_calls():
-    """
-    This decorator logs the caller of a decorated function, and optionally
-    the arguments passed to that function, before calling it; after calling
-    the function, it optionally writes the return value (default: it doesn't),
-    and optionally prints a 'closing bracket' message on return (default:
-    it does).
-    "logs" means: prints to stdout, or, optionally, to a logger.
+#-----------------------------------------------------------------------------
+# Fat base class for log_calls and record_history decorators
+#-----------------------------------------------------------------------------
 
-    The decorator takes various keyword arguments, all with sensible defaults.
+class _deco_base():
+    """
+    Base class for decorators that records history and optionally write to
+    the console or logger by supplying their own settings (DecoSetting subclasses)
+    with pre_call_handler and post_call_handler methods.
+    The wrapper of the wrapped function collects a lot of information,
+    saved in a dict `context`, which is passed to the handlers.
+    This and derived decorators take various keyword arguments, same as settings keys.
     Every parameter except prefix and max_history can take two kinds of values,
     direct and indirect. Briefly, if the value of any of those parameters
     is a string that ends in in '=', then it's treated as the name of a keyword
@@ -217,39 +223,21 @@ class log_calls():
     the final, indirect value of the decorator's parameter (for that call).
     See deco_settings.py docstring for details.
 
+    Settings/keyword params to __init__ that this base class knows about,
+    and uses in __call__ (in wrapper for wrapped function):
+
         enabled:           If true, then logging will occur. (Default: True)
-        args_sep:          str used to separate args. The default is  ', ', which lists
-                           all args on the same line. If args_sep ends in a newline '\n',
-                           additional spaces are appended to that to make for a neater
-                           display. Other separators in which '\n' occurs are left
-                           unchanged, and are untested -- experiment/use at your own risk.
-        log_args:          Arguments passed to the (decorated) function will be logged,
-                           if true (Default: True)
-        log_retval:        Log what the wrapped function returns, if true (truthy).
-                           At most MAXLEN_RETVALS chars are printed. (Default: False)
-        log_exit:          If true, the decorator will log an exiting message after
-                           calling the function, and before returning what the function
-                           returned. (Default: True)
         log_call_numbers: If truthy, display the (1-based) number of the function call,
                           e.g.   f [n] <== <module>   for n-th logged call.
                           This call would correspond to the n-th record
                           in the functions call history, if record_history is true.
                           (Default: False)
-        log_elapsed:      If true, display how long it took the function to execute,
-                          in seconds. (Default: False)
         indent:            if true, log messages for each level of log_calls-decorated
                            functions will be indented by 4 spaces, when printing
                            and not using a logger (default: False)
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
-        file:              If `logger` is `None`, a stream (an instance of type `io.TextIOBase`)
-                           to which `log_calls` will print its messages. This value is
-                           supplied to the `file` keyword parameter of the `print` function.
-                           (Default: sys.stdout)
-        logger:            If not None (the default), a Logger which will be used
-                           (instead of the print function) to write all messages.
-        loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         record_history:    If true, an array of records will be kept, one for each
                            call to the function; each holds call number (1-based),
                            arguments and defaulted keyword arguments, return value,
@@ -259,34 +247,47 @@ class log_calls():
                                                   oldest records overwritten;
                                    value <= 0 --> unboundedly many records are stored.
     """
-    LOG_CALLS_SENTINEL_ATTR = '$_log_calls_sentinel_'        # name of attr
-    LOG_CALLS_SENTINEL_VAR = "$_log_calls-deco'd"
-    LOG_CALLS_PREFIXED_NAME = '$log_calls-prefixed-name'     # name of attr
-    LOG_CALLS_WRAPPER_FN_OBJ = '$f_log_calls_wrapper_-BACKPTR'  # LATE ADDITION
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # sentinels, for identifying functions on the calls stack
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    _sentinels_proto = {
+        'SENTINEL_ATTR': '$_%s_sentinel_',        # name of attr
+        'SENTINEL_VAR': "$_%s-deco'd",
+        'PREFIXED_NAME': '$f_%s-prefixed-name',     # name of attr
+        'WRAPPER_FN_OBJ': '$f_%s_wrapper_-BACKPTR'  # LATE ADDITION
+    }
 
-    # *** DecoSettingsMapping "API" --
-    # (1) initialize: call register_class_settings
+    @classmethod
+    def set_class_sentinels(cls):
+        """ 'virtual', called from __init__
+        """
+        sentinels = cls._sentinels_proto.copy()
+        for sk in sentinels:
+            sentinels[sk] = sentinels[sk] % cls.__name__
+        return sentinels
 
-    # allow indirection for all except prefix and 10/18/14 max_history
-    _setting_info_list = (
-        DecoSettingEnabled('enabled'),
-        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
-        DecoSettingArgs('log_args'),
-        DecoSettingRetval('log_retval'),
-        DecoSettingElapsed('log_elapsed'),
-        DecoSettingExit('log_exit'),
-        DecoSetting('indent',           bool,           False,         allow_falsy=True),
-        DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
-        DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
-        DecoSetting('file',             io.TextIOBase,  None,          allow_falsy=True),
-        DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
-        DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
-        DecoSettingHistory('record_history'),
-        DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
-    )
-    DecoSettingsMapping.register_class_settings('log_calls',
-                                                _setting_info_list)
+    # placeholder! set_class_sentinels called from __init__
+    _sentinels = None
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # # *** DecoSettingsMapping "API" --
+    # # (1) initialize: Subclasses must call register_class_settings
+    # #     with a sequence of DecoSetting objs containing at least these:
+    # #     (TODO: yes it's an odd lot of required DecoSetting objs)
+    #
+    # _setting_info_list = (
+    #     DecoSettingEnabled('enabled'),
+    #     DecoSetting('indent',           bool,           False,         allow_falsy=True),
+    #     DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
+    #     DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
+    # )
+    # DecoSettingsMapping.register_class_settings('_deco_base',
+    #                                             _setting_info_list)
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # call history and stats stuff
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     _descriptor_names = (
         'num_calls_logged',
         'num_calls_total',
@@ -360,7 +361,7 @@ class log_calls():
         fields = ['call_num']
         fields.extend(all_args)
         fields.extend(['retval', 'elapsed_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
-        csv = csv_sep.join(map(repr,fields))
+        csv = csv_sep.join(map(repr, fields))
         csv += '\n'
 
         # Write data lines
@@ -413,6 +414,9 @@ class log_calls():
         if logged:
             self._num_calls_logged += 1
 
+    def _add_to_elapsed(self, elapsed_secs):
+        self._elapsed_secs_logged += elapsed_secs
+
     def _add_to_history(self,
                         argnames, argvals,
                         varargs,
@@ -446,25 +450,16 @@ class log_calls():
                     prefixed_func_name=prefixed_func_name,
                     caller_chain=caller_chain)
         )
-        self._elapsed_secs_logged += elapsed_secs
 
-    def __init__(
-            self,
-            enabled=True,
-            args_sep=', ',
-            log_args=True,
-            log_retval=False,
-            log_exit=True,
-            log_call_numbers=False,
-            log_elapsed=False,
-            indent=False,   # probably better than =True
-            prefix='',
-            file=None,      # detectable value so we late-bind to sys.stdout
-            logger=None,
-            loglevel=logging.DEBUG,
-            record_history=False,
-            max_history=0,
-    ):
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # __init__, __call__
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    def __init__(self,
+                 enabled=True,
+                 log_call_numbers=False,
+                 indent=False,
+                 prefix='',
+                 ** other_values_dict):
         """(See class docstring)"""
         # Set up pseudo-dict
         #
@@ -475,31 +470,23 @@ class log_calls():
             deco_class=self.__class__,
             # the rest are what DecoSettingsMapping calls **values_dict
             enabled=enabled,
-            args_sep=args_sep,
-            log_args=log_args,
-            log_retval=log_retval,
-            log_exit=log_exit,
             log_call_numbers=log_call_numbers,
-            log_elapsed=log_elapsed,
             indent=indent,
             prefix=prefix,
-            file=file,
-            logger=logger,
-            loglevel=loglevel,
-            record_history=record_history,
-            max_history=max_history,
+            **other_values_dict
         )
+
+        if not self.__class__._sentinels:
+            self.__class__._sentinels = self.set_class_sentinels()
 
         self._stats = ClassInstanceAttrProxy(class_instance=self)
 
-        # and the special cases:
-        self.prefix = prefix
-        # Accessed by descriptors on the __Mapping obj
+        # Accessed by descriptors on the stats obj
         self._num_calls_total = 0
         self._num_calls_logged = 0
         # max_history > 0 --> size of self._call_history; <= 0 --> unbounded
         # Set before calling _make_call_history
-        self.max_history = max_history
+        self.max_history = other_values_dict.get('max_history', 0)  # <-- Nota bene
         self._call_history = self._make_call_history()
 
         # Accumulate this (for logged calls only)
@@ -507,6 +494,8 @@ class log_calls():
         self._elapsed_secs_logged = 0.0
 
         self.f_params = None    # set properly by __call__
+        self.f = None           # set properly by __call__
+        self.prefix = prefix    # special case
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
@@ -544,7 +533,9 @@ class log_calls():
             # They must be set before calling f.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             _do_it = _get_final_value('enabled')
-            self._add_call(logged=_do_it)    # bump call counters
+            # Bump call counters, before calling fn.
+            # Note: elapsed_secs not reflected yet of course
+            self._add_call(logged=_do_it)
 
             _log_call_numbers = _get_final_value('log_call_numbers')
             # counters just got bumped
@@ -655,6 +646,8 @@ class log_calls():
             context['retval'] = retval
             context['timestamp'] = t0
 
+            self._add_to_elapsed(context['elapsed_secs'])
+
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call post-call handlers, collect nonempty return values
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -677,19 +670,19 @@ class log_calls():
         # so we can in theory chase back to any previous log_calls-decorated fn
         setattr(
             f_log_calls_wrapper_,
-            self.LOG_CALLS_SENTINEL_ATTR,
-            self.LOG_CALLS_SENTINEL_VAR
+            self._sentinels['SENTINEL_ATTR'],
+            self._sentinels['SENTINEL_VAR']
         )
         # Add prefixed name of f as an attribute
         setattr(
             f,      # revert to f, after trying f_log_calls_wrapper_
-            self.LOG_CALLS_PREFIXED_NAME,
+            self._sentinels['PREFIXED_NAME'],
             prefixed_fname
         )
         # LATE ADDITION: A back-pointer
         setattr(
             f,
-            self.LOG_CALLS_WRAPPER_FN_OBJ,
+            self._sentinels['WRAPPER_FN_OBJ'],
             f_log_calls_wrapper_
         )
         setattr(
@@ -700,7 +693,7 @@ class log_calls():
 
         setattr(
             f_log_calls_wrapper_,
-            'log_calls_settings',
+            self.__class__.__name__ + '_settings',
             self._settings_mapping
         )
 
@@ -708,23 +701,10 @@ class log_calls():
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
-        """Return pair: logging_fn or None, paired with can_indent: bool.
-        cls: unused. Present so this method can be overridden."""
-        outfile = _get_final_value_fn('file')
-        if not outfile:
-            outfile = sys.stdout    # possibly rebound by doctest
+        return print, True
 
-        logger = _get_final_value_fn('logger')
-        loglevel = _get_final_value_fn('loglevel')
-        # Establish logging function
-        logging_fn = (partial(logger.log, loglevel)
-                      if logger else
-                      lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=True, **pkwargs))
-        # Global indentation only for print, not for loggers
-        return logging_fn, not logger
-
-    @staticmethod
-    def call_chain_to_next_log_calls_fn():
+    @classmethod
+    def call_chain_to_next_log_calls_fn(cls):
         """Return list of callers (names) on the call chain
         from caller of caller to first log_calls-deco'd function inclusive,
         if any.  If there's no log_calls-deco'd function on the stack,
@@ -746,10 +726,8 @@ class log_calls():
                     # Fixup: get prefixed named of wrapped function
                     inner_fn = curr_frame.f_locals['f']
                     call_list[-1] = getattr(inner_fn,
-                                            log_calls.LOG_CALLS_PREFIXED_NAME)
+                                            cls._sentinels['PREFIXED_NAME'])
                     wrapper_frame = curr_frame
-                    # # LATE ADDITION
-                    # curr_fn = getattr(inner_fn, log_calls.LOG_CALLS_WRAPPER_FN_OBJ)
                     found = True
                     break   # inner loop
 
@@ -783,12 +761,7 @@ class log_calls():
                             #   print("**** %s found in locls = curr_frame.f_back.f_back.f_locals, "
                             #         "curr_frame.f_back.f_back.f_code.co_name = %s"
                             #         % (curr_funcname, curr_frame.f_back.f_back.f_locals)) # <<<DEBUG>>>
-                        elif 'prefixed_fname' in locls:       # also "never happens"
-                            # curr_funcname will 'come around for real' next time through loop,
-                            # so remove it from end now
-                            call_list = call_list[:-1]
-                            # and curr_fn is None, so it won't have attr in next "if"
-                if hasattr(curr_fn, log_calls.LOG_CALLS_SENTINEL_ATTR):
+                if hasattr(curr_fn, cls._sentinels['SENTINEL_ATTR']):
                     found = True
                     break   # inner loop
                 curr_frame = curr_frame.f_back
@@ -817,19 +790,117 @@ class log_calls():
         return call_list, prev_indent_level
 
 
-class record_history_only(log_calls):
-    """This is precisely backwards.
-    This does less than log_calls, which has a ton of settings,
-    whereas this needs just two.
-    They should both inherit from some common base class which
-    has a virtual "fill_context(base_context)" method
+class log_calls(_deco_base):
     """
-    DecoSettingsMapping.register_class_settings('record_history_only',
-                                                log_calls._setting_info_list)
+    This decorator logs the caller of a decorated function, and optionally
+    the arguments passed to that function, before calling it; after calling
+    the function, it optionally writes the return value (default: it doesn't),
+    and optionally prints a 'closing bracket' message on return (default:
+    it does).
+    "logs" means: prints to stdout, or, optionally, to a logger.
 
-    def __init__(self, record_history=True, max_history=0):
-        super().__init__(enabled=True,
-                         log_call_numbers=True,      # for call chain in history record
+    The decorator takes various keyword arguments, all with sensible defaults.
+    Every parameter except prefix and max_history can take two kinds of values,
+    direct and indirect. Briefly, if the value of any of those parameters
+    is a string that ends in in '=', then it's treated as the name of a keyword
+    arg of the wrapped function, and its value when that function is called is
+    the final, indirect value of the decorator's parameter (for that call).
+    See deco_settings.py docstring for details.
+
+        enabled:           If true, then logging will occur. (Default: True)
+        args_sep:          str used to separate args. The default is  ', ', which lists
+                           all args on the same line. If args_sep ends in a newline '\n',
+                           additional spaces are appended to that to make for a neater
+                           display. Other separators in which '\n' occurs are left
+                           unchanged, and are untested -- experiment/use at your own risk.
+        log_args:          Arguments passed to the (decorated) function will be logged,
+                           if true (Default: True)
+        log_retval:        Log what the wrapped function returns, if true (truthy).
+                           At most MAXLEN_RETVALS chars are printed. (Default: False)
+        log_exit:          If true, the decorator will log an exiting message after
+                           calling the function, and before returning what the function
+                           returned. (Default: True)
+        log_call_numbers: If truthy, display the (1-based) number of the function call,
+                          e.g.   f [n] <== <module>   for n-th logged call.
+                          This call would correspond to the n-th record
+                          in the functions call history, if record_history is true.
+                          (Default: False)
+        log_elapsed:      If true, display how long it took the function to execute,
+                          in seconds. (Default: False)
+        indent:            if true, log messages for each level of log_calls-decorated
+                           functions will be indented by 4 spaces, when printing
+                           and not using a logger (default: False)
+        prefix:            str to prefix the function name with when it is used
+                           in logged messages: on entry, in reporting return value
+                           (if log_retval) and on exit (if log_exit). (Default: '')
+        file:              If `logger` is `None`, a stream (an instance of type `io.TextIOBase`)
+                           to which `log_calls` will print its messages. This value is
+                           supplied to the `file` keyword parameter of the `print` function.
+                           (Default: sys.stdout)
+        logger:            If not None (the default), a Logger which will be used
+                           (instead of the print function) to write all messages.
+        loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
+        record_history:    If true, an array of records will be kept, one for each
+                           call to the function; each holds call number (1-based),
+                           arguments and defaulted keyword arguments, return value,
+                           time elapsed, time of call, caller (call chain), prefixed
+                           function name.(Default: False)
+        max_history:       An int. value >  0 --> store at most value-many records,
+                                                  oldest records overwritten;
+                                   value <= 0 --> unboundedly many records are stored.
+    """
+    # *** DecoSettingsMapping "API" --
+    # (1) initialize: call register_class_settings
+
+    # allow indirection for all except prefix and max_history, which also isn't mutable
+    _setting_info_list = (
+        DecoSettingEnabled('enabled'),
+        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
+        DecoSettingArgs('log_args'),
+        DecoSettingRetval('log_retval'),
+        DecoSettingElapsed('log_elapsed'),
+        DecoSettingExit('log_exit'),
+        DecoSetting('indent',           bool,           False,         allow_falsy=True),
+        DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
+        DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
+        DecoSetting('file',             io.TextIOBase,  None,          allow_falsy=True),
+        DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
+        DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
+        DecoSettingHistory('record_history'),
+        DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
+    )
+    DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
+                                                _setting_info_list)
+
+    def __init__(self,
+                 enabled=True,
+                 args_sep=', ',
+                 log_args=True,
+                 log_retval=False,
+                 log_elapsed=False,
+                 log_exit=True,
+                 indent=False,   # probably better than =True
+                 log_call_numbers=False,
+                 prefix='',
+                 file=None,      # detectable value so we late-bind to sys.stdout
+                 logger=None,
+                 loglevel=logging.DEBUG,
+                 record_history=False,
+                 max_history=0,
+    ):
+        """(See class docstring)"""
+        super().__init__(enabled=enabled,
+                         args_sep=args_sep,
+                         log_args=log_args,
+                         log_retval=log_retval,
+                         log_elapsed=log_elapsed,
+                         log_exit=log_exit,
+                         indent=indent,
+                         log_call_numbers=log_call_numbers,
+                         prefix=prefix,
+                         file=file,
+                         logger=logger,
+                         loglevel=loglevel,
                          record_history=record_history,
                          max_history=max_history,
         )
@@ -838,13 +909,15 @@ class record_history_only(log_calls):
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
         """Return pair: logging_fn or None, paired with can_indent: bool.
         cls: unused. Present so this method can be overridden."""
-        return None, False
+        outfile = _get_final_value_fn('file')
+        if not outfile:
+            outfile = sys.stdout    # possibly rebound by doctest
 
-    def __call__(self, f):
-        return super().__call__(f)
-
-    def pre_call_hook(self, logging_fn, pre_msgs: list, pre_call_context: dict):
-        return False
-
-    def post_call_hook(self, logging_fn, pre_msgs: list, post_msgs: list, post_call_context: dict):
-        return False
+        logger = _get_final_value_fn('logger')
+        loglevel = _get_final_value_fn('loglevel')
+        # Establish logging function
+        logging_fn = (partial(logger.log, loglevel)
+                      if logger else
+                      lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=True, **pkwargs))
+        # Global indentation only for print, not for loggers
+        return logging_fn, not logger

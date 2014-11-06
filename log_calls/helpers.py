@@ -36,8 +36,7 @@ def prefix_multiline_str(prefix: str, multiline_str: str):
     :param prefix: string with which to prefix each line of multiline_str
     :param multiline_str: a possibly multiline string
     :return: prefix + (multiline_str with each \n replaced by \n + prefix)
-    >>> prefix_multiline_str("abc: ", None)
-    None
+    >>> prefix_multiline_str("abc: ", None)     # expect no output
     >>> prefix_multiline_str("abc: ", "")
     'abc: '
     >>> prefix_multiline_str("abc: ", "xyz")

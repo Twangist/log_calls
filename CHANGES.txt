@@ -1,5 +1,25 @@
 VERSIONS
 --------
+
+0.1.14rc1 (*) Factored out a (fat) base class for log_calls,
+              also the base class for new decorator record_history
+          (*) record_history required/inspired "visible" bool
+              attribute for DecoSetting objs
+          (*) added support for it throughout DecoSettingsMapping
+          (*) Tests in test_deco_settings.py expanded/revised
+              accordingly.
+          (*) All tests revised/expanded to reflect the above,
+              & also to cover things not previously tested
+              (e.g. flags args to DecoSettingsMapping.__getitem__;
+              that stats.elapsed_secs_logged = sum of elapsed_secs
+              column of call history, "to within epsilon";
+              call chains and call history; all kinds of methods
+              and log_call_settings and call chains)
+              New files:
+                  record_history.py
+                  tests/test_record_history.py
+                  docs/record_history.md
+
 0.1.13      - Docs and test_log_calls.py reorganized, mere
               "extra examples" moved to test_log_calls_more.py.
               Tweak to call chain search to make the docs correct
@@ -58,24 +78,10 @@ v0.1.10-b6 - New: stats object available on the deco'd function,
              and documentation -- now, even more of both than at v0.1.10-b5.
 
 v0.1.10-b5 - Base class for log_calls that does count logging?
-             Possible to Hide some of the housekeeping obligations?
+             Possible to hide some of the housekeeping obligations?
              call __call__ and bump counters? Arrogate 'enabled' keyword
              shared by all decos, let's say, every one with this base class.
              or _blah_enabled? For now, no.
-
-             Realization that (the hideously named) DecoSettingsMapping is a mechanism
-             for letting multiple decorators each share their own namespaces,
-             e.g. imagine a log_num_calls deco... or add functionality to base class
-             AND/OR imagine letting subclass of DecoSettingsMapping override
-             make_setting_descriptor (made that a class method). Let caller (subclass?) provide
-             additional keywords to be attrs of the __Mapping object
-                e.g. num_calls
-                    num_logged_calls
-                    num_unlogged_calls
-             or decofn.deco_settings['log_calls'].my_attribute
-             where decofn.deco_settings['log_calls'].my_attribute is a descriptor
-             provided by subclass, and so it can access attrs of "instance"
-             i.e. the __Mapping it's bound to.
 
 v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
              for each setting (e.g. f.log_calls_settings.enabled, you can

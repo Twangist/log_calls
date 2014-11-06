@@ -104,7 +104,7 @@ This document gives an overview of the decorator's features and their use. A tho
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version 0.1.13 of `log_calls`.
+This document describes version `0.1.14` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
@@ -154,7 +154,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 38 tests in 0.069s
+    Ran 48 tests in 0.122s
     
     OK
 

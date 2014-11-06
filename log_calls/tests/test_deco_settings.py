@@ -6,6 +6,8 @@ __doc__ = """
 
 from unittest import TestCase
 from log_calls import DecoSetting, DecoSettingsMapping
+from log_calls.log_calls import DecoSettingEnabled, DecoSettingHistory
+
 from collections import OrderedDict
 import inspect
 
@@ -32,6 +34,10 @@ class TestDecoSetting(TestCase):
     def setUpClass(cls):
         cls.info_plain = DecoSetting('set_once', int, 15,
                                      allow_falsy=True, mutable=False)
+
+        cls.hidden = DecoSetting('hidden', bool, True,
+                                 allow_falsy=True, visible=False)
+
         # with extra fields
         cls.info_extended = DecoSetting('extended', tuple, ('Joe', "Schmoe"),
                                         allow_falsy=True, allow_indirect=False,
@@ -45,9 +51,20 @@ class TestDecoSetting(TestCase):
         self.assertEqual(self.info_plain.allow_falsy, True)
         self.assertEqual(self.info_plain.allow_indirect, True)
         self.assertEqual(self.info_plain.mutable, False)
+        self.assertEqual(self.info_plain.visible, True)
         self.assertEqual(self.info_plain._user_attrs, [])
 
     def test___init__2(self):
+        """WITH additional attributes."""
+        self.assertEqual(self.hidden.name, 'hidden')
+        self.assertEqual(self.hidden.final_type, bool)
+        self.assertEqual(self.hidden.default, True)
+        self.assertEqual(self.hidden.allow_falsy, True)
+        self.assertEqual(self.hidden.allow_indirect, False)  # because visible=False
+        self.assertEqual(self.hidden.mutable, True)
+        self.assertEqual(self.hidden.visible, False)
+
+    def test___init__3(self):
         """WITH additional attributes."""
         self.assertEqual(self.info_extended.name, 'extended')
         self.assertEqual(self.info_extended.final_type, tuple)
@@ -55,18 +72,27 @@ class TestDecoSetting(TestCase):
         self.assertEqual(self.info_extended.allow_falsy, True)
         self.assertEqual(self.info_extended.allow_indirect, False)
         self.assertEqual(self.info_extended.mutable, True)
+        self.assertEqual(self.info_extended.visible, True)
         self.assertEqual(self.info_extended._user_attrs, ['extra1', 'extra2', 'extra3'])
         self.assertEqual(self.info_extended.extra1, 'Tom')
         self.assertEqual(self.info_extended.extra2, 'Dick')
         self.assertEqual(self.info_extended.extra3, 'Harry')
 
     def test___repr__1(self):
-        plain_repr = "DecoSetting('set_once', int, 15, allow_falsy=True, allow_indirect=True, mutable=False)"
+        plain_repr = "DecoSetting('set_once', int, 15, allow_falsy=True, " \
+                     "allow_indirect=True, mutable=False, visible=True)"
         self.assertEqual(repr(self.info_plain), plain_repr)
 
     def test___repr__2(self):
-        ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), allow_falsy=True, allow_indirect=False, " \
-                   "mutable=True, extra1='Tom', extra2='Dick', extra3='Harry')"
+        hidden_repr = "DecoSetting('hidden', bool, True, allow_falsy=True, " \
+                      "allow_indirect=False, mutable=True, visible=False)"
+        self.assertEqual(repr(self.hidden), hidden_repr)
+
+    def test___repr__3(self):
+        ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), " \
+                   "allow_falsy=True, allow_indirect=False, " \
+                   "mutable=True, visible=True, " \
+                   "extra1='Tom', extra2='Dick', extra3='Harry')"
         self.assertEqual(repr(self.info_extended), ext_repr)
 
 
@@ -76,27 +102,18 @@ class TestDecoSetting(TestCase):
 
 class TestDecoSettingsMapping(TestCase):
 
-    # _settings = (
-    #     DecoSetting('enabled',          int,            False,         allow_falsy=True,  allow_indirect=True),
-    #     DecoSetting('folderol',         str,            '',            allow_falsy=True,  allow_indirect=False),
-    #     DecoSetting('my_setting',       str,            'on',          allow_falsy=False, allow_indirect=True),
-    #     DecoSetting('your_setting',     str,            'off',         allow_falsy=False, allow_indirect=False,
-    #                 mutable=False),
-    # )
-    # DecoSettingsMapping.register_class_settings('TestDecoSettingsMapping',
-    #                                             _settings)
-
-    # placeholder:
+    # placeholders:
     _settings_mapping = OrderedDict()
 
     @classmethod
     def setUpClass(cls):
         cls._settings = (
-            DecoSetting('enabled',          int,            False,         allow_falsy=True,  allow_indirect=True),
+            DecoSettingEnabled('enabled'),
             DecoSetting('folderol',         str,            '',            allow_falsy=True,  allow_indirect=False),
             DecoSetting('my_setting',       str,            'on',          allow_falsy=False, allow_indirect=True),
             DecoSetting('your_setting',     str,            'off',         allow_falsy=False, allow_indirect=False,
                         mutable=False),
+            DecoSettingHistory('history', visible=False),
         )
         DecoSettingsMapping.register_class_settings('TestDecoSettingsMapping',
                                                     cls._settings)
@@ -109,7 +126,8 @@ class TestDecoSettingsMapping(TestCase):
             enabled=True,
             folderol='bar',
             my_setting='eek',       # str but doesn't end in '=' --> not indirect
-            your_setting='Howdy'
+            your_setting='Howdy',
+            history=False
         )
 
     def test_register_class_settings(self):
@@ -144,17 +162,37 @@ class TestDecoSettingsMapping(TestCase):
 
     def test_registered_class_settings_repr(self):
         settings_repr = """
-            DecoSettingsMapping.register_class_settings([
-                DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True),
-                DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True),
-                DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True),
-                DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False)
+            DecoSettingsMapping.register_class_settings(
+                TestDecoSettingsMapping,
+                [DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True, visible=True),
+                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True),
+                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True),
+                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True),
+                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False)
             ])
         """
         self.assertEqual(
             collapse_whitespace(self._settings_mapping.registered_class_settings_repr()),
             collapse_whitespace(settings_repr)
         )
+
+    def test__handlers(self):
+        self.assertEqual(self._settings_mapping._handlers,
+                         (('enabled',), ('history',)))
+
+    def test__pre_call_handlers(self):
+        self.assertEqual(self._settings_mapping._pre_call_handlers,
+                         ('enabled',))
+
+    def test__post_call_handlers(self):
+        self.assertEqual(self._settings_mapping._post_call_handlers,
+                         ('history',))
+
+    def test__get_DecoSetting(self):
+        for key in self._settings_mapping._deco_class_settings_dict:
+            self.assertEqual(self._settings_mapping._get_DecoSetting(key),
+                             self._settings_mapping._deco_class_settings_dict[key])
+            self.assertEqual(key, self._settings_mapping._get_DecoSetting(key).name)
 
     def test___getitem__(self):
         """Test descriptors too"""
@@ -175,8 +213,17 @@ class TestDecoSettingsMapping(TestCase):
         def get_bad_attr(bad_attr):
             return getattr(mapping, bad_attr)
 
+        def get_hidden_item():
+            return mapping['history']
+
+        def get_hidden_attr():
+            return mapping.history
+
         self.assertRaises(KeyError, get_bad_item, 'no_such_key')
         self.assertRaises(AttributeError, get_bad_attr, 'no_such_attr')
+
+        self.assertRaises(KeyError, get_hidden_item)
+        self.assertRaises(AttributeError, get_hidden_attr)
 
     def test___setitem__(self):
         """Test descriptors too.
@@ -212,6 +259,9 @@ class TestDecoSettingsMapping(TestCase):
         self.assertEqual(mapping.my_setting, 'eek')
         self.assertEqual(mapping.your_setting, "Howdy")
 
+        mapping.__setitem__('your_setting', 'not howdy', _force_mutable=True)
+        self.assertEqual(mapping.your_setting, "not howdy")
+
         # Now test setting a nonexistent key, & a nonexistent attr/descr
         def set_bad_item(bad_key, val):
             mapping[bad_key] = val
@@ -224,6 +274,30 @@ class TestDecoSettingsMapping(TestCase):
         # self.assertRaises(AttributeError, set_bad_attr, 'no_such_attr', 495)
         mapping.no_such_attr = 495
         self.assertEqual(mapping.no_such_attr, 495)
+
+        # Test setting settings with visible=False
+        def set_hidden_item():
+            mapping['history'] = False
+
+        def set_hidden_attr():
+            mapping.history = False
+
+        self.assertRaises(KeyError, set_hidden_item)
+
+        # Get value of history setting
+        history_val = mapping.get_final_value('history', fparams=None)
+        # You CAN add an attribute called 'history'
+        #  BUT it is *not* the 'history' setting:
+        mapping.history = not history_val
+        self.assertEqual(mapping.history, not history_val)
+        # The setting is unchanged:
+        self.assertEqual(history_val, mapping.get_final_value('history', fparams=None))
+
+        # Actually change the value:
+        mapping.__setitem__('history', not history_val, _force_visible=True)
+        # get new val of history
+        new_val = mapping.get_final_value('history', fparams=None)
+        self.assertEqual(new_val, not history_val)
 
     def test___len__(self):
         self.assertEqual(len(self._settings_mapping), 4)
@@ -246,6 +320,8 @@ class TestDecoSettingsMapping(TestCase):
         self.assertIn('folderol', self._settings_mapping)
         self.assertIn('my_setting', self._settings_mapping)
         self.assertIn('your_setting', self._settings_mapping)
+
+        self.assertNotIn('history', self._settings_mapping)
         self.assertNotIn('no_such_key', self._settings_mapping)
 
     def test___repr__(self):
@@ -279,6 +355,7 @@ class TestDecoSettingsMapping(TestCase):
         self.assertEqual(mapping.folderol, 'tomfoolery')
         self.assertEqual(mapping.my_setting, 'balderdash=')
         self.assertEqual(mapping.your_setting, 'Howdy')     # NOT changed, and no exception
+        self.assertEqual(len(mapping), 4)
 
         mapping.enabled = not mapping.enabled
         mapping.folderol = 'nada'
@@ -288,6 +365,7 @@ class TestDecoSettingsMapping(TestCase):
         self.assertEqual(mapping.folderol, 'tomfoolery')
         self.assertEqual(mapping.my_setting, 'balderdash=')
         self.assertEqual(mapping.your_setting, 'Howdy')     # NOT changed, and no exception
+        self.assertEqual(len(mapping), 4)
 
         d1 = {'enabled': False, 'folderol': 'gibberish'}
         d2 = {'enabled': True, 'my_setting': 'hokum='}
@@ -306,6 +384,11 @@ class TestDecoSettingsMapping(TestCase):
             KeyError,
             mapping.update,
             no_such_setting=True
+        )
+        self.assertRaises(
+            KeyError,
+            mapping.update,
+            history=True
         )
 
     def test_as_OrderedDict(self):

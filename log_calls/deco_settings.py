@@ -175,11 +175,13 @@ class DecoSettingsMapping():
                 post_handlers.append(setting.name)
 
         cls._classname2SettingsData_dict[deco_classname] = od
-        cls._classname2handlers[deco_classname] = (pre_handlers, post_handlers)
+        cls._classname2handlers[deco_classname] = (
+            tuple(pre_handlers), tuple(post_handlers))
 
         # <<<attributes>>> Set up descriptors
         for name in od:
-            setattr(cls, name, cls.make_setting_descriptor(name))
+            if od[name].visible:
+                setattr(cls, name, cls.make_setting_descriptor(name))
 
     # <<<attributes>>>
     @classmethod
@@ -230,7 +232,6 @@ class DecoSettingsMapping():
         :param key: a setting key.
         :return: the corresponding DecoSetting.
         """
-        # TODO add test(s) for this
         return self._deco_class_settings_dict[key]
 
     def _is_visible(self, key) -> bool:
@@ -263,7 +264,9 @@ class DecoSettingsMapping():
         for k in class_settings_dict:
             if k in values_dict:                    # allow k to be set later
                 self.__setitem__(k, values_dict[k],
-                                 info=class_settings_dict[k])
+                                 info=class_settings_dict[k],
+                                 _force_mutable=True,
+                                 _force_visible=True)
 
     def registered_class_settings_repr(self) -> str:
         list_of_settingsinfo_reprs = []
@@ -271,11 +274,14 @@ class DecoSettingsMapping():
         for k, info in self._deco_class_settings_dict.items():
             list_of_settingsinfo_reprs.append(repr(info))
 
-        return ("DecoSettingsMapping.register_class_settings([\n"
-                "    %s\n"
+
+        return ("DecoSettingsMapping.register_class_settings("
+                "    " + self.deco_class.__name__ + ",\n"
+                "    [%s\n"
                 "])") % ',\n    '.join(list_of_settingsinfo_reprs)
 
-    def __setitem__(self, key, value, info=None, _force_mutable=False):
+    def __setitem__(self, key, value,
+                    info=None, _force_mutable=False, _force_visible=False):
         """
         key: name of setting, e.g. 'prefix';
              must be in self._deco_class_settings_dict()
@@ -300,21 +306,21 @@ class DecoSettingsMapping():
         if not info:
             if key not in self._deco_class_settings_dict:
                 raise KeyError(
-                    "DecoSettingsMapping.__setitem__: no such setting (key) as '%s'" % key)
+                    "no such setting (key) as '%s'" % key)
             info = self._get_DecoSetting(key)
-        if not info.visible:
+        if not info.visible and not _force_visible:
             raise KeyError(
-                "DecoSettingsMapping.__setitem__: setting (key) '%s' is not visible in class '%s'."
-                % (key, self.__class__.__name__))
+                "setting (key) '%s' is not visible in class '%s'."
+                % (key, self.deco_class.__name__))
 
         final_type = info.final_type
         default = info.default
         allow_falsy = info.default
         allow_indirect = info.allow_indirect
 
-        # if the setting is set-once-only (not mutable),
-        # raise AttributeError if it's already set, unless _force_mutable:
-        if not info.mutable and not _force_mutable and key in self._tagged_values_dict:
+        # if the setting is immutable (/not mutable/set-once-only),
+        # raise ValueError unless _force_mutable:
+        if not info.mutable and not _force_mutable: # and key in self._tagged_values_dict:
             raise ValueError("%s' is write-once (current value: %r)"
                              % (key, self._tagged_values_dict[key][1]))
         if not allow_indirect:
@@ -345,8 +351,8 @@ class DecoSettingsMapping():
         """You can only get visible settings."""
         if not self._is_visible(key):
             raise KeyError(
-                "DecoSettingsMapping.__setitem__: setting (key) '%s' is not visible in class '%s'."
-                % (key, self.__class__.__name__))
+                "setting (key) '%s' is not visible in class '%s'."
+                % (key, self.deco_class.__name__))
         indirect, value = self._tagged_values_dict[key]
         return value + '=' if indirect else value
 
@@ -407,10 +413,10 @@ class DecoSettingsMapping():
                 # skip immutable settings
                 if info and not self._deco_class_settings_dict[k].mutable:
                     continue
-                # skip invisible settings. Not in dicts we return,
-                # but maybe the caller is trying to be cute
-                if info and not self._is_visible(k):
-                    continue
+                # Invisible settings aren't in dicts we return;
+                # perhaps the caller is trying to be cute. Raise KeyError if so.
+                # if info and not self._is_visible(k):
+                #     continue
                 # otherwise, do it (whether it's a setting key or not)
                 self.__setitem__(k, v, info=info)
 

@@ -1,7 +1,7 @@
 __author__ = "Brian O'Neill"
 __version__ = '0.1.14rc1'
 
-from log_calls import log_calls, record_history_only
+from log_calls import log_calls
 
 import doctest
 import unittest
@@ -312,6 +312,9 @@ value; and when the method is at the end of a [call or return chain](#Call-chain
         Point.length return value: 2.236...
     Point.length ==> returning to <module>
     length of Point(1, 2) = 2.24
+
+The test suite `tests/test_log_calls_more.py` contains more examples of using
+`log_calls` with methods of all kinds – instance methods, classmethods and staticmethods.
 
 ###[The *file* parameter (default - *sys.stdout*)](id:file-parameter)
 The `file` parameter specifies a stream (an instance of `io.TextIOBase`) to which
@@ -1607,19 +1610,16 @@ def load_tests(loader, tests, ignore):
 
 if __name__ == "__main__":
 
-    # @record_history_only(record_history=True, max_history=0)
-    # def record_me(a, b, x):
-    #     return a * x + b
-    #
-    # for x in range(15):
-    #     record_me(3, 5, x)
-    #
-    # history = record_me.stats.call_history
-    # import pprint
-    # pprint.pprint(history)
-    #
-
     doctest.testmod()   # (verbose=True)
 
     # unittest.main()
+
+
+
+
+
+
+
+
+
 
