@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.14rc1'
+__version__ = '0.1.14'
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .log_calls import _deco_base, DecoSettingHistory
