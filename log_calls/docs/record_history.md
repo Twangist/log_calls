@@ -17,45 +17,44 @@ Functions decorated by `record_history` have a full-featured `stats` attribute,
 as described in the [Call history and statistics](./log_calls.html#call-history-and-statistics)
 section of the `log_calls` documentation.
 
+## [Usage](id:usage)
+Import `record_history` just as you would `log_calls`:
+
+    >>> from log_calls import record_history
+
 We'll use the following function in our examples:
 
     >>> @record_history()
     ... def record_me(a, b, x):
     ...     return a * x + b
 
-## Usage
-Import `record_history` just as you would `log_calls`:
-
-    >>> from log_calls import record_history
-## [Settings](id:Settings)
-`record_history` has just two keyword parameters:
+## [Keyword Parameters](id:parameters)
+`record_history` has only three keyword parameters:
 
 Keyword parameter | Default value | Description
 ----------------: | :------------ | :------------------
        `enabled`    | `True`          | When true, call history will be recorded
+       `prefix`     | ``              | A `str` to prefix the function name with in call records
        `max_history`    | 0           | An `int`. *value* > 0 --> store at most *value*-many records, oldest records overwritten; *value* ≤ 0 --> store unboundedly many records.
 
 Setting `enabled` to true in `record_history` is like setting both `enabled`
 and `record_history` to true in `log_calls`.
+
+You can supply an [*indirect value*](./log_calls.html#Indirect-values) for the `enabled` parameter, as described
+in the log_calls documentation.
 
 ## [The *record_history_settings* attribute](id:record_history_settings-attribute)
 These settings are accessible dynamically through the `record_history_settings`
 attribute of a decorated function.
 
     >>> len(record_me.record_history_settings)
-    2
+    3
     >>> list(record_me.record_history_settings)
-    ['enabled', 'max_history']
+    ['enabled', 'prefix', 'max_history']
     >>> list(record_me.record_history_settings.items())
-    [('enabled', True), ('max_history', 0)]
+    [('enabled', True), ('prefix', ''), ('max_history', 0)]
     >>> record_me.record_history_settings.as_OrderedDict()  # doctest: +NORMALIZE_WHITESPACE
-    OrderedDict([('enabled', True), ('max_history', 0)])
-
-## [Call history and statistics for *record_history*](id:Call-history-and-statistics-record_history)
-We'll just give a few examples here to show that the `stats` attribute of `record_history`
-works just like that of `log_calls`. For a complete account, see
-the [Call history and statistics](./log_calls.html#call-history-and-statistics)
-section of the `log_calls` documentation.
+    OrderedDict([('enabled', True), ('prefix', ''), ('max_history', 0)])
 
 Let's finally call the function defined above:
 
@@ -102,6 +101,7 @@ Disable recording, call the function again:
     >>> _ = record_me(583, 298, 1000)
 
 Call numbers of last 2 calls to `record_me`:
+
     >>> list(map(lambda rec: rec.call_num, record_me.stats.call_history[-2:]))
     [14, 15]
 
@@ -118,7 +118,11 @@ Re-enable recording and call the function again:
     >>> _ = record_me(1900, 2000, 20)
 
 Here are the last 3 lines of the CSV call history:
-    >>> for line in record_me.stats.call_history_as_csv.strip().split('\\n')[-3:]:       # doctest: +ELLIPSIS
+
+    >>> lines = record_me.stats.call_history_as_csv.strip().split('\\n')
+    >>> # Have to skip next test in .md
+    >>> #  because doctest doesn't split it at all: len(lines) == 1
+    >>> for line in lines[-3:]:                   # doctest: +ELLIPSIS, +SKIP
     ...     print(line)
     14|3|5|13|44|...|...|'record_me'|['<module>']
     15|3|5|14|47|...|...|'record_me'|['<module>']
@@ -145,47 +149,61 @@ and examine the call history again:
     <BLANKLINE>
 
 ## [Call history and call chains](id:Call-history-and-call-chains)
-A final example, showing a longer call chain and call numbers of a decorated
-caller that appears in the call chain:
+An example showing a longer call chain, and call numbers of a decorated
+caller appearing in the call chain:
 
     >>> record_me.stats.clear_history()
-    >>> @record_history()
-    ... def caller(n):
-    ...     nth = 2**n
-    ...     for k in range(nth, 2 * nth):
-    ...         record_me(2*n + 1, 3*n + 1, k)
-    >>> for i in range(3):
-    ...     caller(i)
 
-    >>> caller.stats.num_calls_logged
-    3
+    >>> class Base():
+    ...     def call_record_me(self, a, b, n):
+    ...         nth = 2**n
+    ...         for k in range(nth, 2 * nth):
+    ...             record_me(a, b, k)
+    >>> class Even(Base):
+    ...     @record_history(prefix='Even.')
+    ...     def call_it(self, n):
+    ...         self.call_record_me(2*n + 1, 3*n + 1, n)
+    >>> class Odd(Base):
+    ...     @record_history(prefix='Odd.')
+    ...     def call_it(self, n):
+    ...         self.call_record_me(5*n + 1, 7*n + 1, n)
+    >>> even = Even()
+    >>> odd = Odd()
+    >>> for i in range(3):
+    ...     (even, odd)[i%2].call_it(i)
+
+    >>> even.call_it.stats.num_calls_logged, odd.call_it.stats.num_calls_logged
+    (2, 1)
     >>> record_me.stats.num_calls_logged
     7
 
-    >>> print(caller.stats.call_history_as_csv)        # doctest: +ELLIPSIS
-    'call_num'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
-    1|0|None|...|...|'caller'|['<module>']
-    2|1|None|...|...|'caller'|['<module>']
-    3|2|None|...|...|'caller'|['<module>']
+    >>> print(even.call_it.stats.call_history_as_csv)        # doctest: +ELLIPSIS
+    'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    1|<__main__.Even object at ...>|0|None|...|...|'Even.call_it'|['<module>']
+    2|<__main__.Even object at ...>|2|None|...|...|'Even.call_it'|['<module>']
+    <BLANKLINE>
+
+    >>> print(odd.call_it.stats.call_history_as_csv)        # doctest: +ELLIPSIS
+    'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    1|<__main__.Odd object at ...>|1|None|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(record_me.stats.call_history_as_csv)     # doctest: +ELLIPSIS
     'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
-    'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
-    1|1|1|1|2|...|...|'record_me'|['pointless', 'caller [1]']
-    2|3|4|2|10|...|...|'record_me'|['pointless', 'caller [2]']
-    3|3|4|3|13|...|...|'record_me'|['pointless', 'caller [2]']
-    4|5|7|4|27|...|...|'record_me'|['pointless', 'caller [3]']
-    5|5|7|5|32|...|...|'record_me'|['pointless', 'caller [3]']
-    6|5|7|6|37|...|...|'record_me'|['pointless', 'caller [3]']
-    7|5|7|7|42|...|...|'record_me'|['pointless', 'caller [3]']
+    1|1|1|1|2|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
+    2|6|8|2|20|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    3|6|8|3|26|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    4|5|7|4|27|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    5|5|7|5|32|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    6|5|7|6|37|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    7|5|7|7|42|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
     <BLANKLINE>
 
-##[*elapsed_secs_logged* == sum of *elapsed_secs* column of call history](id:stats.elapsed_secs_logged-equal-sum-etc)
-Equal "to within an epsilon", anyway, allowing for some very small 
+##[*stats.elapsed_secs_logged* == sum of *elapsed_secs* column of call history](id:elapsed_secs_logged-equal-sum-etc)
+Equal "to within an epsilon", anyway, allowing for some very small
 numerical inaccuracy:
 
-    >>> @log_calls(record_history=True)
+    >>> @record_history()
     ... def slow(n):
     ...     val = []
     ...     for i in range(n):
@@ -196,5 +214,4 @@ numerical inaccuracy:
     ...                        slow.stats.call_history))
     >>> abs(sum(elapsed_col) - slow.stats.elapsed_secs_logged) < 1.0e-15
     True
-
 

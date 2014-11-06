@@ -24,7 +24,7 @@ Functions decorated by `record_history` have a full-featured `stats` attribute,
 as described in the [Call history and statistics](#./log_calls.html#call-history-and-statistics)
 section of the `log_calls` documentation.
 
-## Usage
+## [Usage](id:usage)
 Import `record_history` just as you would `log_calls`:
 
     >>> from log_calls import record_history
@@ -35,7 +35,7 @@ We'll use the following function in our examples:
     ... def record_me(a, b, x):
     ...     return a * x + b
 
-@@ [Settings](id:Settings)
+## [Keyword Parameters](id:parameters)
 `record_history` has only three keyword parameters:
 
 Keyword parameter | Default value | Description
@@ -157,8 +157,8 @@ and examine the call history again:
     <BLANKLINE>
 
 ## [Call history and call chains](id:Call-history-and-call-chains)
-A final example, showing a longer call chain and call numbers of a decorated
-caller that appears in the call chain:
+An example showing a longer call chain, and call numbers of a decorated
+caller appearing in the call chain:
 
     >>> record_me.stats.clear_history()
 
@@ -207,7 +207,7 @@ caller that appears in the call chain:
     7|5|7|7|42|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
     <BLANKLINE>
 
-###*stats.elapsed_secs_logged* == sum of *elapsed_secs* column of call history
+##[*stats.elapsed_secs_logged* == sum of *elapsed_secs* column of call history](id:elapsed_secs_logged-equal-sum-etc)
 Equal "to within an epsilon", anyway, allowing for some very small
 numerical inaccuracy:
 

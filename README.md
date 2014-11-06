@@ -476,7 +476,7 @@ that logger rather than the `print` function:
     ...     logger.debug(v1 + v2)
     >>> somefunc(5, 16)             # doctest: +NORMALIZE_WHITESPACE
     DEBUG:a_logger:somefunc <== called by <module>
-        arguments: v1=5, v2=16
+    DEBUG:a_logger:    arguments: v1=5, v2=16
     DEBUG:a_logger:21
     DEBUG:a_logger:somefunc ==> returning to <module>
 
@@ -486,7 +486,7 @@ that logger rather than the `print` function:
     >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
     DEBUG:a_logger:anotherfunc <== called by <module>
     DEBUG:a_logger:somefunc <== called by anotherfunc
-        arguments: v1=17, v2=19
+    DEBUG:a_logger:    arguments: v1=17, v2=19
     DEBUG:a_logger:36
     DEBUG:a_logger:somefunc ==> returning to anotherfunc
     DEBUG:a_logger:anotherfunc ==> returning to <module>
@@ -702,9 +702,10 @@ The `log_calls_settings` attribute has a length:
 Its keys can be iterated through:
 
     >>> list(f.log_calls_settings)                      # doctest: +NORMALIZE_WHITESPACE
-    ['enabled', 'args_sep', 'log_args', 'log_retval',
-     'log_exit', 'log_call_numbers', 'log_elapsed',
-     'indent', 'prefix', 'file', 'logger', 'loglevel',
+    ['enabled', 'args_sep', 'log_args', 
+     'log_retval', 'log_elapsed', 'log_exit',
+     'indent', 'log_call_numbers',
+     'prefix', 'file', 'logger', 'loglevel',
      'record_history', 'max_history']
 
 and its items can be iterated through with the `items()` method.
@@ -766,8 +767,8 @@ but using `as_dict()` is sufficient):
     >>> od                      # doctest: +NORMALIZE_WHITESPACE
     OrderedDict([('enabled', True),           ('args_sep', ', '),
                  ('log_args', True),          ('log_retval', False),
-                 ('log_exit', True),          ('log_call_numbers', False),
-                 ('log_elapsed', False),      ('indent', False),
+                 ('log_elapsed', False),      ('log_exit', True),
+                 ('indent', False),           ('log_call_numbers', False),
                  ('prefix', ''),              ('file', None),
                  ('logger', None),            ('loglevel', 10),
                  ('record_history', False),   ('max_history', 0)])
