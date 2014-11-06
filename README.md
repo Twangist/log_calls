@@ -770,7 +770,7 @@ See the complete documentation `log_calls/docs/log_calls.html`, as well as `log_
 function. It can collect the entire history of calls to a function if asked
 to, or just the most recent `n` calls; the \*_history parameters, discussed next, determine these settings. The statistics and history are accessible via the `stats` attribute which `log_calls` adds to a decorated function.
 
-#### [The *\*_history* parameters](id:_history-parameters)
+#### [The *record_history* and *max_history* parameters](id:_history-parameters)
 The two parameters we haven't yet discussed govern the recording of a decorated function's call history.
 
 #####[The *record_history* parameter (default – *False*)](id:record_history-parameter)
