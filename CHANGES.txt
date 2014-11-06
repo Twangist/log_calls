@@ -1,5 +1,10 @@
 VERSIONS
 --------
+0.2.0   -  Renamed "call_history" and "call_history_as_csv"
+           attributes of the stats attribute
+           ->
+           "history", "history_as_csv", as what other kind of
+           history would there be.
 
 0.1.14  - (*) Factored out a (fat) base class for log_calls,
               also the base class for new decorator record_history

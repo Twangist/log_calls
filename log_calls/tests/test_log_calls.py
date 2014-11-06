@@ -1223,15 +1223,15 @@ With logging enabled, let's call f three times:
 
 No surprises there. But now, f has a call history, which we'll examine next.
 
-####The *stats.call_history* attribute
-The `stats.call_history` attribute of a decorated function provides the call history
+####The *stats.history* attribute
+The `stats.history` attribute of a decorated function provides the call history
 of logged calls to the function as a tuple of records. Here's `f`'s call history,
 in human-readable form (ok, almost human-readable!). The CSV presentation pairs
 the `argnames` with their values `argvals` (the `argnames` become column headings),
 making it even more human-readable, especially when viewed in a program that
 presents CSVs nicely:
 
-    >>> print('\\n'.join(map(str, f.stats.call_history)))   # doctest: +SKIP
+    >>> print('\\n'.join(map(str, f.stats.history)))   # doctest: +SKIP
     CallRecord(call_num=1, argnames=['a'], argvals=(0,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
@@ -1252,7 +1252,7 @@ presents CSVs nicely:
                            prefixed_func_name='f', caller_chain=['<module>'])
 
 #####The *CallRecord* namedtuple
-For the record, the records that comprise a decorated function's call_history are
+For the record, the records that comprise a decorated function's history are
 `namedtuple`s of type `CallRecord`, whose fields are:
 
     call_num
@@ -1291,7 +1291,7 @@ An example:
 
 Here's `g`'s call history:
 
-    >>> print('\\n'.join(map(str, g.stats.call_history)))    # doctest: +SKIP
+    >>> print('\\n'.join(map(str, g.stats.history)))    # doctest: +SKIP
     CallRecord(call_num=2, argnames=['a'], argvals=(1,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={},
@@ -1323,15 +1323,15 @@ of the same name; attempts to do so raise `ValueError`:
 
 The only way to change its value is with the [`clear_history`](#clear_history-method) method.
 
-####The *stats.call_history_as_csv* attribute
-The value `stats.call_history_as_csv` attribute is a text representation
+####The *stats.history_as_csv* attribute
+The value `stats.history_as_csv` attribute is a text representation
 of a decorated function's call history in CSV format. You can save this string
 and import it into the program or tool of your choice for further analysis.
 CSV format is only partially human-friendly, but this representation
 breaks out each argument into its own column, throwing away information about
 whether an argument's value was passed or is a default.
 
-    >>> print(g.stats.call_history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     'call_num'|'a'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     2|1|None|...|...|'g'|['<module>']
     3|2|None|...|...|'g'|['<module>']
@@ -1340,7 +1340,7 @@ whether an argument's value was passed or is a default.
 Ellipses above are for the `elapsed_secs` and `timestamp` fields.
 
 The CSV separator is '|' rather than ',' because some of the fields – `args`,  `kwargs`
-and `caller_chain` – use commas intrinsically. Let's examine one more `call_history_as_csv`
+and `caller_chain` – use commas intrinsically. Let's examine one more `history_as_csv`
 for a function that has all of those fields:
 
     >>> @log_calls(record_history=True, log_call_numbers=True,
@@ -1358,7 +1358,7 @@ for a function that has all of those fields:
     >>> h(20, 3, 4, 6, x=5, y='Yarborough', z=100)
     h <== called by <module>
     f [3] <== called by g <== h
-    >>> print(f.stats.call_history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     'call_num'|'a'|'extra_args'|'x'|'kw_args'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|0|()|1|{}|None|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']

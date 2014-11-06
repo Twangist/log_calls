@@ -75,7 +75,7 @@ Let's finally call the function defined above:
     ...     _ = record_me(3, 5, x)      # "_ = " for doctest
 
     >>> import pprint
-    >>> len(record_me.stats.call_history)
+    >>> len(record_me.stats.history)
     15
 
 The tallies:
@@ -89,7 +89,7 @@ The tallies:
 
 Call history in CSV format, with ellipses for 'elapsed_secs' and 'timestamp' columns:
 
-    >>> print(record_me.stats.call_history_as_csv)         # doctest: +ELLIPSIS
+    >>> print(record_me.stats.history_as_csv)         # doctest: +ELLIPSIS
     'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|3|5|0|5|...|...|'record_me'|['<module>']
     2|3|5|1|8|...|...|'record_me'|['<module>']
@@ -114,7 +114,7 @@ Disable recording, call the function again:
     >>> _ = record_me(583, 298, 1000)
 
 Call numbers of last 2 calls to `record_me`:
-    >>> list(map(lambda rec: rec.call_num, record_me.stats.call_history[-2:]))
+    >>> list(map(lambda rec: rec.call_num, record_me.stats.history[-2:]))
     [14, 15]
 
 and here are the call counters:
@@ -130,7 +130,7 @@ Re-enable recording and call the function again:
     >>> _ = record_me(1900, 2000, 20)
 
 Here are the last 3 lines of the CSV call history:
-    >>> for line in record_me.stats.call_history_as_csv.strip().split('\\n')[-3:]:       # doctest: +ELLIPSIS
+    >>> for line in record_me.stats.history_as_csv.strip().split('\\n')[-3:]:       # doctest: +ELLIPSIS
     ...     print(line)
     14|3|5|13|44|...|...|'record_me'|['<module>']
     15|3|5|14|47|...|...|'record_me'|['<module>']
@@ -149,7 +149,7 @@ and examine the call history again:
     >>> record_me.stats.clear_history(max_history=3)
     >>> for x in range(15):
     ...     _ = record_me(3, 5, x)
-    >>> print(record_me.stats.call_history_as_csv)      # doctest: +ELLIPSIS
+    >>> print(record_me.stats.history_as_csv)      # doctest: +ELLIPSIS
     'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     13|3|5|12|41|...|...|'record_me'|['<module>']
     14|3|5|13|44|...|...|'record_me'|['<module>']
@@ -185,18 +185,18 @@ caller appearing in the call chain:
     >>> record_me.stats.num_calls_logged
     7
 
-    >>> print(even.call_it.stats.call_history_as_csv)        # doctest: +ELLIPSIS
+    >>> print(even.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
     'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|<__main__.Even object at ...>|0|None|...|...|'Even.call_it'|['<module>']
     2|<__main__.Even object at ...>|2|None|...|...|'Even.call_it'|['<module>']
     <BLANKLINE>
 
-    >>> print(odd.call_it.stats.call_history_as_csv)        # doctest: +ELLIPSIS
+    >>> print(odd.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
     'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|<__main__.Odd object at ...>|1|None|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
-    >>> print(record_me.stats.call_history_as_csv)     # doctest: +ELLIPSIS
+    >>> print(record_me.stats.history_as_csv)     # doctest: +ELLIPSIS
     'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|1|1|1|2|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
     2|6|8|2|20|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
@@ -219,7 +219,7 @@ numerical inaccuracy:
     >>> for i in range(100):
     ...     slow(i)
     >>> elapsed_col = list(map(lambda rec: getattr(rec, 'elapsed_secs'),
-    ...                        slow.stats.call_history))
+    ...                        slow.stats.history))
     >>> abs(sum(elapsed_col) - slow.stats.elapsed_secs_logged) < 1.0e-15
     True
 
