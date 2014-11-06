@@ -1,5 +1,4 @@
-#*log_calls* <br>A decorator for debugging and profiling
-
+#*log_calls* — A decorator for debugging and profiling
 ---
 `log_calls` is a Python 3 decorator that can display a great deal of useful information about calls to a decorated function, such as:
 
