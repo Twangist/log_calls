@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.14rc1'
+__version__ = '0.1.14'
 __doc__ = """
     100% coverage of deco_settings.py
 """
