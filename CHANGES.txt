@@ -1,5 +1,108 @@
 VERSIONS
 --------
+
+0.1.14rc1 (*) Factored out a (fat) base class for log_calls,
+              also the base class for new decorator record_history
+          (*) record_history required/inspired "visible" bool
+              attribute for DecoSetting objs
+          (*) added support for it throughout DecoSettingsMapping
+          (*) Tests in test_deco_settings.py expanded/revised
+              accordingly.
+          (*) All tests revised/expanded to reflect the above,
+              & also to cover things not previously tested
+              (e.g. flags args to DecoSettingsMapping.__getitem__;
+              that stats.elapsed_secs_logged = sum of elapsed_secs
+              column of call history, "to within epsilon";
+              call chains and call history; all kinds of methods
+              and log_call_settings and call chains)
+              New files:
+                  record_history.py
+                  tests/test_record_history.py
+                  docs/record_history.md
+
+0.1.13      - Docs and test_log_calls.py reorganized, mere
+              "extra examples" moved to test_log_calls_more.py.
+              Tweak to call chain search to make the docs correct
+              about treatment of disabled deco'd functions.
+0.1.12      - The `file` parameter.
+0.1.11      - (All that.)
+v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
+              on the stack, so now we can & do display call #s
+              of deco'd callers when they're enabled and have call
+              numbers enabled.
+              Used the same technique to implement indentation,
+              cf. the 'indent' keyword parameter.
+
+v0.1.10-b10 - Doc log_calls.md done but for Installation & testing
+              sections up top... and TOC also up top somewhere.
+              197 tests in the runnable doc.
+              test_log_calls.py done, slightly more tests than
+              the .md so probably 200+.
+
+              Revamped update() method of DecoSettingsMapping:
+                * now has a *dicts parameter,
+                * skips over immutable settings so user can just
+                  pass back a settings dict obtained from e.g. as_dict()
+
+              For benefit of stats.call_history_as_csv, kwargs fields
+              are guaranteed have their items sorted by key
+
+v0.1.10-b9 - test_log_calls.py, log_calls.md alllmost done,
+             redid stats.total_elapsed - it's available whether or not
+             call history is being recorded. Total time spent in
+             *logged* calls. For consistency with num_calls_* properties,
+             renamed it elapsed_secs_logged
+
+v0.1.10-b8 - Wrote test_proxy_descriptors, simplified proxy_descriptors
+             as a result. 100% coverage of proxy_descriptors.py.
+             Doctests for get_args_pos in helpers.py, 100% coverage.
+             test_deco_settings.py: 100% coverage of deco_settings.py.
+
+v0.1.10-b7 - Reworked __call__ routine to better use inspect module's
+             introspection, specifically the bind method. Defaulted
+             arg values weren't working quite right.
+             Implemented stats.call_history_as_csv, made the fn name
+             field in CallRecord the prefixed function name, and added
+             a caller_chain field to CallRecord.
+             Descriptors on stats object:
+                num_calls_total, num_calls_logged, call_history,
+                call_history_as_csv, total_elapsed, clear_history (method)
+            Need more tests, even more than before.
+
+v0.1.10-b6 - New: stats object available on the deco'd function,
+             with attributes num_calls, time_elapsed, call_history.
+             Four new keyword parameters:
+                log_elapsed, log_call_number, record_history, max_history
+             Nice lil class ClassInstanceAttrProxy (stats is one of them).
+             All tests from v0.1.10-b5 pass, but we still need more tests,
+             and documentation -- now, even more of both than at v0.1.10-b5.
+
+v0.1.10-b5 - Base class for log_calls that does count logging?
+             Possible to hide some of the housekeeping obligations?
+             call __call__ and bump counters? Arrogate 'enabled' keyword
+             shared by all decos, let's say, every one with this base class.
+             or _blah_enabled? For now, no.
+
+v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
+             for each setting (e.g. f.log_calls_settings.enabled, you can
+             get and set it, i.e. __get__ and __set__ it. Thus,
+                    print('d.log_retval =', d.log_retval)
+                    d.enabled = 17
+                    d.log_retval = False
+                    d.log_exit = True
+                    d.log_args = 'different_log_args_kwd='
+             etc.
+
+v0.1.10-b3 - New feature: mapping interface for settings! Any log_calls-deco'd
+             function f now has an attribute .log_calls_settings which behaves
+             "just like" a dictionary - __?etitem__, update, __contains__,
+             __len__, iteration through names, iteration through .items(),
+             a real __repr__ fn, a real __str__ fn.
+             Users can get & set the settings of a deco'd function much more
+             easily using these interfaces/methods,  no intrusion on deco'd
+             function's signature.
+             Indirect values still have their place, for controlling an entire
+             call subtree/subgraph.
 v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
              prefix can take either direct or indirect values, indirect values
              being names of keyword parameters/arguments of the wrapped function.
@@ -8,7 +111,7 @@ v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
              is returned by __call__.
              Updated the doc/tests test_log_calls.py to reflect these changes,
              plus probably other little improvements.
-             TODO: update the *.md files
+
 v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
              doctests moved to tests/test_log_calls.py. VERSIONS moved to
              CHANGES.txt (this file).

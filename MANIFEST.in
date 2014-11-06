@@ -1,9 +1,6 @@
 include README.md
-# include log_calls/doc/log_calls.md
-include log_calls/doc/*
+include log_calls/docs/*
 
 # include LICENSE.txt
 # include CHANGES.txt
- include *.txt
-
-global-exclude temp_*.*
+include *.txt
