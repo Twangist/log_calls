@@ -795,8 +795,8 @@ The `stats` attribute of a decorated function is an object which statistics and 
 * [`stats.num_calls_logged`](#stats.num_calls_logged)
 * [`stats.num_calls_total`](#stats.num_calls_total)
 * [`stats.elapsed_secs_logged`](#elapsed_secs_logged)
-* [`stats.call_history`](#stats.call_history)
-* [`stats.call_history_as_csv`](#stats.call_history_as_csv)
+* [`stats.history`](#stats.history)
+* [`stats.history_as_csv`](#stats.history_as_csv)
 
 The last two yield empty results unless the `record_history` setting is true. The first three don't depend on `record_history` at all.
 
@@ -864,12 +864,12 @@ all logged calls to a decorated function, in seconds. It's not possible to docte
     >>> f.stats.elapsed_secs_logged   # doctest: +SKIP
     6.67572021484375e-06
 
-#####[The *call_history* attribute](id:stats.call_history)
-The `stats.call_history` attribute of a decorated function provides the call history
+#####[The *history* attribute](id:stats.history)
+The `stats.history` attribute of a decorated function provides the call history
 of logged calls to the function as a tuple of records. Each record is a `namedtuple`of type `CallRecord`. Here's `f`'s call history,
 in (almost) human-readable form:
 
-    >>> print('\\n'.join(map(str, f.stats.call_history)))   # doctest: +SKIP
+    >>> print('\\n'.join(map(str, f.stats.history)))   # doctest: +SKIP
     CallRecord(call_num=1, argnames=['a'], argvals=(0,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
@@ -894,8 +894,8 @@ the `argnames` with their values in `argvals` (the `argnames` become column head
 making it even more human-readable, especially when viewed in a program that 
 presents CSVs nicely.
 
-#####[The *call_history_as_csv* attribute](id:stats.call_history_as_csv)
-The value `stats.call_history_as_csv` attribute is a text representation in CSV format
+#####[The *history_as_csv* attribute](id:stats.history_as_csv)
+The value `stats.history_as_csv` attribute is a text representation in CSV format
 of a decorated function's call history. You can save this string
 and import it into the program or tool of your choice for further analysis.
 This representation breaks out each argument into its own column, throwing away 
@@ -903,7 +903,7 @@ information about whether an argument's value was passed or is a default.
 
 The CSV separator is '|' rather than ',' because some of the fields – `args`,  `kwargs`
 and `caller_chain` – use commas intrinsically. Let's examine one more 
-`call_history_as_csv` for a function that has all of those fields:
+`history_as_csv` for a function that has all of those fields:
 
     >>> @log_calls(record_history=True, log_call_numbers=True,
     ...            log_exit=False, log_args=False)
@@ -923,7 +923,7 @@ and `caller_chain` – use commas intrinsically. Let's examine one more
     
 Here's the call history in CSV format:
 
-    >>> print(f.stats.call_history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     'call_num'|'a'|'extra_args'|'x'|'kw_args'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|0|()|1|{}|None|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']

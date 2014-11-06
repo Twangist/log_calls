@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.14'
+__version__ = '0.2.0'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -292,8 +292,8 @@ class _deco_base():
         'num_calls_logged',
         'num_calls_total',
         'elapsed_secs_logged',
-        'call_history',
-        'call_history_as_csv',
+        'history',
+        'history_as_csv',
     )
     _method_descriptor_names = (
         'clear_history',
@@ -335,11 +335,11 @@ class _deco_base():
         return self._elapsed_secs_logged
 
     @property
-    def call_history(self):
+    def history(self):
         return tuple(self._call_history)
 
     @property
-    def call_history_as_csv(self):
+    def history_as_csv(self):
         """
         Headings (columns) are:
             call_num

@@ -20,8 +20,12 @@ It can also collect profiling data and statistics, accessible dynamically:
 The decorator can print its messages, to stdout or another stream, or can write
 to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also dynamically get and set these settings using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
 
-In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking
-a lot of ad hoc, boilerplate code - and can keep your code free of that clutter.
+The package contains another decorator, `record_history`, a stripped-down version
+of `log_calls` which only collects call history and statistics, and outputs no messages.
+
+These decorators can save you from writing, rewriting, copying, pasting and 
+tweaking a lot of ad hoc, boilerplate code - and can keep your code free of 
+that clutter.
 
 This document will explain all of these features and illustrate how to use them, somewhat exhaustively: this is both thorough documentation and a test suite. The TL;DR version is README.md, also in the `log_calls/docs` directory. It doesn't dot every `i` and cross every `t` but will get you started effectively.
 
@@ -97,12 +101,12 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#elapsed_secs_logged">The <em>elapsed_secs_logged</em> attribute</a></li>
 <li><a href="#record_history-parameter">The <em>record_history</em> parameter</a></li>
 <li><a href="#max_history-parameter">The <em>max_history</em> parameter</a></li>
-<li><a href="#stats.call_history">The <em>call_history</em> attribute</a></li>
+<li><a href="#stats.history">The <em>call_history</em> attribute</a></li>
 <ul>
 <li><a href="#CallRecord-namedtuple">The <em>CallRecord</em> namedtuple</a></li>
 <li><a href="#elapsed_secs_logged-equal-sum-etc"><em>stats.elapsed_secs_logged</em> == sum of <em>elapsed_secs</em> "column" of <em>stats.call_history</em></a></li>
 </ul>
-<li><a href="#stats.call_history_as_csv">The <em>call_history_as_csv</em> attribute</a></li>
+<li><a href="#stats.history_as_csv">The <em>history_as_csv</em> attribute</a></li>
 <li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
 <h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
@@ -1499,7 +1503,7 @@ An example:
 
 Here's `g`'s call history:
 
-    >>> print('\\n'.join(map(str, g.stats.call_history)))    # doctest: +SKIP
+    >>> print('\\n'.join(map(str, g.stats.history)))    # doctest: +SKIP
     CallRecord(call_num=2, argnames=['a'], argvals=(1,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={},
@@ -1531,15 +1535,15 @@ of the same name; attempts to do so raise `ValueError`:
 
 The only way to change its value is with the [`stats.clear_history()`](#stats.clear_history) method, discussed below.
 
-###[The *call_history_as_csv* attribute](id:stats.call_history_as_csv)
-The value `stats.call_history_as_csv` attribute is a text representation in CSV format of a decorated function's call history. 
+###[The *history_as_csv* attribute](id:stats.history_as_csv)
+The value `stats.history_as_csv` attribute is a text representation in CSV format of a decorated function's call history. 
 You can save this string
 and import it into the program or tool of your choice for further analysis.
 CSV format is only partially human-friendly, but this representation
 breaks out each argument into its own column, throwing away information about
 whether an argument's value was passed or is a default.
 
-    >>> print(g.stats.call_history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     'call_num'|'a'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     2|1|None|...|...|'g'|['<module>']
     3|2|None|...|...|'g'|['<module>']
@@ -1549,7 +1553,7 @@ Ellipses above are for the `elapsed_secs` and `timestamp` fields.
 
 The CSV separator is '|' rather than ',' because some of the fields – `args`,  `kwargs`
 and `caller_chain` – use commas intrinsically. Let's examine one more 
-`call_history_as_csv` for a function that has all of those fields:
+`history_as_csv` for a function that has all of those fields:
 
     >>> @log_calls(record_history=True, log_call_numbers=True,
     ...            log_exit=False, log_args=False)
@@ -1566,7 +1570,7 @@ and `caller_chain` – use commas intrinsically. Let's examine one more
     >>> h(20, 3, 4, 6, x=5, y='Yarborough', z=100)
     h <== called by <module>
     f [3] <== called by g <== h
-    >>> print(f.stats.call_history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     'call_num'|'a'|'extra_args'|'x'|'kw_args'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
     1|0|()|1|{}|None|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']
