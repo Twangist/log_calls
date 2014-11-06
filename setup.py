@@ -1,28 +1,35 @@
 __doc__ = """
-Python 3 decorator that can display a great deal of useful information about
-calls to a decorated function, such as:
+`log_calls` is a Python 3 decorator that can print much useful information
+about calls to a decorated function. It can write to `stdout`, to another
+stream, or to a logger. It can save you from writing, rewriting, copying,
+pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep
+your codebase free of that clutter.
 
-* the caller of the function,
-* the number of the call,
+For each call of a decorated function, `log_calls` can show you:
+
+* the caller,
 * the arguments passed to the function, and any default values used,
 * the time the function took to execute,
-* display of the complete call chain back to another `log_calls`-decorated caller,
+* the complete call chain back to another `log_calls`-decorated caller,
+* the number of the call,
 * indentation by call level,
 * the function's return value,
-* the function's return to the caller.
+* and more!
 
-The decorator can print its messages, to stdout or another stream, or can write
-to a Python logger.
+These and other features are optional and configurable settings, which
+can be specified for each decorated function via keyword parameters.
+You can also dynamically get and set these settings using attributes
+with the same names as the keywords, or using a dict-like interface
+whose keys are the keywords.
 
-It can also collect profiling data and statistics, accessible dynamically:
+`log_calls`` can also collect profiling data and statistics, accessible dynamically:
 
 * number of calls to a function,
 * total time taken by the function,
 * the function's entire call history (arguments, time elapsed, return values,
   callers, and more), optionally as text in CSV format.
 
-The decorator can print its messages, to stdout or another stream, or can write
-to a Python logger. These features and others are optional and configurable settings,
+These features and others are optional and configurable settings,
 which can be specified for each decorated function via keyword parameters of
 the decorator. You can also dynamically get and set these settings using attributes
 with the same names as the keywords, or using a dict-like interface whose keys
@@ -32,14 +39,11 @@ function can ensure uniform settings for all log_calls-decorated functions in
 call chains beneath it.
 
 The package contains another decorator, `record_history`, a stripped-down version
-of `log_calls`. `record_history` only collects dynamically accessible profiling
-data and statistics, and outputs no messages.
+of `log_calls` which only collects call history and statistics, and outputs no messages.
 
-These decorators can save you from writing, rewriting, copying, pasting and tweaking
-a lot of ad hoc, boilerplate code - and can keep your code free of that clutter.
+NOTE: This package requires the CPython implementation, as it makes assumptions
+about stack frame internals which may not be valid in other interpreters.
 
-NOTE: CPython only -- this uses internals of stack frames
-      which may well differ in other interpreters.
 See docs/log_calls.md for details, usage info and examples.
 """
 import log_calls

@@ -1,7 +1,7 @@
 VERSIONS
 --------
 
-0.1.14rc1 (*) Factored out a (fat) base class for log_calls,
+0.1.14  - (*) Factored out a (fat) base class for log_calls,
               also the base class for new decorator record_history
           (*) record_history required/inspired "visible" bool
               attribute for DecoSetting objs
