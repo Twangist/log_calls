@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.13'
+__version__ = '0.1.14rc1'
 
 from log_calls import log_calls
 
@@ -158,13 +158,13 @@ separator '\\n'):
     >>> #            'enable': True, 'sep_': '\\n'}
     >>> t(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     DEBUG:mylogger:t <== called by <module>
-        arguments:
+    DEBUG:mylogger:    arguments:
             x=1
             y=2
             z=3
             [**]kwargs={...}
     DEBUG:mylogger:r <== called by s <== t
-        arguments:
+    DEBUG:mylogger:    arguments:
             x=1
             y=2
             z=3
@@ -193,11 +193,135 @@ but now we do get output:
     ...                   logger_=logger,
     ...                   loglevel_=logging.INFO)    # doctest: +ELLIPSIS
     INFO:mylogger:indirect_loglevel <== called by <module>
-        arguments: a=5, x=3, y=3, [**]kwargs={...}
+    INFO:mylogger:    arguments: a=5, x=3, y=3, [**]kwargs={...}
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
     """
     pass
+
+
+def main__inner_functions__more():
+    """
+## log_calls_settings of an inner function
+
+    >>> @log_calls()
+    ... def f(): pass
+
+    >>> def g(): f()
+
+    >>> def outer():
+    ...     @log_calls(args_sep='sepr8r_=', logger='lgr_=')
+    ...     def inner():
+    ...         g()
+    ...     return inner
+
+    >>> inn = outer()
+    >>> inn.log_calls_settings.args_sep == 'sepr8r_='
+    True
+
+Call it:
+
+    >>> inn()
+    inner <== called by <module>
+    f <== called by g <== inner
+    f ==> returning to g ==> inner
+    inner ==> returning to <module>
+
+    """
+    pass
+
+
+def main__methods__more():
+    """
+## instance methods, classmethods, staticmethods
+
+    >>> @log_calls(indent=True)
+    ... def f(): pass
+
+    >>> def g(): f()
+
+    >>> class Klass():
+    ...     def __init__(self):
+    ...         pass
+    ...
+    ...     @log_calls(logger='lager=', prefix='Klass.', indent=True)
+    ...     def instance_method(self, **kwargs):
+    ...         g()
+    ...
+    ...     @classmethod
+    ...     @log_calls(log_args=False, log_retval=True, prefix='Klass.', indent=True)
+    ...     def klassmethod(cls, **kwargs):
+    ...         g()
+    ...
+    ...     @staticmethod
+    ...     @log_calls(args_sep=' + ', log_elapsed=True, prefix='Klass.', indent=True)
+    ...     def statikmethod(x, y, **kwargs):
+    ...         g()
+
+
+`log_calls_settings` can be accessed via the class, for classmethods and staticmethods:
+
+    >>> (Klass.klassmethod.log_calls_settings.log_args,
+    ...  Klass.klassmethod.log_calls_settings.log_retval)
+    (False, True)
+
+    >>> Klass.statikmethod.log_calls_settings.args_sep
+    ' + '
+
+
+All methods can be accessed through an instance:
+    >>> obj = Klass()
+    >>> obj.instance_method.log_calls_settings.logger
+    'lager='
+
+    >>> (obj.klassmethod.log_calls_settings.log_args,
+    ...  obj.klassmethod.log_calls_settings.log_retval)
+    (False, True)
+
+    >>> obj.statikmethod.log_calls_settings.args_sep
+    ' + '
+
+Call these methods:
+
+    >>> obj.instance_method()       # doctest: +ELLIPSIS
+    Klass.instance_method <== called by <module>
+        arguments: self=<__main__.Klass object at ...>
+        f <== called by g <== Klass.instance_method
+        f ==> returning to g ==> Klass.instance_method
+    Klass.instance_method ==> returning to <module>
+
+    >>> obj.klassmethod()   # or Klass.klassmethod()
+    Klass.klassmethod <== called by <module>
+        f <== called by g <== Klass.klassmethod
+        f ==> returning to g ==> Klass.klassmethod
+        Klass.klassmethod return value: None
+    Klass.klassmethod ==> returning to <module>
+
+    >>> obj.statikmethod(1, 2)      # doctest: +ELLIPSIS
+    Klass.statikmethod <== called by <module>
+        arguments: x=1 + y=2
+        f <== called by g <== Klass.statikmethod
+        f ==> returning to g ==> Klass.statikmethod
+        elapsed time: ... [secs]
+    Klass.statikmethod ==> returning to <module>
+
+Similarly, the stats attribute can be accessed via the class or an instance:
+    >>> obj.instance_method.stats.num_calls_logged
+    1
+    >>> Klass.klassmethod.stats.num_calls_total
+    1
+    >>> elapsed = Klass.statikmethod.stats.elapsed_secs_logged    # doctest: +ELLIPSIS
+    >>> # about 0.0001738
+    >>> elapsed > 0.0
+    True
+
+    """
+    pass
+
+
+# SURGERY:
+main__methods__more.__doc__ = \
+    main__methods__more.__doc__.replace("__main__", __name__)
 
 
 # For unittest integration
@@ -207,54 +331,6 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-    # # Try it with an inner function
-    # @log_calls()
-    # def f(): pass
-    #
-    # def g(): f()
-    #
-    # def outer():
-    #     @log_calls(enabled='doit=', args_sep='sepr8r_=', logger='lgr_=')
-    #     def inner():
-    #         g()
-    #     return inner
-    #
-    # inn = outer()
-    # print("inner function's log_calls_settings: \n%s"
-    #       % inn.log_calls_settings)
-    #
-    # inn()
-
-    # print("==================================")
-    #
-    # # instance methods, classmethods, staticmethods
-    # class Klass():
-    #     def __init__(self):
-    #         pass
-    #     @log_calls(enabled=False, args_sep=' + ', logger='lager=', prefix='Klass.instance.')
-    #     def instance_method(self, **kwargs):
-    #         pass
-    #
-    #     @classmethod
-    #     @log_calls(enabled=True, log_retval=True, log_args=False, prefix='Klass.klass.')
-    #     def klassmethod(cls, **kwargs):
-    #         return 78
-    #
-    #     @staticmethod
-    #     @log_calls(enabled=True, prefix='Klass.statik.')
-    #     def statikmethod(x, y, **kwargs):
-    #         return -1
-    #
-    # obj = Klass()
-    # print("via instance of Klass:")
-    # print("instance method log_calls_settings:", obj.instance_method.log_calls_settings)
-    # print("classmethod log_calls_settings:", obj.klassmethod.log_calls_settings)
-    # print("staticmethod log_calls_settings:", obj.statikmethod.log_calls_settings)
-    # print("via Klass:")
-    # print("classmethod log_calls_settings:", Klass.klassmethod.log_calls_settings)
-    # print("staticmethod log_calls_settings:", Klass.statikmethod.log_calls_settings)
-    #
-    # print("\nRunning doctest...")
 
     doctest.testmod()   # (verbose=True)
 

@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.13'
+__version__ = '0.1.14rc1'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -63,17 +63,55 @@ class DecoSetting():
     Callers can add additional fields by passing additional keyword args.
     The additional fields/keys & values are made attributes of this object,
     and a (sorted) list of the keys is saved (_user_attrs).
+
+    Subclasses can supply a pre_call_handler method
+    returning str or empty:
+        def pre_call_handler(self, context: dict):
+            return ("%s <== called by %s"
+                    % (context['output_fname'],
+                       ' <== '.join(context['call_list'])))
+    context contains these keys:
+        decorator
+        settings      # of decorator
+        indent
+        prefixed_fname
+        output_fname
+        fparams
+        argcount
+        argnames      # argcount-long
+        argvals       # argcount-long
+        varargs
+        explicit_kwargs
+        implicit_kwargs
+        defaulted_kwargs
+        call_list
+        args
+        kwargs
+
+    Subclasses can supply a post_call_handler method:
+    returning str or empty:
+        def post_call_handler(self, context: dict):
+            return ("%s ==> returning to %s"
+                       % (context['output_fname'],
+                          ' ==> '.join(context['call_list'])))
+    context adds these keys:
+        elapsed_secs
+        timestamp
+        retval
     """
     def __init__(self, name, final_type, default, *,
-                 allow_falsy, allow_indirect=True, mutable=True,
+                 allow_falsy, allow_indirect=True, mutable=True, visible=True,
                  **more_attributes):
+        """not visible => not allow_indirect
+        """
         assert not default or isinstance(default, final_type)
         self.name = name                # key
         self.final_type = final_type    # bool int str logging.Logger ...
         self.default = default
         self.allow_falsy = allow_falsy  # is a falsy final val of setting allowed
-        self.allow_indirect = allow_indirect  # are indirect values allowed
+        self.allow_indirect = allow_indirect and visible  # are indirect values allowed
         self.mutable = mutable
+        self.visible = visible
         # we need write fields in repr the same way every time,
         # so even though more_attributes isn't ordered,
         # we need to pick an order & stick to it
@@ -84,10 +122,10 @@ class DecoSetting():
         #final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
         final_type = self.final_type.__name__         # WHY NOT THIS? lol
         #default = self.default if final_type != 'str' else repr(self.default)
-        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s"
+        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s, visible=%s"
                   %
                   (self.name, final_type, self.default,
-                   self.allow_falsy, self.allow_indirect, self.mutable)
+                   self.allow_falsy, self.allow_indirect, self.mutable, self.visible)
         )
         # append user attrs
         for attr in self._user_attrs:
@@ -103,6 +141,10 @@ class DecoSettingsMapping():
     as well as 'direct' and 'indirect' values for its keyword params"""
     # Class-level mapping: classname |-> OrderedDict of class's settings (info 'structs')
     _classname2SettingsData_dict = {}
+    # Class-level mapping: classname |-> pair of tuples:
+    #                                   (pre-call handler settings names,
+    #                                    post-call handler settings names)
+    _classname2handlers = {}
 
     # When this is last char of a parameter value (to decorator),
     # interpret value of parameter to be the name of
@@ -121,16 +163,25 @@ class DecoSettingsMapping():
         where od is an ordered dict built from items of settings_iter.
         cls: this class
         clsname: key for dict produced from settings_iter
-        settings_iter: iterable of Keyed"""
+        settings_iter: iterable of DecoSetting objs"""
         od = OrderedDict()
+        pre_handlers = []
+        post_handlers = []
         for setting in settings_iter:
             od[setting.name] = setting
+            if setting.__class__.__dict__.get('pre_call_handler'):
+                pre_handlers.append(setting.name)
+            if setting.__class__.__dict__.get('post_call_handler'):
+                post_handlers.append(setting.name)
 
         cls._classname2SettingsData_dict[deco_classname] = od
+        cls._classname2handlers[deco_classname] = (
+            tuple(pre_handlers), tuple(post_handlers))
 
         # <<<attributes>>> Set up descriptors
         for name in od:
-            setattr(cls, name, cls.make_setting_descriptor(name))
+            if od[name].visible:
+                setattr(cls, name, cls.make_setting_descriptor(name))
 
     # <<<attributes>>>
     @classmethod
@@ -155,9 +206,41 @@ class DecoSettingsMapping():
         return SettingDescr()
 
     @property
-    def _deco_class_settings_dict(self):
+    def _handlers(self) -> tuple:
+        """Can't use/call till self.deco_class set in __init__
+        Return: duple of tuples (pre-call-handler setting keys, post-call-handler setting keys).
+        """
+        return self._classname2handlers[self.deco_class.__name__]
+
+    @property
+    def _pre_call_handlers(self) -> tuple:
+        """Can't use/call till self.deco_class set in __init__"""
+        return self._handlers[0]
+
+    @property
+    def _post_call_handlers(self) -> tuple:
+        """Can't use/call till self.deco_class set in __init__"""
+        return self._handlers[1]
+
+    @property
+    def _deco_class_settings_dict(self) -> OrderedDict:
         """Can't use/call till self.deco_class set in __init__"""
         return self._classname2SettingsData_dict[self.deco_class.__name__]
+
+    def _get_DecoSetting(self, key) -> DecoSetting:
+        """
+        :param key: a setting key.
+        :return: the corresponding DecoSetting.
+        """
+        return self._deco_class_settings_dict[key]
+
+    def _is_visible(self, key) -> bool:
+        """key - a setting name."""
+        return self._get_DecoSetting(key).visible
+
+    @property
+    def _visible_setting_names_gen(self) -> list:
+        return (name for name in self._tagged_values_dict if self._is_visible(name))
 
     def __init__(self, *, deco_class, **values_dict):
         """classname: name of class that has already stored its settings
@@ -175,31 +258,35 @@ class DecoSettingsMapping():
         self.deco_class = deco_class
         class_settings_dict = self._deco_class_settings_dict
 
-        # Insert values in the proper order - as given by caller
+        # Insert values in the proper order - as given by caller,
+        # both visible and not visible ones.
         self._tagged_values_dict = OrderedDict()    # stores pairs inserted by __setitem__
-        for k in self._deco_class_settings_dict:
+        for k in class_settings_dict:
             if k in values_dict:                    # allow k to be set later
                 self.__setitem__(k, values_dict[k],
-                                 _class_settings_dict_=class_settings_dict)
+                                 info=class_settings_dict[k],
+                                 _force_mutable=True,
+                                 _force_visible=True)
 
-    def registered_class_settings_repr(self):
+    def registered_class_settings_repr(self) -> str:
         list_of_settingsinfo_reprs = []
 
         for k, info in self._deco_class_settings_dict.items():
             list_of_settingsinfo_reprs.append(repr(info))
 
-        return ("DecoSettingsMapping.register_class_settings([\n"
-                "    %s\n"
+
+        return ("DecoSettingsMapping.register_class_settings("
+                "    " + self.deco_class.__name__ + ",\n"
+                "    [%s\n"
                 "])") % ',\n    '.join(list_of_settingsinfo_reprs)
 
-    def __setitem__(self, key, value, _class_settings_dict_=None, _force_mutable=False):
+    def __setitem__(self, key, value,
+                    info=None, _force_mutable=False, _force_visible=False):
         """
         key: name of setting, e.g. 'prefix';
              must be in self._deco_class_settings_dict()
         value: something passed to __init__ (of log_calls),
-        _class_settings_dict_: passed by __init__ or any other method that will
-                               call many times, saves this method from having
-                               to do self._deco_class_settings_dict() on each call
+        info: self.deco_class_settings_dict[key] or None
         _force_mutable: if key is already in self._tagged_values_dict and
                         it's not mutable, attempting to __setitem__ on it
                         raises KeyError, unless force_mutable is True
@@ -212,21 +299,28 @@ class DecoSettingsMapping():
                          (sans any trailing '=')
         THIS method assumes that the values in self._deco_class_settings_dict()
         are DecoSetting objects -- all fields of that class are used
-        """
-        class_settings_dict = _class_settings_dict_ or self._deco_class_settings_dict
-        if key not in class_settings_dict:
-            raise KeyError(
-                "DecoSettingsMapping.__setitem__: no such setting (key) as '%s'" % key)
 
-        info = class_settings_dict[key]
+        You can only set visible settings.
+        """
+        # Blithely assuming that if info is not None then it's DecoSetting for key
+        if not info:
+            if key not in self._deco_class_settings_dict:
+                raise KeyError(
+                    "no such setting (key) as '%s'" % key)
+            info = self._get_DecoSetting(key)
+        if not info.visible and not _force_visible:
+            raise KeyError(
+                "setting (key) '%s' is not visible in class '%s'."
+                % (key, self.deco_class.__name__))
+
         final_type = info.final_type
         default = info.default
         allow_falsy = info.default
         allow_indirect = info.allow_indirect
 
-        # if the setting is set-once-only (not mutable),
-        # raise AttributeError if it's already set, unless _force_mutable:
-        if not info.mutable and not _force_mutable and key in self._tagged_values_dict:
+        # if the setting is immutable (/not mutable/set-once-only),
+        # raise ValueError unless _force_mutable:
+        if not info.mutable and not _force_mutable: # and key in self._tagged_values_dict:
             raise ValueError("%s' is write-once (current value: %r)"
                              % (key, self._tagged_values_dict[key][1]))
         if not allow_indirect:
@@ -254,20 +348,30 @@ class DecoSettingsMapping():
         self._tagged_values_dict[key] = indirect, value
 
     def __getitem__(self, key):
+        """You can only get visible settings."""
+        if not self._is_visible(key):
+            raise KeyError(
+                "setting (key) '%s' is not visible in class '%s'."
+                % (key, self.deco_class.__name__))
         indirect, value = self._tagged_values_dict[key]
         return value + '=' if indirect else value
 
     def __len__(self):
-        return len(self._tagged_values_dict)
+        """Return # of visible settings."""
+        #return len(self._tagged_values_dict)
+        return len(list(self._visible_setting_names_gen))
 
     def __iter__(self):
-        return (name for name in self._tagged_values_dict)
+        """Return iterable of names of visible settings."""
+        return self._visible_setting_names_gen
 
     def items(self):
-        return ((name, self.__getitem__(name)) for name in self._tagged_values_dict)
+        """Return iterable of items of visible settings."""
+        return ((name, self.__getitem__(name)) for name in self._visible_setting_names_gen)
 
     def __contains__(self, key):
-        return key in self._tagged_values_dict
+        """True iff key is a visible setting."""
+        return key in self._tagged_values_dict and self._is_visible(key)
 
     def __repr__(self):
         return ("DecoSettingsMapping( \n"
@@ -281,6 +385,18 @@ class DecoSettingsMapping():
     def __str__(self):
         return str(self.as_dict())
 
+    def as_OrderedDict(self):
+        """Return OD of visible settings only."""
+        od = OrderedDict()
+        for k, v in self._tagged_values_dict.items():
+            if self._is_visible(k):
+                od[k] = v[1]
+        return od
+
+    def as_dict(self):
+        """Return dict of visible settings only."""
+        return dict(self.as_OrderedDict())
+
     def update(self, *dicts, **d_settings):
         """Do __setitem__ for every key/value pair in every dictionary
         in dicts + (d_settings,).
@@ -293,21 +409,16 @@ class DecoSettingsMapping():
         """
         for d in dicts + (d_settings,):
             for k, v in d.items():
+                info = self._deco_class_settings_dict.get(k)
                 # skip immutable settings
-                if (k in self._deco_class_settings_dict
-                    and not self._deco_class_settings_dict[k].mutable):
+                if info and not self._deco_class_settings_dict[k].mutable:
                     continue
+                # Invisible settings aren't in dicts we return;
+                # perhaps the caller is trying to be cute. Raise KeyError if so.
+                # if info and not self._is_visible(k):
+                #     continue
                 # otherwise, do it (whether it's a setting key or not)
-                self.__setitem__(k, v, _class_settings_dict_=self._deco_class_settings_dict)
-
-    def as_OrderedDict(self):
-        od = OrderedDict()
-        for k, v in self._tagged_values_dict.items():
-            od[k] = v[1]
-        return od
-
-    def as_dict(self):
-        return dict(self.as_OrderedDict())
+                self.__setitem__(k, v, info=info)
 
     def _get_tagged_value(self, key):
         """Return (indirect, value) for key"""

@@ -31,8 +31,12 @@ with just a modest amount of cooperation between decorated functions a calling
 function can ensure uniform settings for all log_calls-decorated functions in
 call chains beneath it.
 
-In short, `log_calls` can save you from writing, rewriting, copying, pasting and tweaking
-a lot of ad hoc, boilerplate code.
+The package contains another decorator, `record_history`, a stripped-down version
+of `log_calls`. `record_history` only collects dynamically accessible profiling
+data and statistics, and outputs no messages.
+
+These decorators can save you from writing, rewriting, copying, pasting and tweaking
+a lot of ad hoc, boilerplate code - and can keep your code free of that clutter.
 
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
@@ -46,10 +50,12 @@ setup(
     version=log_calls.__version__,
     author=log_calls.__author__,       # "Brian O'Neill",
     author_email='twangist@gmail.com',
-    description='Debugging and profiling decorator that logs caller name(s), args+values, execution time, and more.',
+    description='Debugging and profiling decorator that logs '
+                'caller name(s), args+values, execution time, and more. '
+                'Eliminates reams of boilerplate code.',
     long_description=__doc__,
     license='MIT',
-    keywords='debugging decorator logging function call caller profiling stack recursion teaching',
+    keywords='decorator debugging profiling logging function call caller stack recursion teaching',
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
     test_suite='log_calls.tests',     # log_calls.tests.run_tests
