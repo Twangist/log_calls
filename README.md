@@ -1,5 +1,7 @@
 #*log_calls* — A decorator for debugging and profiling
 ---
+<small>*(This document is a work in progress: an overly fat README that I'll be reducing alot. It seems to also have some formatting problems ("looked fine on my machine" of course)– probably running afoul of different markdown dialects. Thanks for your patience/check this space! — BTO)*</small>
+
 `log_calls` is a Python 3 decorator that can print much useful information
 about calls to a decorated function. It can write to `stdout`, to another
 stream, or to a logger. It can save you from writing, rewriting, copying,
