@@ -32,7 +32,7 @@ This document gives an overview of the decorator's features and their use. A tho
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.1.14` of `log_calls`.
+This document describes version `0.2.0` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
