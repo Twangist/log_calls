@@ -148,7 +148,7 @@ You have two simple options:
 Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
 
 ###[Running the tests](id:Testing)
-Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others),. All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
+Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has three. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
 You can run the test suites either before or after installing `log_calls`.
 
@@ -177,7 +177,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 48 tests in 0.122s
+    Ran 49 tests in 0.122s
     
     OK
 
