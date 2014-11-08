@@ -6,7 +6,7 @@
 * the number of the call,
 * the arguments passed to the function, and any default values used,
 * the time the function took to execute,
-* display of the complete call chain back to another `log_calls`-decorated caller,
+* the complete call chain back to another `log_calls`-decorated caller,
 * indentation by call level,
 * the function's return value,
 * the function's return to the caller.
@@ -15,10 +15,10 @@ It can also collect profiling data and statistics, accessible dynamically:
 
 * the number of calls to a function,
 * total time taken by the function,
-* the function's entire call history (arguments, time elapsed, return values, callers, and more), optionally as text in CSV format.
+* the function's entire call history (arguments, time elapsed, return values, callers, and more), optionally as text in CSV format or as a Pandas DataFrame.
 
 The decorator can print its messages, to stdout or another stream, or can write
-to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also dynamically get and set these settings using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
+to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also examine and change these settings on the fly using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
 
 The package contains another decorator, `record_history`, a stripped-down version
 of `log_calls` which only collects call history and statistics, and outputs no messages.
@@ -101,12 +101,13 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#elapsed_secs_logged">The <em>elapsed_secs_logged</em> attribute</a></li>
 <li><a href="#record_history-parameter">The <em>record_history</em> parameter</a></li>
 <li><a href="#max_history-parameter">The <em>max_history</em> parameter</a></li>
-<li><a href="#stats.history">The <em>call_history</em> attribute</a></li>
+<li><a href="#stats.history">The <em>history</em> attribute</a></li>
 <ul>
 <li><a href="#CallRecord-namedtuple">The <em>CallRecord</em> namedtuple</a></li>
-<li><a href="#elapsed_secs_logged-equal-sum-etc"><em>stats.elapsed_secs_logged</em> == sum of <em>elapsed_secs</em> "column" of <em>stats.call_history</em></a></li>
+<li><a href="#elapsed_secs_logged-equal-sum-etc"><em>stats.elapsed_secs_logged</em> == sum of <em>elapsed_secs</em> "column" of <em>stats.history</em></a></li>
 </ul>
 <li><a href="#stats.history_as_csv">The <em>history_as_csv</em> attribute</a></li>
+<li><a href="#stats.history_as_DataFrame">The <em>history_as_DataFrame</em> attribute</a></li>
 <li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
 <h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
@@ -120,7 +121,7 @@ This document will explain all of these features and illustrate how to use them,
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.0` of `log_calls`.
+This document describes version `0.2.1` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
@@ -147,7 +148,7 @@ You have two simple options:
 Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
 
 ###[Running the tests](id:Testing)
-Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others),. All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
+Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has three. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
 You can run the test suites either before or after installing `log_calls`.
 
@@ -176,7 +177,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 48 tests in 0.122s
+    Ran 49 tests in 0.122s
     
     OK
 
@@ -1043,13 +1044,12 @@ you can update several settings at once:
 You can retrieve the entire collection of settings as either an `OrderedDict`
 using the `as_OrderedDict()` method, or as a `dict` using `as_dict()`.
 Either can serve as a snapshot of the settings, so that you can change settings
-temporarily, use the new settings, and then restore settings from the snapshot.
-in addition to taking keyword arguments, as shown above, the `update()` method
-can take one or more dicts – in particular, a dictionary retrieved from one of
+temporarily, use the new settings, and then use `update()` to restore settings from the snapshot.
+in addition to taking keyword arguments, as shown above, `update()` can take one or more dicts – in particular, a dictionary retrieved from one of
 the `as_*` methods. For example:
 
-Retrieve settings (here, as an `OrderedDict` because it's more doctest-friendly,
-but using `as_dict()` is sufficient):
+Retrieve settings (here, as an `OrderedDict` because those are more doctest-friendly,
+but using `as_dict()` suffices):
 
     >>> od = f.log_calls_settings.as_OrderedDict()
     >>> od                      # doctest: +NORMALIZE_WHITESPACE
@@ -1076,7 +1076,7 @@ use the new settings for `f`:
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
-dictionary rather than keywords:
+dictionary rather than keywords (we *could* pass `**od`, but that's unnecessary and a pointless expense):
 
     >>> f.log_calls_settings.update(od)
     >>> od == f.log_calls_settings.as_OrderedDict()
@@ -1125,13 +1125,13 @@ any indirect value can end in a trailing `'='`, which is stripped. Thus,
 `enabled='enable_='` indicates an indirect value supplied by the keyword (argument or 
 parameter) `enable_` of the decorated function.
 
-Thus, in:
+For example, in:
 
     >>> @log_calls(args_sep='sep=', prefix="*** ")
     ... def f(a, b, c, sep='|'): pass
 
 `args_sep` has an indirect value which names `f`'s explicit keyword parameter `sep`,
-and `prefix` has a direct value. A call can dynamically override the default
+and `prefix` has a direct value (as it always does). A call can dynamically override the default
 value '|' in the signature of `f` by supplying a value:
 
     >>> f(1, 2, 3, sep=' / ')
@@ -1315,12 +1315,12 @@ is perfectly legitimate:
     6
 
 ### [Paradigms for handling keyword parameters](id:kwarg-paradigm)
-Several uses of "indirect values" described in this section rely on multiple functions and methods treating `**kwargs` as a kind of "common area" or "bulletin board" – a central store for data of common interest. This paradigm for `**kwargs` handling conflicts with the one usually espoused, for example in discussions about the design of composable classes which cooperatively call `super()`. In his article* [Python's super() considered super!](http://rhettinger.wordpress.com/2011/05/26/super-considered-super/), Raymond Hettinger cogently describes that approach as one in which:
+Several uses of "indirect values" described in this section rely on multiple functions and methods treating `**kwargs` as a kind of "common area" or "bulletin board" – a central store for data of common interest. This paradigm for `**kwargs` handling conflicts with the one usually espoused, for example in discussions about the design of composable classes which cooperatively call `super()`. In his article [Python's super() considered super!](http://rhettinger.wordpress.com/2011/05/26/super-considered-super/), Raymond Hettinger cogently describes that approach as one in which:
 <blockquote>
 every method [f, say,  is] cooperatively designed to accept keyword arguments and a keyword-arguments dictionary, to remove any arguments that it needs, and to forward the remaining arguments using **kwds [via super().f(…, **kwds), where … are positional args], eventually leaving the dictionary empty for the final call in the chain.
 </blockquote>
 
-Taken literally, this implies that no two implementations of the same method in different classes should ever share a keyword parameter, as the first one to "need" it will "remove it" before passing the baton to its kinfolk further on down the mro. Certainly that's a clear if stringent approach to cooperation, one consistent with the behavior of certain "final calls in the chain" that land in core Python; for example, `object.__init__` and `type.__init__` raise an exception if they receive any `**kwargs`. But the "bulletin board" paradigm of cooperation is also valid and useful, and causes no harm as long as it's clear what all cooperating parties are agreeing **to**.
+Taken literally, this implies that no two implementations of the same method in different classes should ever share a keyword parameter, as the first one to "need" it will "remove it" before passing the baton to its kinfolk further on down the mro list. Certainly that's a clear if stringent approach to cooperation, one consistent with the behavior of certain "final calls in the chain" that land in core Python; for example, `object.__init__` and `type.__init__` raise an exception if they receive any `**kwargs`. But the "bulletin board" paradigm of cooperation is also valid and useful, and causes no harm as long as it's clear what all cooperating parties are agreeing *to*.
 
 ##[Call history and statistics – the *stats* attribute and the *\*_history* parameters](id:call-history-and-statistics)
 `log_calls` always collects a few basic statistics about calls to a decorated
@@ -1351,7 +1351,7 @@ Now call it 2 times:
     f [2] <== called by <module>
         arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
 
-and start to explore the `stats` attribute.
+and look at its `stats`.
 
 ###[The *num_calls_logged* attribute](id:stats.num_calls_logged)
 The `stats.num_calls_logged` attribute contains the number of the most
@@ -1381,8 +1381,8 @@ will still equal 2:
     >>> f.stats.num_calls_logged
     2
 
-As a further illustration, let's re-enable logging for `f` and call it again.
-The displayed call number will the number of the *logged* call, 3, the same
+Finally, let's re-enable logging for `f` and call it again.
+The displayed call number will be the number of the *logged* call, 3, the same
 value as `f.stats.num_calls_logged` after the call:
 
     >>> f.log_calls_settings.enabled = True
@@ -1396,9 +1396,11 @@ value as `f.stats.num_calls_logged` after the call:
     >>> f.stats.num_calls_logged
     3
 
+**ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, though of course less than when it's enabled.* **Comment it out in production code!**
+
 ###[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
 The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
-all logged calls to a decorated function, in seconds. We'll just exhibit its value for the 3 logged calls to `f` above:
+all logged calls to a decorated function, in seconds. It's not possible (ok, not easy) to doctest this, so we'll just exhibit its value for the 3 logged calls to `f` above:
 
     >>> f.stats.elapsed_secs_logged   # doctest: +SKIP
     6.67572021484375e-06
@@ -1430,12 +1432,12 @@ With logging enabled, let's call f three times:
 
 No surprises there. But now, f has a call history, which we'll examine next.
 
-###[The *call_history* attribute](id:stats.call_history)
-The `stats.call_history` attribute of a decorated function provides the call history
-of logged calls to the function as a tuple of records. Here's `f`'s call history,
-in hand-formatted to be human-readable (ok, almost human-readable!).
+###[The *history* attribute](id:stats.history)
+The `stats.history` attribute of a decorated function provides the call history
+of logged calls to the function as a tuple of records. Here's `f`'s history,
+hand-formatted for readability:
  
-    >>> print('\\n'.join(map(str, f.stats.call_history)))   # doctest: +SKIP
+    >>> print('\\n'.join(map(str, f.stats.history)))   # doctest: +SKIP
     CallRecord(call_num=1, argnames=['a'], argvals=(0,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
@@ -1461,7 +1463,7 @@ making it even more human-readable, especially when viewed in a program that
 presents CSVs nicely.
 
 ####[The *CallRecord* namedtuple](id:CallRecord-namedtuple)
-For the record, the records that comprise a decorated function's call_history are 
+For the record, the records that comprise a decorated function's history are 
 `namedtuple`s of type `CallRecord`, whose fields are:
 
     call_num
@@ -1479,12 +1481,12 @@ For the record, the records that comprise a decorated function's call_history ar
 
 By now, the significance of each field should be clear.
 
-####[*stats.elapsed_secs_logged* == sum of *elapsed_secs* "column" of *stats.call_history*](id:elapsed_secs_logged-equal-sum-etc)
+####[*stats.elapsed_secs_logged* == sum of *elapsed_secs* "column" of *stats.history*](id:elapsed_secs_logged-equal-sum-etc)
 as you would expect. This is [demonstrated](./record_history.html#elapsed_secs_logged-equal-sum-etc) in the documentation for the `record_history` decorator, a subset of `log_calls` which records call history and statistics but writes no messages.
 
 ###[The *max_history* parameter (default – 0)](id:max_history-parameter)
 The `max_history` parameter determines how many call history records are retained
-for a decorated function whose call history is recorded. If this value is 0
+for a decorated function whose history is recorded. If this value is 0
 (the default) or negative, unboundedly many records are retained (unless or until
 you set the `record_history` setting to false, or call the
 [`stats.clear_history()`](#stats.clear_history) method). If the value of `max_history`
@@ -1517,8 +1519,8 @@ Here's `g`'s call history:
                            timestamp='10/28/14 20:51:12.376977',
                            prefixed_func_name='g', caller_chain=['<module>'])
 
-The first call (`call_num=1`) was discarded to make room for the last call
-(`call_num=3`) because the call history size is set to 2.
+The first call (`call_num=1`) was discarded to make room for the last one
+(`call_num=3`) because the history size is set to 2.
 
 You cannot change `max_history` using the mapping interface or the attribute
 of the same name; attempts to do so raise `ValueError`:
@@ -1536,15 +1538,18 @@ of the same name; attempts to do so raise `ValueError`:
 The only way to change its value is with the [`stats.clear_history()`](#stats.clear_history) method, discussed below.
 
 ###[The *history_as_csv* attribute](id:stats.history_as_csv)
-The value `stats.history_as_csv` attribute is a text representation in CSV format of a decorated function's call history. 
+The `stats.history_as_csv` attribute provides a text representation in CSV format of a decorated function's call history. 
 You can save this string
-and import it into the program or tool of your choice for further analysis.
-CSV format is only partially human-friendly, but this representation
+and import it into the program or tool of your choice for further analysis. 
+(*Note: if your tool of choice is [Pandas](http://pandas.pydata.org), you can use 
+the `stats` attribute `stats.history_as_DataFrame` to directly obtain history in 
+the representation you ultimately want.*)
+The CSV representation
 breaks out each argument into its own column, throwing away information about
 whether an argument's value was passed or is a default.
 
     >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    'call_num'|'a'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     2|1|None|...|...|'g'|['<module>']
     3|2|None|...|...|'g'|['<module>']
     <BLANKLINE>
@@ -1571,7 +1576,7 @@ and `caller_chain` – use commas intrinsically. Let's examine one more
     h <== called by <module>
     f [3] <== called by g <== h
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    'call_num'|'a'|'extra_args'|'x'|'kw_args'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|0|()|1|{}|None|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']
     3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|'f'|['g', 'h']
@@ -1581,6 +1586,15 @@ As usual, `log_calls` will use whatever names you use for *varargs* parameters
 (here, `extra_args` and `kw_args`). Whatever the name of the `kwargs` parameter,
 items within that field are guaranteed to be in sorted order (otherwise this
 last example would sometimes fail as a doctest).
+
+###[The *history_as_DataFrame* attribute](id:stats.history_as_DataFrame)
+The `stats.history_as_DataFrame` attribute returns the history of a decorated
+function as a [Pandas](http://pandas.pydata.org) [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe), 
+if the Pandas library is installed. This saves you the intermediate step of 
+calling `DataFrame.from_csv` with the proper arguments (and also saves you from 
+having to know or care what those are).
+
+If Pandas is not installed, the value of this attribute is `None`.
 
 ###[The *clear_history(max_history=0)* method](id:stats.clear_history)
 As you might expect, the `stats.clear_history(max_history=0)` method clears 
@@ -1633,6 +1647,8 @@ Functions decorated by `record_history` have a full-featured `stats` attribute,
 as described in the [Call history and statistics](#call-history-and-statistics) section.
 
 See the [documentation for `record_history`](./record_history.html) for examples and tests.
+
+**ATTENTION**: *As is the case for* `log_calls`, `record_history` *has some overhead even when it's disabled, though of course less than when it's enabled. So, ***comment it out in production code!** 
 
 ##[Realistic examples](id:realistic-examples)
 

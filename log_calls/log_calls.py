@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -294,6 +294,7 @@ class _deco_base():
         'elapsed_secs_logged',
         'history',
         'history_as_csv',
+        'history_as_DataFrame',
     )
     _method_descriptor_names = (
         'clear_history',
@@ -361,7 +362,8 @@ class _deco_base():
         fields = ['call_num']
         fields.extend(all_args)
         fields.extend(['retval', 'elapsed_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
-        csv = csv_sep.join(map(repr, fields))
+        # 0.2.1 - use str not repr, get rid of quotes around column names
+        csv = csv_sep.join(map(str, fields))
         csv += '\n'
 
         # Write data lines
@@ -394,6 +396,19 @@ class _deco_base():
             csv += '\n'
 
         return csv
+
+    @property
+    def history_as_DataFrame(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            return None
+
+        import io
+        df = pd.DataFrame.from_csv(io.StringIO(self.history_as_csv),
+                                   sep='|',
+                                   infer_datetime_format=True)
+        return df
 
     def _make_call_history(self):
         return deque(maxlen=(self.max_history if self.max_history > 0 else None))

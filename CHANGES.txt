@@ -1,5 +1,17 @@
 VERSIONS
 --------
+0.2.1   -  Example of history_as_csv -> Pandas.
+           First row of history_as_csv: NO QUOTES.
+           The quotes were part of the column names in Pandas!
+           so that if you made a DataFrame df from the csv,
+           you'd have to access e.g. the retval column as:
+                 df["'retval'"]
+           Further, because 'retval' isn't a valid Python
+           identifier, you couldn't use the column names as attributes
+           of the DataFrame.
+           Added attribute to stats: history_as_DataFrame,
+           returns a DF if Pandas is installed (importable).
+
 0.2.0   -  Renamed "call_history" and "call_history_as_csv"
            attributes of the stats attribute
            ->

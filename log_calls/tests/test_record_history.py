@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.14'
+__version__ = '0.2.1'
 
 import doctest
 
@@ -90,7 +90,7 @@ The tallies:
 Call history in CSV format, with ellipses for 'elapsed_secs' and 'timestamp' columns:
 
     >>> print(record_me.stats.history_as_csv)         # doctest: +ELLIPSIS
-    'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|3|5|0|5|...|...|'record_me'|['<module>']
     2|3|5|1|8|...|...|'record_me'|['<module>']
     3|3|5|2|11|...|...|'record_me'|['<module>']
@@ -150,7 +150,7 @@ and examine the call history again:
     >>> for x in range(15):
     ...     _ = record_me(3, 5, x)
     >>> print(record_me.stats.history_as_csv)      # doctest: +ELLIPSIS
-    'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     13|3|5|12|41|...|...|'record_me'|['<module>']
     14|3|5|13|44|...|...|'record_me'|['<module>']
     15|3|5|14|47|...|...|'record_me'|['<module>']
@@ -186,18 +186,18 @@ caller appearing in the call chain:
     7
 
     >>> print(even.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|<__main__.Even object at ...>|0|None|...|...|'Even.call_it'|['<module>']
     2|<__main__.Even object at ...>|2|None|...|...|'Even.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(odd.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    'call_num'|'self'|'n'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|<__main__.Odd object at ...>|1|None|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(record_me.stats.history_as_csv)     # doctest: +ELLIPSIS
-    'call_num'|'a'|'b'|'x'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|1|1|1|2|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
     2|6|8|2|20|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
     3|6|8|3|26|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
