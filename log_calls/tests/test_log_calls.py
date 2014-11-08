@@ -1332,7 +1332,7 @@ breaks out each argument into its own column, throwing away information about
 whether an argument's value was passed or is a default.
 
     >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    'call_num'|'a'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     2|1|None|...|...|'g'|['<module>']
     3|2|None|...|...|'g'|['<module>']
     <BLANKLINE>
@@ -1359,7 +1359,7 @@ for a function that has all of those fields:
     h <== called by <module>
     f [3] <== called by g <== h
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    'call_num'|'a'|'extra_args'|'x'|'kw_args'|'retval'|'elapsed_secs'|'timestamp'|'prefixed_fname'|'caller_chain'
+    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
     1|0|()|1|{}|None|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']
     3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|'f'|['g', 'h']
