@@ -87,7 +87,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 48 tests in 0.122s
+    Ran 49 tests in 0.122s
     
     OK
 
