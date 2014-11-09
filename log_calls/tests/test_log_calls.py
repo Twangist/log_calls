@@ -880,6 +880,69 @@ immutable settings.*
 them. The last call to* `f` *was the 4th, as shown, although the call number of
 the 3rd call wasn't displayed.*
 
+### [The indent-aware writing method *log_calls_settings.log_the_msg(msg, indent_extra=4)*](id:log_the_msg)
+`log_calls_settings` exposes the method it uses, `log_the_msg`, to write its
+messages – "write" as in "print or write to a logger". If a decorated function
+or method writes its own debugging messages, it can use can use `log_the_msg`
+so that they align nicely with the messages written by `log_calls`.
+
+For example, consider the following function:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         print("*** Base case n <= 0")
+    ...     else:
+    ...         print(("*** n=%d is " % n) + ("odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+    *** n=2 is even
+        f [2] <== called by f [1]
+            arguments: n=1
+    *** n=1 is odd
+            f [3] <== called by f [2]
+                arguments: n=0
+    *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The debugging messages written by `f` literally "stick out", and in a more
+complex situation with multiple functions and methods it could be difficult
+to figure out who actually wrote which message. If instead `f` uses
+`log_the_msg`, all of `f`'s messages are neatly aligned:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     logging_fn = f.log_calls_settings.log_the_msg
+    ...     if n <= 0:
+    ...         logging_fn("*** Base case n <= 0")
+    ...     else:
+    ...         logging_fn(("*** n=%d is " % n) + ("odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+        *** n=2 is even
+        f [2] <== called by f [1]
+            arguments: n=1
+            *** n=1 is odd
+            f [3] <== called by f [2]
+                arguments: n=0
+                *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The `indent_extra` value is an offset from the column in which
+the entry and exit messages for the function begin.
+Note that `f` uses the default value `indent_extra=4`, so its messages
+align with "arguments:". `log_calls` itself explicitly supplies
+`indent_extra=0`. Negative values are… tolerated :), and do what
+you'd expect.
+
     """
 
 
@@ -1496,41 +1559,57 @@ separator = '\n'    # default ', ' gives rather long lines
 A_DBG_BASIC = 1
 A_DBG_INTERNAL = 2
 
+# Demonstrates a few techniques:
+#       * How to get at log_calls_settings methods for a (meta)method
+#         from inside that method
+#       * Use of the (new in 0.2.1a) log_calls_settings.log_the_msg(msg) method,
+#         which handles global indentation for you.
+#         Useful for verbose debugees that want their blather to align nicely
 
 class A_meta(type):
     @classmethod
-    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
+    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=', log_retval=True)
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
-        if A_debug >= A_DBG_INTERNAL:
-            print("    mro =", mcs.__mro__)
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
-            print("    dict from super() = %r" % super_dict)
+            # note use of .__func__ to get at decorated fn inside the classmethod
+            logging_fn = mcs.__prepare__.__func__.log_calls_settings.log_the_msg
+            logging_fn("    mro = %s" % str(mcs.__mro__))
+            logging_fn("    dict from super() = %r" % super_dict)
         super_dict = OrderedDict(super_dict)
         super_dict['key-from-__prepare__'] = 1729
-        if A_debug >= A_DBG_INTERNAL:
-            print("    Returning dict: %s" % super_dict)
         return super_dict
 
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         cls_members['key-from-__new__'] = "No, Hardy!"
         if A_debug >= A_DBG_INTERNAL:
-            print("    calling super() with cls_members = %s" % cls_members)
+            logging_fn = mcs.__new__.log_calls_settings.log_the_msg
+            logging_fn("    calling super() with cls_members = %s" % cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
-            print("    cls.__mro__:", str(cls.__mro__))
-            print("    type(cls).__mro__[1] =", type(cls).__mro__[1])
+            logging_fn = cls._get_init_logging_fn()
+            logging_fn("    cls.__mro__: %s" % str(cls.__mro__))
+            logging_fn("    type(cls).__mro__[1] = %s" % type(cls).__mro__[1])
         try:
             super().__init__(cls_name, bases, cls_members, **kwargs)
         except TypeError as e:
             # call type.__init__
             if A_debug >= A_DBG_INTERNAL:
-                print("    calling type.__init__ with no kwargs")
+                logging_fn("    calling type.__init__ with no kwargs")
             type.__init__(cls, cls_name, bases, cls_members)
+
+    # __init__ can't get at itself or its log_calls_settings from inside itself,
+    # and attempts to do so from outside have to be late-bound
+    # (class level
+    #       init_logging_fn = __init__.log_calls_settings.log_the_msg
+    #  doesn't work)
+    @classmethod
+    def _get_init_logging_fn(cls):
+        return cls.__init__.log_calls_settings.log_the_msg
 
 
 def main__metaclass_example():
@@ -1556,7 +1635,7 @@ will also print extra debugging information:
             A_debug=2
         mro = (<class '__main__.A_meta'>, <class 'type'>, <class 'object'>)
         dict from super() = {}
-        Returning dict: OrderedDict([('key-from-__prepare__', 1729)])
+        A_meta.__prepare__ return value: OrderedDict([('key-from-__prepare__', 1729)])
     A_meta.__prepare__ ==> returning to <module>
     A_meta.__new__ <== called by <module>
         arguments:

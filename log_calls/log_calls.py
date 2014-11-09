@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.1'
+__version__ = '0.2.1a'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -23,9 +23,7 @@ import datetime
 from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
-from .helpers import (difference_update, prefix_multiline_str,
-                      is_keyword_param,
-                      get_args_pos, get_args_kwargs_param_names,
+from .helpers import (get_args_pos, get_args_kwargs_param_names,
                       dict_to_sorted_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
 
@@ -534,6 +532,8 @@ class _deco_base():
             #     (4) using self._settings_mapping.get_final_value in wrapper
             # [[[ This/these is/are 4th chronologically ]]]
 
+            INDENT = 4      # number of spaces to __ by at a time
+
             # inner/local fn -- save a few cycles and character -
             # we call this a lot (<= 9x).
             def _get_final_value(setting_name):
@@ -567,9 +567,28 @@ class _deco_base():
             do_indent = _get_final_value('indent')
             _extra_indent_level = (prev_indent_level +
                                    int(not not do_indent and not not _do_it))
+
+            # Get logging function IF ANY.
+            # For the benefit of callees further down the call chain,
+            # if this f is not enabled (not _do_it).
+            # Subclass can return None to suppress printed/logged output.
+            # "can_indent" - in log_calls, True iff logging_fn does NOT use a Logger.
+            logging_fn, can_indent = self.get_logging_fn(_get_final_value)
+
+            # Only do global indentation for print, not for loggers
+            global_indent_len = max(_extra_indent_level, 0) * INDENT * int(can_indent)
+
+            # 0.2.1a -- self._settings_mapping.master_logging_fn will use
+            # the _logging_fn and _indent_len on top of these stacks:
+            # So verbose functions should use THIS to write their blather
+            # stack of these, used by self._settings_mapping.master_logging_fn(msg)
+            self._settings_mapping._logging_state_push(logging_fn, global_indent_len)
+
             # (_xxx variables set, ok to call f)
             if not _do_it:
-                return f(*args, **kwargs)
+                ret = f(*args, **kwargs)
+                self._settings_mapping._logging_state_pop()
+                return ret
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Set up context, for pre-call handlers
@@ -578,29 +597,15 @@ class _deco_base():
             # Key/values of "context" whose values we know so far:
             context = {
                 'decorator': self,
-                'settings': self._settings_mapping,    # can use settings.deco_instance :|
+                'settings': self._settings_mapping,
                 'stats': self._stats,
                 'prefixed_fname': prefixed_fname,
                 'fparams': self.f_params,
                 'call_list': call_list,
                 'args': args,
-                'kwargs': kwargs
+                'kwargs': kwargs,
+                'indent': " " * INDENT,              # our unit of indentation
             }
-
-            # Our unit of indentation
-            indent = " " * 4
-            context['indent'] = indent
-
-            # Get logging function IF ANY.
-            # Subclass can return None to suppress printed/logged output.
-            # "can_indent" - in log_calls, True iff logging_fn does NOT use a Logger.
-            logging_fn, can_indent = self.get_logging_fn(_get_final_value)
-
-            # Only do global indentation for print, not for loggers
-            global_indent = ((_extra_indent_level * indent)
-                             * int(can_indent)
-                            )
-
             call_number_str = ((' [%d]' % _active_call_number)
                                if _log_call_numbers else '')
             context['output_fname'] = prefixed_fname + call_number_str
@@ -621,19 +626,20 @@ class _deco_base():
              context['kwargs_name']) = get_args_kwargs_param_names(self.f_params)
 
             context['defaulted_kwargs'] = OrderedDict(
-                [(param.name, param.default) for param in self.f_params.values()
+                [(param.name, param.default)
+                 for param in self.f_params.values()
                  if param.name not in bound_args.arguments
                  and param.default != inspect._empty
                 ]
             )
             context['explicit_kwargs'] = OrderedDict(
-                [(k, kwargs[k]) for k in self.f_params
+                [(k, kwargs[k])
+                 for k in self.f_params
                  if k in bound_args.arguments and k in kwargs]
             )
             context['implicit_kwargs'] = {
                 k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
             }
-
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call pre-call handlers, collect nonempty return values
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -648,7 +654,7 @@ class _deco_base():
             # Write pre-call messages
             if logging_fn:
                 for msg in pre_msgs:
-                    logging_fn(prefix_multiline_str(global_indent, msg))
+                    self._settings_mapping.log_the_msg(msg, indent_extra=0)
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call f(*args, **kwargs) and get its retval; time it.
@@ -677,7 +683,9 @@ class _deco_base():
             # Write post-call messages
             if logging_fn:
                 for msg in post_msgs:
-                    logging_fn(prefix_multiline_str(global_indent, msg))
+                    self._settings_mapping.log_the_msg(msg, indent_extra=0)
+
+            self._settings_mapping._logging_state_pop()
 
             return retval
 

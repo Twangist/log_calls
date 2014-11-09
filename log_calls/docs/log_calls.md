@@ -80,6 +80,7 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#log_calls_settings">The <em>log_calls_settings</em> attribute</a></li>
 <li><a href="#mapping-interface">The mapping interface and the attribute interface to settings</a></li>
 <li><a href="#update-as_etc">The <em>update()</em>, <em>as_OrderedDict()</em> and <em>as_dict()</em> methods</a></li>
+<li><a href="#log_the_msg">The indent-aware writing method <em>log_calls_settings.log_the_msg(msg, indent_extra=4)</em></a></li>
 </ul>
 <h5><a href="#Indirect-values">Dynamic control of settings with indirect values</a></h5>
 <ul>
@@ -88,7 +89,7 @@ This document will explain all of these features and illustrate how to use them,
 <li><a href="#indent-from-above">Controlling indentation 'from above'</a></li>
 </ul>
 </li>
-<li><a href="#enabling-with-ints">Enabling with <em>int</em>s rather than <em>bool</em>s</a></li>
+<li><a href="#enabling-with-ints">Using <em>enabled</em> as a level of verbosity</a></li>
 <li><a href="#log_call_settings-indirect">Using <em>log_calls_settings</em> to set indirect values</a></li>
 <li><a href="#lkwarg-paradigm">Paradigms for handling keyword parameters</a></li>
 
@@ -1094,6 +1095,69 @@ immutable settings.*
 them. The last call to* `f` *was the 4th, as shown, although the call number of
 the 3rd call wasn't displayed.*
 
+### [The indent-aware writing method *log_calls_settings.log_the_msg(msg, indent_extra=4)*](id:log_the_msg)
+`log_calls_settings` exposes the method it uses, `log_the_msg`, to write its
+messages – "write" as in "print or write to a logger". If a decorated function
+or method writes its own debugging messages, it can use can use `log_the_msg`
+so that they align nicely with the messages written by `log_calls`.
+
+For example, consider the following function:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         print("*** Base case n <= 0")
+    ...     else:
+    ...         print(("*** n=%d is " % n) + ("odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+    *** n=2 is even
+        f [2] <== called by f [1]
+            arguments: n=1
+    *** n=1 is odd
+            f [3] <== called by f [2]
+                arguments: n=0
+    *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The debugging messages written by `f` literally "stick out", and in a more
+complex situation with multiple functions and methods it could be difficult
+to figure out who actually wrote which message. If instead `f` uses
+`log_the_msg`, all of `f`'s messages are neatly aligned:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     logging_fn = f.log_calls_settings.log_the_msg
+    ...     if n <= 0:
+    ...         logging_fn("*** Base case n <= 0")
+    ...     else:
+    ...         logging_fn(("*** n=%d is " % n) + ("odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+        *** n=2 is even
+        f [2] <== called by f [1]
+            arguments: n=1
+            *** n=1 is odd
+            f [3] <== called by f [2]
+                arguments: n=0
+                *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The `indent_extra` value is an offset from the column in which 
+the entry and exit messages for the function begin.
+Note that `f` uses the default value `indent_extra=4`, so its messages
+align with "arguments:". `log_calls` itself explicitly supplies 
+`indent_extra=0`. Negative values are… tolerated :), and do what 
+you'd expect.
+
 ##[Dynamic control of settings with indirect values](id:Indirect-values)
 
 Every parameter of `log_calls` except `prefix` and `max_history` can take 
@@ -1265,12 +1329,11 @@ indirect value:
         f [4] ==> returning to g
     g ==> returning to <module>
 
-###[Enabling with *int*s rather than *bool*s](id:enabling-with-ints)
-
+###[Using *enabled* as a level of verbosity](id:enabling-with-ints)
 Sometimes it's desirable for a function to print or log debugging messages 
-as it executes. It's the oldest form of debugging! Instead of a simple `bool`,
-you can use a nonnegative `int` as the enabling value and treat it as a level 
-of verbosity.
+as it executes. It's the oldest form of debugging! The `enabled` parameter
+is in fact an `int`, not just a `bool`. Instead of giving it a simple `bool`
+value, you can use a nonnegative `int` and treat it as a verbosity level.
 
     >>> DEBUG_MSG_BASIC = 1
     >>> DEBUG_MSG_VERBOSE = 2
@@ -1298,6 +1361,7 @@ Only `log_calls` output:
         arguments: debuglevel=2
     *** extra debugging info ***
     do_stuff_with_commentary ==> returning to <module>
+
 
 The [metaclass example](#A-metaclass-example) below also makes use of this technique.
 
@@ -1726,43 +1790,62 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
 
     >>> class A_meta(type):
     ...     @classmethod
-    ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
+    ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug', log_retval=True)
     ...     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
-    ...         if A_debug >= A_DBG_INTERNAL:
-    ...             print("    mro =", mcs.__mro__)
     ...         super_dict = super().__prepare__(cls_name, bases, **kwargs)
+    ...         # Note use of .__func__ to get at decorated fn inside the classmethod
+    ...         logging_fn = mcs.__prepare__.__func__.log_calls_settings.log_the_msg
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             print("    dict from super() = %r" % super_dict)
+    ...             logging_fn("    mro =", mcs.__mro__)
+    ...             logging_fn("    dict from super() = %r" % super_dict)
     ...         super_dict = OrderedDict(super_dict)
     ...         super_dict['key-from-__prepare__'] = 1729
-    ...         if A_debug >= A_DBG_INTERNAL:
-    ...             print("    Returning dict: %s" % super_dict)
     ...         return super_dict
     ...
     ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
     ...     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
     ...         cls_members['key-from-__new__'] = "No, Hardy!"
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             print("    calling super() with cls_members = %s" % cls_members)
+    ...             logging_fn = mcs.__new__.log_calls_settings.log_the_msg    
+    ...             logging_fn("    calling super() with cls_members = %s" % cls_members)
     ...         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
     ...
     ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
     ...     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             print("    cls.__mro__:", str(cls.__mro__))
-    ...             print("    type(cls).__mro__[1] =", type(cls).__mro__[1])
+    ...             logging_fn = cls._get_init_logging_fn() 
+    ...             logging_fn("    cls.__mro__:", str(cls.__mro__))
+    ...             logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
     ...         try:
     ...             super().__init__(cls_name, bases, cls_members, **kwargs)
     ...         except TypeError as e:
     ...             # call type.__init__
     ...             if A_debug >= A_DBG_INTERNAL:
-    ...                 print("    calling type.__init__ with no kwargs")
+    ...                 logging_fn("    calling type.__init__ with no kwargs")
     ...             type.__init__(cls, cls_name, bases, cls_members)
+    ... 
+    ...     # __init__ can't get at itself or its log_calls_settings from inside itself,
+    ...     # and attempts to do so from outside have to be late-bound
+    ...     # (class level
+    ...     #       init_logging_fn = __init__.log_calls_settings.log_the_msg
+    ...     #  doesn't work)
+    ...     @classmethod
+    ...     def _get_init_logging_fn(cls):
+    ...         return cls.__init__.log_calls_settings.log_the_msg
 
 The class `A_meta` is a metaclass: it derives from `type`,
 and defines (overrides) methods `__prepare__`, `__new__` and `__init__`.
-All of its methods take an explicit keyword parameter `A_debug`,
+All of these `log_calls`-decorated methods access their `log_calls_settings` 
+attribute, two of them in roundabout ways. The classmethod `__prepare__`
+has to interpose `__func__` in order to get at the decorated function inside
+the classmethod wrapper. The `__init__` method has to jump through a different
+hoop in order to access its `log_calls_settings` attribute. Nevertheless, all
+the methods succeed at doing so, so that they can use the logging (writing)
+function it provides, `log_calls_settings.log_the_msg`.
+
+All of `A_meta`'s methods take an explicit keyword parameter `A_debug`,
 used as the indirect value of the `log_calls` keyword parameter `enabled`.
+The methods treat it as an integer verbosity level: when its value is above 
 When we include `A_debug=True` as a keyword argument to a class that
 uses `A_meta` as its metaclass, that argument gets passed to all of 
 `A_meta`'s methods, so calls to them will be logged, and those methods
@@ -1778,7 +1861,7 @@ will also print extra debugging information:
             A_debug=2
         mro = (<class '__main__.A_meta'>, <class 'type'>, <class 'object'>)
         dict from super() = {}
-        Returning dict: OrderedDict([('key-from-__prepare__', 1729)])
+        A_meta.__prepare__ return value: OrderedDict([('key-from-__prepare__', 1729)])
     A_meta.__prepare__ ==> returning to <module>
     A_meta.__new__ <== called by <module>
         arguments:

@@ -1,5 +1,14 @@
 VERSIONS
 --------
+02.2.1a -  In wrapper of deco'd function:
+           Expose a method log_calls_settings._log_the_msg(msg)
+           which knows the global_indent and automatically
+           globally indents properly.
+           Useful for verbose debugees that want their blather
+           to align properly. Developed for noconflict3 &
+           findings transported to the metaclass example
+           in test_log_calls.py and docs log_calls.* (TODO, doing)
+
 0.2.1   -  Example of history_as_csv -> Pandas.
            First row of history_as_csv: NO QUOTES.
            The quotes were part of the column names in Pandas!
