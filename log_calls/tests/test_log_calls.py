@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 from log_calls import log_calls
 
@@ -643,11 +643,96 @@ situations. We have to use `OrderedDict`s here because of doctest:
     depth [1] ==> returning to <module>
     2
 
-**NOTE**: *The optional* `key` *parameter is for instructional purposes only,
+**NOTE**: *The optional* `key` *parameter is for instructional purposes,
 so you can see the key that's paired with the value of* `d` *in the caller's
 dictionary. Typically the signature of this function would be just* `def depth(d)`,
 *and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
+    """
+    pass
+
+
+def main__log_message():
+    """
+## [The indent-aware writing method *log_message(msg, indent_extra=4)*](id:log_message)
+`log_calls` exposes the method it uses to write its messages, `log_message`.
+If a decorated function or method writes its own debugging messages,
+it can use can use `log_message` so that they align nicely with the messages
+written by `log_calls`. Even multiline messages will be properly aligned.
+
+Consider the following function:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         print("*** Base case n <= 0")
+    ...     else:
+    ...         print("*** n=%d is %s,\\n    but we knew that."
+    ...               % (n, "odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+    *** n=2 is even,
+        but we knew that.
+        f [2] <== called by f [1]
+            arguments: n=1
+    *** n=1 is odd,
+        but we knew that.
+            f [3] <== called by f [2]
+                arguments: n=0
+    *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The debugging messages written by `f` literally "stick out", and in a more
+complex situation with multiple functions and methods it could be difficult
+to figure out who actually wrote which message. If instead `f` uses
+`log_message`, all of its messages from each invocation align neatly within
+the context presented by `log_calls`:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         f.log_message("*** Base case n <= 0")
+    ...     else:
+    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
+    ...                       % (n, "odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+        *** n=2 is even,
+            but we knew that.
+        f [2] <== called by f [1]
+            arguments: n=1
+            *** n=1 is odd,
+                but we knew that.
+            f [3] <== called by f [2]
+                arguments: n=0
+                *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The `indent_extra` value is an offset from the column in which
+the entry and exit messages for the function begin.
+`f` uses the default value `indent_extra=4`, so its messages
+align with "arguments:". `log_calls` itself explicitly supplies
+`indent_extra=0`. Negative values are tolerated :), and do what
+you'd expect.
+
+**NOTE**: *In the example above, `f` accesses one of its attributes added by
+`log_calls`, namely, the `log_message()` method. (log_calls in fact adds two
+more attributes, discussed in subsequent sections: [`log_calls_settings`]
+(#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).)
+Indeed, any function, and any static method, can access its `log_calls` in the same
+syntactically straightforward way. Classmethods and instance methods decorated by
+`log_calls` can also use `log_message()`, but each of those kinds of methods requires
+its own approach (a little more syntax) to obtaining the `log_calls` wrapper which
+hosts the attributes. See the section [Functions and methods accessing their
+own *log_calls* attributes](#accessing-own-attrs) for the not at all gory details.*
     """
     pass
 
@@ -1496,51 +1581,76 @@ separator = '\n'    # default ', ' gives rather long lines
 A_DBG_BASIC = 1
 A_DBG_INTERNAL = 2
 
+# Demonstrates a few techniques:
+#       * How to get at log_calls_settings methods for a (meta)method
+#         from inside that method
+#       * Use of the (new in 0.2.1a) log_message(msg) method,
+#         which handles global indentation for you.
+#         Useful for verbose debugees that want their blather to align nicely
 
 class A_meta(type):
     @classmethod
-    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
+    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=', log_retval=True)
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
-        if A_debug >= A_DBG_INTERNAL:
-            print("    mro =", mcs.__mro__)
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
-            print("    dict from super() = %r" % super_dict)
+            # note use of .__func__ to get at decorated fn inside the classmethod
+            logging_fn = mcs.__prepare__.__func__.log_message
+            logging_fn("    mro = %s" % str(mcs.__mro__))
+            logging_fn("    dict from super() = %r" % super_dict)
         super_dict = OrderedDict(super_dict)
         super_dict['key-from-__prepare__'] = 1729
-        if A_debug >= A_DBG_INTERNAL:
-            print("    Returning dict: %s" % super_dict)
         return super_dict
 
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         cls_members['key-from-__new__'] = "No, Hardy!"
         if A_debug >= A_DBG_INTERNAL:
-            print("    calling super() with cls_members = %s" % cls_members)
+            logging_fn = mcs.__new__.log_message
+            logging_fn("    calling super() with cls_members = %s" % cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
-            print("    cls.__mro__:", str(cls.__mro__))
-            print("    type(cls).__mro__[1] =", type(cls).__mro__[1])
+            logging_fn = cls._get_init_logging_fn()
+            logging_fn("    cls.__mro__: %s" % str(cls.__mro__))
+            logging_fn("    type(cls).__mro__[1] = %s" % type(cls).__mro__[1])
         try:
             super().__init__(cls_name, bases, cls_members, **kwargs)
         except TypeError as e:
             # call type.__init__
             if A_debug >= A_DBG_INTERNAL:
-                print("    calling type.__init__ with no kwargs")
+                logging_fn("    calling type.__init__ with no kwargs")
             type.__init__(cls, cls_name, bases, cls_members)
+
+    # __init__ can't get at itself or its log_calls_settings from inside itself,
+    # and attempts to do so from outside have to be late-bound
+    # (class level
+    #       init_logging_fn = __init__.log_calls_settings.log_message
+    #  doesn't work)
+    @classmethod
+    def _get_init_logging_fn(cls):
+        return cls.__init__.log_message
 
 
 def main__metaclass_example():
     """
 ##[A metaclass example](id:A-metaclass-example)
 
-The class `A_meta` defined above is a metaclass: it derives from `type`,
+The class `A_meta` is a metaclass: it derives from `type`,
 and defines (overrides) methods `__prepare__`, `__new__` and `__init__`.
-All of its methods take an explicit keyword parameter `A_debug`,
+All of these `log_calls`-decorated methods access their `log_calls` wrapper,
+two of them doing so in roundabout ways. The classmethod `__prepare__`
+has to interpose `__func__` in order to get at the `log_calls` wrapper inside
+the classmethod wrapper. The `__init__` method has to jump through a different
+hoop in order to access its wrapper. Nevertheless, all
+the methods succeed at doing so, so that they can write their messages using
+[the indent-aware method `log_message`](#log_message).
+
+All of `A_meta`'s methods take an explicit keyword parameter `A_debug`,
 used as the indirect value of the `log_calls` keyword parameter `enabled`.
+The methods treat it as an integer verbosity level: when its value is above
 When we include `A_debug=True` as a keyword argument to a class that
 uses `A_meta` as its metaclass, that argument gets passed to all of
 `A_meta`'s methods, so calls to them will be logged, and those methods
@@ -1556,7 +1666,7 @@ will also print extra debugging information:
             A_debug=2
         mro = (<class '__main__.A_meta'>, <class 'type'>, <class 'object'>)
         dict from super() = {}
-        Returning dict: OrderedDict([('key-from-__prepare__', 1729)])
+        A_meta.__prepare__ return value: OrderedDict([('key-from-__prepare__', 1729)])
     A_meta.__prepare__ ==> returning to <module>
     A_meta.__new__ <== called by <module>
         arguments:
@@ -1601,6 +1711,159 @@ If we pass `A_debug=0` (or omit it), we get no printed output at all either from
 main__metaclass_example.__doc__ = \
     main__metaclass_example.__doc__.replace("__main__", __name__)
 
+
+def main__functions_and_methods_accessing_their_attrs():
+    """
+## [Functions and methods accessing their own *log_calls* attributes](id:accessing-own-attrs)
+At times you may want a function or method to access the attributes
+added for it by `log_calls`. We've seen examples of this, where
+[global functions](#log_message) and [methods](#A-metaclass-example) use the indent-aware method `log_message`
+to write debugging messages that align properly with those of `log_calls`.
+In the metaclass example, two of the methods – an instance method, and
+a classmethod – had to perform extra legerdemain in order to get at their
+attributes. As we'll see in this section, those are the only special cases.
+
+This section collects all the different cases of functions and methods
+accessing their `log_calls` attributes.
+
+NOTE: The most artificial aspect of the examples in this section
+is that the functions and methods all access their `stats` attribute.
+This might be called "excessive introspection", and is probably seldom
+useful: when a log_calls-decorated function executes, its call counters
+(`stats.num_calls_logged` and `stats.num_calls_total`) have been incremented,
+but, as it hasn't yet returned, the value of `stats.elapsed_secs_logged`
+remains as it was before the call began. We confirm (and test) this
+claim in the global function example below.
+
+### [Global functions and inner functions accessing their attributes](id:global-and-inner-functions-accessing-attrs)
+Global functions and inner functions can access within their own bodies
+the attributes that `log_calls` adds for them (`log_calls_settings`, `stats`, `log_message()`)
+using the same syntax that works outside of their bodies.
+
+####[Global function accessing its attributes](id:global-function-accessing-attrs)
+A global function can just use the usual syntax:
+
+    >>> @log_calls(enabled=2)
+    ... def f():
+    ...     logging_fn = f.log_message
+    ...     logging_fn(f.log_calls_settings.enabled)
+    ...     logging_fn(f.stats.num_calls_logged)
+    ...     logging_fn(f.stats.elapsed_secs_logged)    # still 0.0
+    >>> f()
+    f <== called by <module>
+        2
+        1
+        0.0
+    f ==> returning to <module>
+
+#### [Inner function accessing its attributes](id:inner-function-accessing-attrs)
+Similarly, an inner function can just do the usual thing:
+
+    >>> def outer(x):
+    ...     @log_calls(enabled=7)
+    ...     def inner(y):
+    ...         logging_fn = inner.log_message
+    ...         logging_fn(inner.log_calls_settings.enabled)
+    ...         logging_fn(inner.stats.num_calls_logged)
+    ...         return x + y
+    ...
+    ...     print("outer says inner enabled =", inner.log_calls_settings.enabled)
+    ...     print("outer says inner num_calls_logged =", inner.stats.num_calls_logged)
+    ...     inner(2 * x)
+    >>> outer(3)
+    outer says inner enabled = 7
+    outer says inner num_calls_logged = 0
+    inner <== called by outer
+        arguments: y=6
+        7
+        1
+    inner ==> returning to outer
+
+### [Methods accessing their attributes](id:methods-accessing-attrs)
+Static methods can access their log_calls-added attributes in a straightforward
+way. However, the other kinds of methods – class methods and instance methods –
+are different: each requires a unique kind of subterfuge to access its `log_calls`
+wrapper and thereby its `log_calls` attributes.
+
+Here's a class exhibiting the full range of possibilities:
+
+    >>> class X():
+    ...     # Instance methods, including __init__, can obtain their wrappers
+    ...     # from their class, via self.__class__.__dict__[method_name]
+    ...     @log_calls()
+    ...     def __init__(self):
+    ...         wrapper = self.__class__.__dict__['__init__']
+    ...         logging_fn = wrapper.log_message
+    ...         logging_fn(wrapper.log_calls_settings.enabled)
+    ...         logging_fn(wrapper.stats.num_calls_logged)
+    ...
+    ...     @log_calls(enabled=2)
+    ...     def my_method(self):
+    ...         wrapper = self.__class__.__dict__['my_method']
+    ...         logging_fn = wrapper.log_message
+    ...         logging_fn(wrapper.log_calls_settings.enabled)
+    ...         logging_fn(wrapper.stats.num_calls_logged)
+    ...
+    ...     # A classmethod can get at its attributes from its own body,
+    ...     # via cls.<classmethod>.__func__
+    ...     @classmethod
+    ...     @log_calls(enabled=12)
+    ...     def my_classmethod(cls):
+    ...         logging_fn = cls.my_classmethod.__func__.log_message
+    ...         logging_fn(cls.my_classmethod.__func__.log_calls_settings.enabled)
+    ...         logging_fn(cls.my_classmethod.__func__.stats.num_calls_logged)
+    ...
+    ...     # A staticmethod can access its attributes from its own body
+    ...     # in the obvious way, via <class>.<staticmethod>
+    ...     @staticmethod
+    ...     @log_calls(enabled=22)
+    ...     def my_staticmethod():
+    ...         logging_fn = X.my_staticmethod.log_message
+    ...         logging_fn(X.my_staticmethod.log_calls_settings.enabled)
+    ...         logging_fn(X.my_staticmethod.stats.num_calls_logged)
+
+#### [Instance method tests](id:instance-method-accessing-attrs)
+
+    >>> x = X()                    # doctest: +ELLIPSIS
+    __init__ <== called by <module>
+        arguments: self=<__main__.X object at ...>
+        True
+        1
+    __init__ ==> returning to <module>
+
+    >>> x.my_method()               # doctest: +ELLIPSIS
+    my_method <== called by <module>
+        arguments: self=<__main__.X object at ...>
+        2
+        1
+    my_method ==> returning to <module>
+
+#### [Class method test](id:class-method-accessing-attrs)
+
+    >>> x.my_classmethod()      # or X.my_classmethod()
+    my_classmethod <== called by <module>
+        arguments: cls=<class '__main__.X'>
+        12
+        1
+    my_classmethod ==> returning to <module>
+
+#### [Static method test](id:static-method-accessing-attrs)
+
+    >>> x.my_staticmethod()     # or X.my_staticmethod()
+    my_staticmethod <== called by <module>
+        22
+        1
+    my_staticmethod ==> returning to <module>
+    """
+    pass
+
+# SURGERY:
+main__functions_and_methods_accessing_their_attrs.__doc__ = \
+    main__functions_and_methods_accessing_their_attrs.__doc__.replace("__main__", __name__)
+
+##############################################################################
+# end of tests.
+##############################################################################
 
 # For unittest integration
 def load_tests(loader, tests, ignore):

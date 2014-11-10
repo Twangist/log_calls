@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.14'
+__version__ = '0.2.2'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -50,6 +50,7 @@ by the keyword 'enable_' of the decorated function.
 from collections import OrderedDict
 import pprint
 from .helpers import is_keyword_param
+
 
 __all__ = ['DecoSetting', 'DecoSettingsMapping']
 

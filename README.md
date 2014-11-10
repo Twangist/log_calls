@@ -1,6 +1,6 @@
 #*log_calls* — A decorator for debugging and profiling
 ---
-<small>*(This document is a work in progress: an overly fat README that I'll be reducing alot. It seems to also have some formatting problems ("looked fine on my machine" of course)– probably running afoul of different markdown dialects. Thanks for your patience/check this space! — BTO)*</small>
+<small>*(This document is a work in progress: an overly fat README that I'll be reducing alot [v0.2.2: though not before adding to it] and making more of a "quick intro". Complete documentation is [here](http://www.pythonhosted.org/log_calls). Thanks for your patience/check this space! — BTO)*</small>
 
 `log_calls` is a Python 3 decorator that can print much useful information
 about calls to a decorated function. It can write to `stdout`, to another
@@ -30,15 +30,26 @@ These and other features are optional and configurable settings, which can be sp
 The package contains another decorator, `record_history`, a stripped-down version
 of `log_calls` which only collects call history and statistics, and outputs no messages.
 
-This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation, [`log_calls/docs/log_calls.html`](./log_calls/docs/log_calls.html) and [`log_calls/docs/record_history.html`](log_calls/docs/record_history.html), which are also online [here](http://www.pythonhosted.org/log_calls) and [here](http://www.pythonhosted.org/log_calls/record_history.html). 
+This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
+## [What's new](id:What's-new)
+* **0.2.2** 
+    * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
+    * [Documentation](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
+    * [Documentation](http://www.pythonhosted.org/log_calls#accessing-own-attrs) for how functions and methods can access the attributes that `log_calls` adds for them, within their own bodies.
+* **0.2.1**
+    * The [`stats.history_as_DataFrame` attribute](http://www.pythonhosted.org/log_calls/record_history.html#stats.history_as_DataFrame), whose value is the call history of a decorated function as a [Pandas](http://pandas.pydata.org) [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe) (if Pandas is installed; else `None`).
+    * An IPython notebook (`log_calls/docs/history_to_pandas.ipynb`, browsable as HTML [here](http://www.pythonhosted.org/log_calls/history_to_pandas.html)) which compares the performance of using `record_history` *vs* a vectorized approach using [numpy](http://www.numpy.org/) to amass medium to large datasets, and which concludes that if you can vectorize, by all means do so.
+* **0.2.0**
+    * Initial public release.
+    
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.1` of `log_calls`.
+This document describes version `0.2.2` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-The log_calls package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1, but hasn't been tested with those earlier versions.)
+The *log_calls* package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1, but hasn't been tested with those earlier versions.)
 
 NOTE: This package does require the CPython implementation, as it uses internals
 of stack frames which may well differ in other interpreters.
@@ -87,7 +98,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 49 tests in 0.122s
+    Ran 51 tests in 0.726s
     
     OK
 
@@ -553,8 +564,88 @@ These features are especially useful in recursive and mutually recursive situati
 
 **NOTE**: *The optional* `key` *parameter is for instructional purposes, so you can see the key that's paired with the value of* `d` *in the caller's dictionary. Typically the signature of this function would be just* `def depth(d)`, *and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
+## [The indent-aware writing method *log_message(msg, indent_extra=4)*](id:log_message)
+`log_calls` exposes the method it uses to write its messages, `log_message`.
+If a decorated function or method writes its own debugging messages,
+it can use can use `log_message` so that they align nicely with the messages
+written by `log_calls`. Even multiline messages will be properly aligned.
+
+Consider the following function:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         print("*** Base case n <= 0")
+    ...     else:
+    ...         print("*** n=%d is %s,\\n    but we knew that."
+    ...               % (n, "odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+    *** n=2 is even,
+        but we knew that.
+        f [2] <== called by f [1]
+            arguments: n=1
+    *** n=1 is odd,
+        but we knew that.
+            f [3] <== called by f [2]
+                arguments: n=0
+    *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The debugging messages written by `f` literally "stick out", and in a more
+complex situation with multiple functions and methods it could be difficult
+to figure out who actually wrote which message. If instead `f` uses
+`log_message`, all of its messages from each invocation align neatly within 
+the context presented by `log_calls`:
+
+    >>> @log_calls(indent=True, log_call_numbers=True)
+    ... def f(n):
+    ...     if n <= 0:
+    ...         f.log_message("*** Base case n <= 0")
+    ...     else:
+    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
+    ...                       % (n, "odd" if n%2 else "even"))
+    ...         f(n-1)
+    >>> f(2)
+    f [1] <== called by <module>
+        arguments: n=2
+        *** n=2 is even,
+            but we knew that.
+        f [2] <== called by f [1]
+            arguments: n=1
+            *** n=1 is odd,
+                but we knew that.
+            f [3] <== called by f [2]
+                arguments: n=0
+                *** Base case n <= 0
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+The `indent_extra` value is an offset from the column in which
+the entry and exit messages for the function begin.
+`f` uses the default value `indent_extra=4`, so its messages
+align with "arguments:". `log_calls` itself explicitly supplies
+`indent_extra=0`. Negative values are tolerated :), and do what
+you'd expect.
+
+**NOTE**: *In the example above, `f` accesses one of its attributes added by 
+`log_calls`, namely, the `log_message()` method. (log_calls in fact adds two
+more attributes, discussed in subsequent sections: [`log_calls_settings`]
+(#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).) 
+Indeed, any function, and any static method, can access its `log_calls` in the same 
+syntactically straightforward way. Classmethods and instance methods decorated by 
+`log_calls` can also use `log_message()`, but each of those kinds of methods requires 
+its own approach (a little more syntax) to obtaining the `log_calls` wrapper which 
+hosts the attributes. See the section [Functions and methods accessing their 
+own *log_calls* attributes](#accessing-own-attrs) for the not at all gory details.*
+
 ## [Advanced Features](id:Advanced-features)
-`log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see the complete documentation.
+`log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).
 
 ### [Dynamic control of settings](id:dynamic-control-of-settings)
 Sometimes, you'll need or want to change a `log_calls` setting for a decorated function on the fly. The major impediment to doing so is that the values  of the `log_calls` parameters are set once the decorated function is interpreted. 
@@ -590,7 +681,7 @@ of `DEBUG`, established when the definition was processed:
 * the `log_calls_settings` attribute, which provides a mapping interface and an attribute-based interface to settings, and 
 * *indirect values. 
 
-The following two subsections give a brief introduction to these features, which the main documentation, [`log_calls/docs/log_calls.html`](./log_calls/docs/log_calls.html), presents in depth.
+The following two subsections give a brief introduction to these features, which [the main documentation]((http://www.pythonhosted.org/log_calls) presents in depth.
 
 #### [The *log_calls_settings* attribute](id:log_call_settings)
 `log_calls` adds an attribute `log_calls_settings`
@@ -761,7 +852,7 @@ whereas neither of the following two statements will trigger logging:
     >>> func2(42, enable=False)     # no log_calls output
     >>> func2(99)                   # no log_calls output
 
-See the [section on indirect values in the full documentation](./log_calls/docs/log_calls.html#Indirect-values) for several more examples and useful techniques involving indirect values. The test suite `log_calls/tests/test_log_calls_more.py` also contains further doctests/examples. 
+See the section in the full documentation on [indirect values](http://www.pythonhosted.org/log_calls#Indirect-values) for several more examples and useful techniques involving indirect values. The test suite `log_calls/tests/test_log_calls_more.py` also contains further doctests/examples. 
 
 ### [Call history and statistics](id:call-history-and-statistics)
 `log_calls` always collects a few basic statistics about calls to a decorated
@@ -994,8 +1085,8 @@ so it has the same methods and behaviors described in the [`log_calls_settings`]
 Functions decorated by `record_history` have a full-featured `stats` attribute,
 as described in the [Call history and statistics](#call-history-and-statistics) section.
 
-See the [documentation for `record_history`](./record_history.html) for examples and tests.
+See the documentation for [`record_history`](http://www.pythonhosted.org/record_history) for examples and tests.
 
 **ATTENTION**: *Like* `log_calls`, `record_history` *has some overhead. So, ***comment it out in production code!** 
 
-####— Brian O'Neill, October 2014, NYC
+####— Brian O'Neill, October-November 2014, NYC
