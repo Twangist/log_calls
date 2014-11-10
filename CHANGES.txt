@@ -1,16 +1,30 @@
 VERSIONS
 --------
-0.2.1   -  Example of history_as_csv -> Pandas.
-           First row of history_as_csv: NO QUOTES.
+02.2.2  -  In wrapper of deco'd function:
+           Expose a method log_message(msg)
+           which knows the current indent amount and automatically
+           indents properly.
+           Useful for verbose debugees that want their blather
+           to align properly. Developed for noconflict3,
+           findings transported to the metaclass example
+           in test_log_calls.py and docs log_calls.* and readme.*.
+           Added sections to docs on log_message(),
+           and final section on how functions & methods access
+           their deco'd wrapper & thus the attributes added for them
+           by log_calls. Revised links to full doc in readme
+           to point to htmls on pythonhosted.org.
+
+0.2.1   -  First row of history_as_csv: NO QUOTES.
            The quotes were part of the column names in Pandas!
            so that if you made a DataFrame df from the csv,
            you'd have to access e.g. the retval column as:
                  df["'retval'"]
-           Further, because 'retval' isn't a valid Python
-           identifier, you couldn't use the column names as attributes
+           Further, because 'retval' isn't a valid Python identifier,
+           you couldn't use the column names as attributes
            of the DataFrame.
            Added attribute to stats: history_as_DataFrame,
-           returns a DF if Pandas is installed (importable).
+           returns a DataFrame if Pandas is installed (importable),
+           else returns None.
 
 0.2.0   -  Renamed "call_history" and "call_history_as_csv"
            attributes of the stats attribute

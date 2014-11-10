@@ -8,16 +8,17 @@
 <li><a href="#Installation">Installation</a></li>
 <li><a href="#Testing">Running the tests</a></li>
 <ul>
-<li><a href="#tests-before-install">Running the tests before installation</a>
-</li>
-<li><a href="#tests-after-install">Running the tests after installation</a>
-</li>
+<li><a href="#tests-before-install">Running the tests before installation</a></li>
+<li><a href="#tests-after-install">Running the tests after installation</a></li>
+<li><a href="#tests-ok">What to expect</a></li>
+
 <li><a href="#run-this-document">Run this document</a></li>
 </ul>
 <li><a href="#Acknowledgements">Acknowledgements</a></li>
 </ul>
 <h5><a href="#Basic-usage">Basic Usage</a></h5>
 <ul>
+<li><a href="#No-parameters">Using no parameters</a></li>
 <li><a href="#enabled-parameter">The <em>enabled</em> parameter</a></li>
 <li><a href="#args_sep-parameter">The <em>args_sep</em> parameter</a></li>
 <li><a href="#log_args-parameter">The <em>log_args</em> parameter</a></li>
@@ -28,7 +29,6 @@
 <li><a href="#indent-parameter">The <em>indent</em> parameter</a></li>
 <li><a href="#prefix-parameter">The <em>prefix</em> parameter</a></li>
 <li><a href="#file-parameter">The <em>file</em> parameter</a></li>
-<li><a href="#The-other-parameters">The other parameters</a> (<a href="#logger-parameter"><em>logger</em></a>, <a href="#loglevel-parameter"><em>loglevel</em></a>, <a href="#stats.record_history-parameter"><em>record_history</em></a>, <a href="#stats.max_history-parameter"><em>max_history</em></a>)</li>
 </ul>
 <h5><a href="#Logging">Using loggers</a></h5>
 <ul>
@@ -42,6 +42,7 @@
 <li><a href="#Call-chains-log_call_numbers">Call chains and <em>log_call_numbers</em></a></li>
 <li><a href="#recursion-example">Indentation and call numbers with recursion</a></li>
 </ul>
+<h5><a href="#log_message">The indent-aware writing method <em>log_message(msg, indent_extra=4)</em></a></h5>
 <h5><a href="#Dynamic-control-log_calls_settings">Dynamic control of settings using the <em>log_calls_settings</em> attribute</a></h5>
 <ul>
 <li><a href="#problem">The problem</a></li>
@@ -57,25 +58,49 @@
 <li><a href="#indent-from-above">Controlling indentation 'from above'</a></li>
 </ul>
 </li>
-<li><a href="#enabling-with-ints">Enabling with <em>int</em>s rather than <em>bool</em>s</a></li>
+<li><a href="#enabling-with-ints">Using <em>enabled</em> as a level of verbosity</a></li>
 <li><a href="#log_call_settings-indirect">Using <em>log_calls_settings</em> to set indirect values</a></li>
+<li><a href="#lkwarg-paradigm">Paradigms for handling keyword parameters</a></li>
+
 </ul>
 <h5><a href="#call-history-and-statistics">Call history and statistics – the <em>stats</em> attribute and the <em>*_history</em> parameters</a></h5>
 <ul>
 <li><a href="#stats-attribute">The <em>stats</em> attribute and <em>its</em> attributes</a></li>
-<li><a href="#stats.num_calls_logged">The <em>stats.num_calls_logged</em> attribute</a></li>
-<li><a href="#stats.num_calls_total">The <em>stats.num_calls_total</em> attribute</a></li>
-<li><a href="#elapsed_secs_logged">The <em>stats.elapsed_secs_logged</em> attribute</a></li>
-<li><a href="#stats.record_history-parameter">The <em>record_history</em> parameter</a></li>
-<li><a href="#stats.max_history-parameter">The <em>max_history</em> parameter</a></li>
-<li><a href="#stats.call_history">The <em>stats.call_history</em> attribute</a></li>
-<li><a href="#stats.call_history_as_csv">The <em>stats.call_history_as_csv</em> attribute</a></li>
-<li><a href="#stats.clear_history">The <em>stats.clear_history()</em> method</a></li>
+<li><a href="#stats.num_calls_logged">The <em>num_calls_logged</em> attribute</a></li>
+<li><a href="#stats.num_calls_total">The <em>num_calls_total</em> attribute</a></li>
+<li><a href="#elapsed_secs_logged">The <em>elapsed_secs_logged</em> attribute</a></li>
+<li><a href="#record_history-parameter">The <em>record_history</em> parameter</a></li>
+<li><a href="#max_history-parameter">The <em>max_history</em> parameter</a></li>
+<li><a href="#stats.history">The <em>history</em> attribute</a></li>
+<ul>
+<li><a href="#CallRecord-namedtuple">The <em>CallRecord</em> namedtuple</a></li>
+<li><a href="#elapsed_secs_logged-equal-sum-etc"><em>stats.elapsed_secs_logged</em> == sum of <em>elapsed_secs</em> "column" of <em>stats.history</em></a></li>
 </ul>
+<li><a href="#stats.history_as_csv">The <em>history_as_csv</em> attribute</a></li>
+<li><a href="#stats.history_as_DataFrame">The <em>history_as_DataFrame</em> attribute</a></li>
+<li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
+</ul>
+<h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
 <h5><a href="#realistic-examples">Realistic examples</a></h5>
 <ul>
 <li><a href="#logging-multiple-handlers">Using a logger with multiple handlers that have different loglevels</a></li>
 <li><a href="#A-metaclass-example">A metaclass example</a></li>
 </ul>
+
+<h5><a href="accessing-own-attrs">Functions and methods accessing their own *log_calls* attributes</a></h5>
+<ul>
+<li><a href="global-and-inner-functions-accessing-attrs">Global functions and inner functions accessing their attributes</a></li>
+<ul>
+<li><a href="global-function-accessing-attrs">Global function test</a></li>
+<li><a href="inner-function-accessing-attrs">Inner function test</a></li>
+</ul>
+<li><a href="methods-accessing-attrs">Methods accessing their attributes</a></li>
+<ul>
+<li><a href="instance-method-accessing-attrs">Instance method tests</a></li>
+<li><a href="class-method-accessing-attrs">Class method test</a></li>
+<li><a href="static-method-accessing-attrs">Static method test</a></li>
+</ul>
+</ul>
+
 <h5><a href="#KeywordParametersReference">Appendix – Keyword Parameters Reference</a></h5>
 </div>  <!--TOC-->
