@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 from log_calls import log_calls
 
