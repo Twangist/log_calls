@@ -32,6 +32,9 @@ of `log_calls` which only collects call history and statistics, and outputs no m
 
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
+##[Version](id:Version)
+This document describes version `0.2.2` of `log_calls`.
+
 ## [What's new](id:What's-new)
 * **0.2.2** 
     * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
@@ -44,9 +47,6 @@ This document gives an overview of the decorator's features and their use. A tho
     * Initial public release.
     
 ##[Preliminaries](id:Preliminaries)
-###[Version](id:Version)
-This document describes version `0.2.2` of `log_calls`.
-
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
 The *log_calls* package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1, but hasn't been tested with those earlier versions.)
