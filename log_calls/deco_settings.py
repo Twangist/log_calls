@@ -49,7 +49,7 @@ by the keyword 'enable_' of the decorated function.
 """
 from collections import OrderedDict
 import pprint
-from .helpers import is_keyword_param, prefix_multiline_str
+from .helpers import is_keyword_param
 
 
 __all__ = ['DecoSetting', 'DecoSettingsMapping']
@@ -259,11 +259,6 @@ class DecoSettingsMapping():
         self.deco_class = deco_class
         class_settings_dict = self._deco_class_settings_dict
 
-        # 0.2.1a
-        # stack(s), pushed & popped by decorator (in wrapper of deco'd function)
-        self._logging_fn = []           # stack
-        self._indent_len = []     # stack
-
         # Insert values in the proper order - as given by caller,
         # both visible and not visible ones.
         self._tagged_values_dict = OrderedDict()    # stores pairs inserted by __setitem__
@@ -273,27 +268,6 @@ class DecoSettingsMapping():
                                  info=class_settings_dict[k],
                                  _force_mutable=True,
                                  _force_visible=True)
-
-    def _logging_state_push(self, logging_fn, global_indent_len):
-        self._logging_fn.append(logging_fn)
-        self._indent_len.append(global_indent_len)
-
-    def _logging_state_pop(self):
-        self._logging_fn.pop()
-        self._indent_len.pop()
-
-    def log_the_msg(self, msg, indent_extra=4):
-        """log_calls itself explicitly provides indent_extra=0.
-        The given default value, indent_extra=4, is what users
-        OTHER than log_calls itself want: this aligns msg with
-        the "arguments:" part of log_calls output, rather than
-        with the function entry/exit messages.
-        Negative values of of indent_extra are... tolerated.
-        """
-        logging_fn = self._logging_fn[-1]
-        indent_len = self._indent_len[-1] + indent_extra
-        if indent_len < 0: indent_len = 0   # clamp
-        logging_fn(prefix_multiline_str(' ' * indent_len, msg))
 
     def registered_class_settings_repr(self) -> str:
         list_of_settingsinfo_reprs = []

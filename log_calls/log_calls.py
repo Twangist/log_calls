@@ -24,7 +24,7 @@ from collections import namedtuple, OrderedDict, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .helpers import (get_args_pos, get_args_kwargs_param_names,
-                      dict_to_sorted_str)
+                      dict_to_sorted_str, prefix_multiline_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
 
 __all__ = ['log_calls', 'record_history', '__version__', '__author__']
@@ -510,6 +510,33 @@ class _deco_base():
         self.f = None           # set properly by __call__
         self.prefix = prefix    # special case
 
+        # 0.2.1a
+        # stack(s), pushed & popped by decorator (in wrapper of deco'd function)
+        self._logging_fn = []           # stack
+        self._indent_len = []     # stack
+
+    def _logging_state_push(self, logging_fn, global_indent_len):
+        self._logging_fn.append(logging_fn)
+        self._indent_len.append(global_indent_len)
+
+    def _logging_state_pop(self):
+        self._logging_fn.pop()
+        self._indent_len.pop()
+
+    def _log_message(self, msg, indent_extra=4):
+        """log_calls itself explicitly provides indent_extra=0.
+        The given default value, indent_extra=4, is what users
+        OTHER than log_calls itself want: this aligns msg with
+        the "arguments:" part of log_calls output, rather than
+        with the function entry/exit messages.
+        Negative values of of indent_extra are... tolerated.
+        """
+        logging_fn = self._logging_fn[-1]
+        indent_len = self._indent_len[-1] + indent_extra
+        if indent_len < 0: indent_len = 0   # clamp
+        if not isinstance(msg, str): msg = str(msg)
+        logging_fn(prefix_multiline_str(' ' * indent_len, msg))
+
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
@@ -582,12 +609,12 @@ class _deco_base():
             # the _logging_fn and _indent_len on top of these stacks:
             # So verbose functions should use THIS to write their blather
             # stack of these, used by self._settings_mapping.master_logging_fn(msg)
-            self._settings_mapping._logging_state_push(logging_fn, global_indent_len)
+            self._logging_state_push(logging_fn, global_indent_len)
 
             # (_xxx variables set, ok to call f)
             if not _do_it:
                 ret = f(*args, **kwargs)
-                self._settings_mapping._logging_state_pop()
+                self._logging_state_pop()
                 return ret
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -654,7 +681,7 @@ class _deco_base():
             # Write pre-call messages
             if logging_fn:
                 for msg in pre_msgs:
-                    self._settings_mapping.log_the_msg(msg, indent_extra=0)
+                    self._log_message(msg, indent_extra=0)
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call f(*args, **kwargs) and get its retval; time it.
@@ -683,9 +710,9 @@ class _deco_base():
             # Write post-call messages
             if logging_fn:
                 for msg in post_msgs:
-                    self._settings_mapping.log_the_msg(msg, indent_extra=0)
+                    self._log_message(msg, indent_extra=0)
 
-            self._settings_mapping._logging_state_pop()
+            self._logging_state_pop()
 
             return retval
 
@@ -719,7 +746,12 @@ class _deco_base():
             self.__class__.__name__ + '_settings',
             self._settings_mapping
         )
-
+        # 0.2.1a
+        setattr(
+            f_log_calls_wrapper_,
+            'log_message',
+            self._log_message,
+        )
         return f_log_calls_wrapper_
 
     @classmethod
