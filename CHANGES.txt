@@ -1,5 +1,28 @@
 VERSIONS
 --------
+
+0.2.2.post1
+        -  Changes not worth a minor minor version bump.
+
+           Doc and sync'd test improvements, mostly prose,
+           some doctests improved (log_message).
+
+           log_message, added keyword parameter
+                prefix_with_name=False
+
+           log_message: has the signature
+            `log_message(msg, *msgs, sep=' ',
+                         extra_indent_level=1, prefix_with_name=False)`
+           More print-like.
+           extra_indent_level: number of 4-column indent levels
+               to offset from the left margin of the visual frame
+               established by log_calls' output.
+               Formerly had an any-int parameter indent_extra,
+               a number of cols defaulting to 4.
+               Deprecated, kill soon.
+           Mo' better log_message section, and more examples
+           of its use in subsections on functions accessing their attrs.
+
 02.2.2  -  In wrapper of deco'd function:
            Expose a method log_message(msg)
            which knows the current indent amount and automatically

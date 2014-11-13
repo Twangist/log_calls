@@ -1,10 +1,10 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.2'
+__version__ = '0.2.2.post1'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
 number of call, to stdout or to a logger. log_calls can track
-call history and provide it in CSV format.
+call history and provide it in CSV format and Pandas DataFrame format.
 NOTE: CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
 See docs/log_calls.md for details, usage info and examples.
@@ -267,6 +267,9 @@ class _deco_base():
     # placeholder! set_class_sentinels called from __init__
     _sentinels = None
 
+    INDENT = 4      # number of spaces to __ by at a time
+
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # # *** DecoSettingsMapping "API" --
     # # (1) initialize: Subclasses must call register_class_settings
@@ -510,32 +513,66 @@ class _deco_base():
         self.f = None           # set properly by __call__
         self.prefix = prefix    # special case
 
-        # 0.2.1a
+        # 0.2.2.post1
         # stack(s), pushed & popped by decorator (in wrapper of deco'd function)
-        self._logging_fn = []           # stack
+        self._logging_fn = []     # stack
         self._indent_len = []     # stack
+        self._output_fname = []     # stack
 
-    def _logging_state_push(self, logging_fn, global_indent_len):
+    def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
         self._logging_fn.append(logging_fn)
         self._indent_len.append(global_indent_len)
+        self._output_fname.append(output_fname)
 
     def _logging_state_pop(self):
         self._logging_fn.pop()
         self._indent_len.pop()
+        self._output_fname.pop()
 
-    def _log_message(self, msg, indent_extra=4):
-        """log_calls itself explicitly provides indent_extra=0.
-        The given default value, indent_extra=4, is what users
-        OTHER than log_calls itself want: this aligns msg with
-        the "arguments:" part of log_calls output, rather than
+    def _log_message(self, msg, *msgs, sep=' ',
+                     indent_extra=0,    # TODO deprecated, kill >= 0.2.3
+                     extra_indent_level=1, prefix_with_name=False):
+        """Signature much like that of print, such is the intent.
+        "log" one or more "messages", which can be anything - a string,
+        an int, object with __str__ method... all get str()'d.
+        sep: what to separate the messages with
+        extra_indent_level: self.INDENT * this number is
+            an offset from the (absolute) column in which
+            the entry/exit messages for the function are written.
+        I.e. an offset from the visual frame of log_calls output,
+            in increments of 4 (cols) from its left margin.
+        log_calls itself explicitly provides extra_indent_level=0.
+        The given default value, extra_indent_level=1, is what users
+        *other* than log_calls itself want: this aligns the message(s)
+        with the "arguments:" part of log_calls output, rather than
         with the function entry/exit messages.
-        Negative values of of indent_extra are... tolerated.
+        Negative values of extra_indent_level have their place:
+            me.log_message("*** An important message", extra_indent_level=-1)
+            me.log_message("An ordinary message").
+
+        indent_extra: the earlier parameter, and published in v0.2.2 so
+        gone in 0.2.3. Same as self.INDENT * extra_indent_level
+            when it's a multiple of self.INDENT i.e. of 4.
+            Deprecated in 0.2.3 so its ~0 users don't complain.
+
+        prefix_with_name: bool. If True, prepend
+               self._output_fname[-1] + ": "
+        to the message ultimately written.
+        self._output_fname[-1] is the function's possibly prefixed name,
+            + possibly [its call #]
         """
         logging_fn = self._logging_fn[-1]
-        indent_len = self._indent_len[-1] + indent_extra
-        if indent_len < 0: indent_len = 0   # clamp
-        if not isinstance(msg, str): msg = str(msg)
-        logging_fn(prefix_multiline_str(' ' * indent_len, msg))
+        indent_len = (self._indent_len[-1] +
+                      + (extra_indent_level * self.INDENT)
+                      + indent_extra     # TODO: remove >= 0.2.3
+                     )
+        if indent_len < 0:
+            indent_len = 0   # clamp
+        the_msgs = (msg,) + msgs
+        the_msg = sep.join(map(str, the_msgs))
+        if prefix_with_name:
+            the_msg = self._output_fname[-1] + ': ' + the_msg
+        logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
@@ -558,8 +595,6 @@ class _deco_base():
             # *** Part of the DecoSettingsMapping "API" --
             #     (4) using self._settings_mapping.get_final_value in wrapper
             # [[[ This/these is/are 4th chronologically ]]]
-
-            INDENT = 4      # number of spaces to __ by at a time
 
             # inner/local fn -- save a few cycles and character -
             # we call this a lot (<= 9x).
@@ -603,13 +638,19 @@ class _deco_base():
             logging_fn, can_indent = self.get_logging_fn(_get_final_value)
 
             # Only do global indentation for print, not for loggers
-            global_indent_len = max(_extra_indent_level, 0) * INDENT * int(can_indent)
+            global_indent_len = max(_extra_indent_level, 0) * self.INDENT * int(can_indent)
 
-            # 0.2.1a -- self._settings_mapping.master_logging_fn will use
+            # 0.2.2.post1 - save output_fname for log_message use
+            call_number_str = ((' [%d]' % _active_call_number)
+                               if _log_call_numbers else '')
+            output_fname = prefixed_fname + call_number_str
+
+            # 0.2.2 -- self._log_message() will use
             # the _logging_fn and _indent_len on top of these stacks:
-            # So verbose functions should use THIS to write their blather
-            # stack of these, used by self._settings_mapping.master_logging_fn(msg)
-            self._logging_state_push(logging_fn, global_indent_len)
+            # So verbose functions should use THIS to write their blather.
+            # There's stack of these, or parallel stacks of these,
+            # used by self._log_message(), maintained in this wrapper.
+            self._logging_state_push(logging_fn, global_indent_len, output_fname)
 
             # (_xxx variables set, ok to call f)
             if not _do_it:
@@ -631,11 +672,9 @@ class _deco_base():
                 'call_list': call_list,
                 'args': args,
                 'kwargs': kwargs,
-                'indent': " " * INDENT,              # our unit of indentation
+                'indent': " " * self.INDENT,              # our unit of indentation
+                'output_fname': output_fname,
             }
-            call_number_str = ((' [%d]' % _active_call_number)
-                               if _log_call_numbers else '')
-            context['output_fname'] = prefixed_fname + call_number_str
 
             # Gather all the things we need (for log output, & for history)
             # Use inspect module's Signature.bind method.
@@ -681,7 +720,7 @@ class _deco_base():
             # Write pre-call messages
             if logging_fn:
                 for msg in pre_msgs:
-                    self._log_message(msg, indent_extra=0)
+                    self._log_message(msg, extra_indent_level=0)
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call f(*args, **kwargs) and get its retval; time it.
@@ -710,7 +749,7 @@ class _deco_base():
             # Write post-call messages
             if logging_fn:
                 for msg in post_msgs:
-                    self._log_message(msg, indent_extra=0)
+                    self._log_message(msg, extra_indent_level=0)
 
             self._logging_state_pop()
 

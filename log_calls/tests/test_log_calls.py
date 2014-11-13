@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.2'
+__version__ = '0.2.2.post1'
 
 from log_calls import log_calls
 
@@ -654,11 +654,23 @@ dictionary. Typically the signature of this function would be just* `def depth(d
 
 def main__log_message():
     """
-## [The indent-aware writing method *log_message(msg, indent_extra=4)*](id:log_message)
-`log_calls` exposes the method it uses to write its messages, `log_message`.
-If a decorated function or method writes its own debugging messages,
-it can use can use `log_message` so that they align nicely with the messages
-written by `log_calls`. Even multiline messages will be properly aligned.
+`log_calls` exposes the method it uses to write its messages, `log_message`,
+whose full signature is:
+
+    `log_message(msg, *msgs, sep=' ',
+                 extra_indent_level=1, prefix_with_name=False)`
+
+This method takes one or more "messages" (anything you want to see as a string),
+and writes one final output message formed by joining messages separated by `sep`.
+`extra_indent_level` is a number of 4-columns wide *indent levels* specifying
+where to begin writing that message. This value * 4 is an offset in columns
+from the left margin of the visual frame established by log_calls – that is,
+an offset from the column in which the function entry/exit messages begin. The default
+of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
+
+If a decorated function or method writes debugging messages, even multiline
+messages, it can use this method to write them so that they sit nicely within
+the frame provided by `log_calls`.
 
 Consider the following function:
 
@@ -668,62 +680,72 @@ Consider the following function:
     ...         print("*** Base case n <= 0")
     ...     else:
     ...         print("*** n=%d is %s,\\n    but we knew that."
-    ...               % (n, "odd" if n%2 else "even"))
+    ...                       % (n, "odd" if n%2 else "even"))
+    ...         print("*** (n=%d) We'll be right back, after this:" % n)
     ...         f(n-1)
+    ...         print("*** (n=%d) We're back." % n)
     >>> f(2)
     f [1] <== called by <module>
         arguments: n=2
     *** n=2 is even,
         but we knew that.
+    *** (n=2) We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
     *** n=1 is odd,
         but we knew that.
+    *** (n=1) We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
     *** Base case n <= 0
             f [3] ==> returning to f [2]
+    *** (n=1) We're back.
         f [2] ==> returning to f [1]
+    *** (n=2) We're back.
     f [1] ==> returning to <module>
 
-The debugging messages written by `f` literally "stick out", and in a more
-complex situation with multiple functions and methods it could be difficult
-to figure out who actually wrote which message. If instead `f` uses
-`log_message`, all of its messages from each invocation align neatly within
-the context presented by `log_calls`:
+The debugging messages written by `f` literally "stick out", and it gets difficult,
+especially in more complex situations with multiple functions and methods,
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+`f` uses `log_message`, all of its messages from each invocation align neatly
+within the frame presented by `log_calls`. We also take the opportunity to
+illustrate the keyword parameters of `log_message`:
 
     >>> @log_calls(indent=True, log_call_numbers=True)
     ... def f(n):
     ...     if n <= 0:
-    ...         f.log_message("*** Base case n <= 0")
+    ...         f.log_message("Base case n =", n, prefix_with_name=True)
     ...     else:
-    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
-    ...                       % (n, "odd" if n%2 else "even"))
+    ...         f.log_message("n=%d is %s,\\n    but we knew that."
+    ...                       % (n, "odd" if n%2 else "even"),
+    ...                       prefix_with_name=True)
+    ...         f.log_message("We'll be right back", "after this:",
+    ...                       sep=", ", prefix_with_name=True)
     ...         f(n-1)
+    ...         f.log_message("We're back.", prefix_with_name=True)
     >>> f(2)
     f [1] <== called by <module>
         arguments: n=2
-        *** n=2 is even,
+        f [1]: n=2 is even,
             but we knew that.
+        f [1]: We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
-            *** n=1 is odd,
+            f [2]: n=1 is odd,
                 but we knew that.
+            f [2]: We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
-                *** Base case n <= 0
+                f [3]: Base case n = 0
             f [3] ==> returning to f [2]
+            f [2]: We're back.
         f [2] ==> returning to f [1]
+        f [1]: We're back.
     f [1] ==> returning to <module>
 
-The `indent_extra` value is an offset from the column in which
-the entry and exit messages for the function begin.
-`f` uses the default value `indent_extra=4`, so its messages
-align with "arguments:". `log_calls` itself explicitly supplies
-`indent_extra=0`. Negative values are tolerated :), and do what
-you'd expect.
+**NOTES**:
 
-**NOTE**: *In the example above, `f` accesses one of its attributes added by
+1. *In the example above, `f` accesses one of its attributes added by
 `log_calls`, namely, the `log_message()` method. (log_calls in fact adds two
 more attributes, discussed in subsequent sections: [`log_calls_settings`]
 (#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).)
@@ -732,7 +754,11 @@ syntactically straightforward way. Classmethods and instance methods decorated b
 `log_calls` can also use `log_message()`, but each of those kinds of methods requires
 its own approach (a little more syntax) to obtaining the `log_calls` wrapper which
 hosts the attributes. See the section [Functions and methods accessing their
-own *log_calls* attributes](#accessing-own-attrs) for the not at all gory details.*
+own *log_calls* attributes](#accessing-own-attrs) for details.*
+
+2. *The keyword parameter `indent_extra` is deprecated, in favor of
+`extra_indent_level`; its default value is now `0`, not `4`.
+Please convert to `extra_indent_level`, and help `indent_extra` vanish.*
     """
     pass
 
@@ -763,18 +789,20 @@ and you use this code:
     ...     pass
     >>> foo()       # No log_calls output: DEBUG is False
 
-If later you set `Debug = True` and call `foo`, that call won't be logged,
-because the decorated `foo`'s *enabled* setting is bound to the original value
+If later you set `Debug = True` and call `foo`, nothing will be written,
+because `foo`'s *enabled* setting is bound to the original value
 of `DEBUG`, established when the definition was processed:
 
     >>> DEBUG = True
     >>> foo()       # Still no log_calls output
 
+This is simply how Python processes default values.
+
 ###Solutions
 `log_calls` provides *two* ways to dynamically control the settings of a decorated function.
 This section presents one of them – using `log_calls_settings`. The next section,
 on [indirect values](#Indirect-values), discusses another, rather different solution,
-one which is more intrusive but which affords even more control.
+one that's more intrusive but which affords even more control.
 
 ###The *log_calls_settings* attribute
 The `log_calls` decorator adds an attribute `log_calls_settings`
@@ -784,11 +812,7 @@ the settings for a decorated function via a mapping (dict-like) interface,
 and equivalently, via attributes of the object. The mapping keys and
 the attribute names are simply the `log_calls` keywords. `log_calls_settings`
 also implements many of the standard `dict` methods for interacting with the
-settings in familiar ways. It's an instance of the `DecoSettingsMapping` class,
-defined in `deco_settings.py`.
-That class has its own tests, in `log_calls/tests/test_deco_settings.py`,
-so there's no need to test it exhaustively here; we'll just go over how to use it.
-
+settings in familiar ways.
 ###The mapping interface and the attribute interface to settings
 
 Once you've decorated a function with `log_calls`,
@@ -864,8 +888,7 @@ dictionary is closed to new members, and attempts to add one will raise `KeyErro
     KeyError: ...
 
 You can use the same keywords as attributes of `log_calls_settings`
-instead of as keywords to the mapping interface; they're completely
-equivalent:
+instead of as keywords to the mapping interface; they're equivalent:
 
     >>> f.log_calls_settings.log_elapsed
     True
@@ -894,7 +917,7 @@ simply by using it:
     >>> f.log_calls_settings.new_attr
     'something'
 
-But, of course, the new attribute does not become a decorator setting:
+But the new attribute still isn't a decorator setting:
 
     >>> 'new_attr' in f.log_calls_settings
     False
@@ -998,17 +1021,17 @@ a default value is used.
 To specify an indirect value for a parameter whose normal type is `str` (only
 `args_sep`, at present), append an `'='` to the value.  For consistency's sake,
 any indirect value can end in a trailing `'='`, which is stripped. Thus,
-`enabled='enable_='` indicates an indirect value supplied by the keyword (argument or
-parameter) `enable_` of the decorated function.
+`enabled='enable_='` indicates an indirect value *to be supplied* by the keyword
+(argument or parameter) `enable_` of a decorated function.
 
-Thus, in:
+So, in:
 
     >>> @log_calls(args_sep='sep=', prefix="*** ")
     ... def f(a, b, c, sep='|'): pass
 
-`args_sep` has an indirect value which names `f`'s explicit keyword parameter `sep`,
-and `prefix` has a direct value. A call can dynamically override the default
-value '|' in the signature of `f` by supplying a value:
+`args_sep` has an indirect value which names `f`'s explicit keyword parameter
+`sep`, and `prefix` has a direct value as it always does. A call can dynamically
+override the default value '|' in the signature of `f` by supplying a value:
 
     >>> f(1, 2, 3, sep=' / ')
     *** f <== called by <module>
@@ -1069,7 +1092,7 @@ In the next example, the separator value supplied to `g` by keyword argument
 propagates to `f`. Note that the arguments `42` and `99` end up in `g`'s
 positional *varargs* tuple. We've used non-generic names for the *varargs*
 to illustrate that whatever you call these parameters, their roles are
-unambiguous and their names are available to `log_calls`, which will use them:
+unambiguous and `log_calls` will find and use their names:
 
     >>> @log_calls(args_sep='sep=')
     ... def f(a, b, c, **kwargs): pass
@@ -1596,7 +1619,7 @@ class A_meta(type):
         if A_debug >= A_DBG_INTERNAL:
             # note use of .__func__ to get at decorated fn inside the classmethod
             logging_fn = mcs.__prepare__.__func__.log_message
-            logging_fn("    mro = %s" % str(mcs.__mro__))
+            logging_fn("    mro =", mcs.__mro__)
             logging_fn("    dict from super() = %r" % super_dict)
         super_dict = OrderedDict(super_dict)
         super_dict['key-from-__prepare__'] = 1729
@@ -1607,15 +1630,15 @@ class A_meta(type):
         cls_members['key-from-__new__'] = "No, Hardy!"
         if A_debug >= A_DBG_INTERNAL:
             logging_fn = mcs.__new__.log_message
-            logging_fn("    calling super() with cls_members = %s" % cls_members)
+            logging_fn("    calling super() with cls_members =", cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
-            logging_fn = cls._get_init_logging_fn()
-            logging_fn("    cls.__mro__: %s" % str(cls.__mro__))
-            logging_fn("    type(cls).__mro__[1] = %s" % type(cls).__mro__[1])
+            logging_fn = cls._get_init_wrapper().log_message
+            logging_fn("    cls.__mro__:", cls.__mro__)
+            logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
         try:
             super().__init__(cls_name, bases, cls_members, **kwargs)
         except TypeError as e:
@@ -1624,14 +1647,9 @@ class A_meta(type):
                 logging_fn("    calling type.__init__ with no kwargs")
             type.__init__(cls, cls_name, bases, cls_members)
 
-    # __init__ can't get at itself or its log_calls_settings from inside itself,
-    # and attempts to do so from outside have to be late-bound
-    # (class level
-    #       init_logging_fn = __init__.log_calls_settings.log_message
-    #  doesn't work)
     @classmethod
-    def _get_init_logging_fn(cls):
-        return cls.__init__.log_message
+    def _get_init_wrapper(cls):
+        return cls.__dict__['__init__']
 
 
 def main__metaclass_example():
@@ -1721,7 +1739,7 @@ added for it by `log_calls`. We've seen examples of this, where
 to write debugging messages that align properly with those of `log_calls`.
 In the metaclass example, two of the methods – an instance method, and
 a classmethod – had to perform extra legerdemain in order to get at their
-attributes. As we'll see in this section, those are the only special cases.
+attributes. Happily, those are the only special cases.
 
 This section collects all the different cases of functions and methods
 accessing their `log_calls` attributes.
@@ -1732,8 +1750,9 @@ This might be called "excessive introspection", and is probably seldom
 useful: when a log_calls-decorated function executes, its call counters
 (`stats.num_calls_logged` and `stats.num_calls_total`) have been incremented,
 but, as it hasn't yet returned, the value of `stats.elapsed_secs_logged`
-remains as it was before the call began. We confirm (and test) this
-claim in the global function example below.
+(as well as its history) remains as they was before the call began.
+We confirm and test this claim in the global and inner functions examples
+below.
 
 ### [Global functions and inner functions accessing their attributes](id:global-and-inner-functions-accessing-attrs)
 Global functions and inner functions can access within their own bodies
@@ -1745,39 +1764,54 @@ A global function can just use the usual syntax:
 
     >>> @log_calls(enabled=2)
     ... def f():
-    ...     logging_fn = f.log_message
-    ...     logging_fn(f.log_calls_settings.enabled)
-    ...     logging_fn(f.stats.num_calls_logged)
-    ...     logging_fn(f.stats.elapsed_secs_logged)    # still 0.0
+    ...     f.log_message("f.log_calls_settings.enabled =", f.log_calls_settings.enabled,
+    ...                   prefix_with_name=True)
+    ...     f.log_message("This is call number", f.stats.num_calls_logged)
+    ...     f.log_message("f.stats.elapsed_secs_logged is still", f.stats.elapsed_secs_logged)
     >>> f()
     f <== called by <module>
-        2
-        1
-        0.0
+        f: f.log_calls_settings.enabled = 2
+        This is call number 1
+        f.stats.elapsed_secs_logged is still 0.0
     f ==> returning to <module>
 
 #### [Inner function accessing its attributes](id:inner-function-accessing-attrs)
 Similarly, an inner function can just do the usual thing:
 
-    >>> def outer(x):
+    >>> @log_calls()
+    ... def outer(x):
     ...     @log_calls(enabled=7)
     ...     def inner(y):
-    ...         logging_fn = inner.log_message
-    ...         logging_fn(inner.log_calls_settings.enabled)
-    ...         logging_fn(inner.stats.num_calls_logged)
+    ...         inner.log_message("inner.log_calls_settings.enabled =", inner.log_calls_settings.enabled)
+    ...         inner.log_message("call number", inner.stats.num_calls_logged, prefix_with_name=True)
+    ...         inner.log_message("elapsed_secs_logged =", inner.stats.elapsed_secs_logged, prefix_with_name=True)
     ...         return x + y
-    ...
-    ...     print("outer says inner enabled =", inner.log_calls_settings.enabled)
-    ...     print("outer says inner num_calls_logged =", inner.stats.num_calls_logged)
+    ...     outer.log_message("inner enabled =", inner.log_calls_settings.enabled, prefix_with_name=True)
+    ...     outer.log_message("Before call to inner:", extra_indent_level=-1, prefix_with_name=True)
+    ...     outer.log_message("its call number (inner.stats.num_calls_logged) =", inner.stats.num_calls_logged)
+    ...     outer.log_message("its elapsed_secs_logged =", inner.stats.elapsed_secs_logged)
     ...     inner(2 * x)
-    >>> outer(3)
-    outer says inner enabled = 7
-    outer says inner num_calls_logged = 0
+    ...     outer.log_message("After call to inner:", extra_indent_level=-1, prefix_with_name=True)
+    ...     outer.log_message("its call number =", inner.stats.num_calls_logged)
+    ...     outer.log_message("its elapsed_secs_logged =", inner.stats.elapsed_secs_logged)
+
+    >>> outer(3)                # doctest: +ELLIPSIS
+    outer <== called by <module>
+        arguments: x=3
+        outer: inner enabled = 7
+    outer: Before call to inner:
+        its call number (inner.stats.num_calls_logged) = 0
+        its elapsed_secs_logged = 0.0
     inner <== called by outer
         arguments: y=6
-        7
-        1
+        inner.log_calls_settings.enabled = 7
+        inner: call number 1
+        inner: elapsed_secs_logged = 0.0
     inner ==> returning to outer
+    outer: After call to inner:
+        its call number = 1
+        its elapsed_secs_logged = ...
+    outer ==> returning to <module>
 
 ### [Methods accessing their attributes](id:methods-accessing-attrs)
 Static methods can access their log_calls-added attributes in a straightforward
