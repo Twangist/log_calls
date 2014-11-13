@@ -1,6 +1,7 @@
 VERSIONS
 --------
 
+0.2.3.post1 - Doc fixups :|
 0.2.3    - Doc and sync'd test improvements, mostly prose,
            some doctests improved (log_message).
 

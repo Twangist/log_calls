@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.2.post1'
+__version__ = '0.2.3.post1'
 
 from log_calls import log_calls
 
@@ -662,11 +662,17 @@ whose full signature is:
 
 This method takes one or more "messages" (anything you want to see as a string),
 and writes one final output message formed by joining messages separated by `sep`.
+
 `extra_indent_level` is a number of 4-columns wide *indent levels* specifying
 where to begin writing that message. This value * 4 is an offset in columns
 from the left margin of the visual frame established by log_calls – that is,
 an offset from the column in which the function entry/exit messages begin. The default
 of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
+
+`prefix_with_name` is a bool. If true, the final message is prefaced with the
+possibly prefixed name of the function (using the `prefix` setting),
+plus possibly its call number in  square brackets (if the `log_call_numbers` setting
+is true.
 
 If a decorated function or method writes debugging messages, even multiline
 messages, it can use this method to write them so that they sit nicely within
@@ -1910,13 +1916,3 @@ if __name__ == "__main__":
     doctest.testmod()   # (verbose=True)
 
     # unittest.main()
-
-
-
-
-
-
-
-
-
-
