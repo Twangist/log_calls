@@ -712,7 +712,7 @@ Consider the following function:
 
 The debugging messages written by `f` literally "stick out", and it gets difficult,
 especially in more complex situations with multiple functions and methods,
-to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
 `f` uses `log_message`, all of its messages from each invocation align neatly
 within the frame presented by `log_calls`. We also take the opportunity to
 illustrate the keyword parameters of `log_message`:
@@ -752,7 +752,7 @@ illustrate the keyword parameters of `log_message`:
 **NOTES**:
 
 1. *In the example above, `f` accesses one of its attributes added by
-`log_calls`, namely, the `log_message()` method. (log_calls in fact adds two
+`log_calls`, namely, the `log_message()` method. (`log_calls` in fact adds two
 more attributes, discussed in subsequent sections: [`log_calls_settings`]
 (#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).)
 Indeed, any function, and any static method, can access its `log_calls` in the same
