@@ -37,7 +37,7 @@ This document describes version `0.2.3` of `log_calls`.
 
 ## [What's new](id:What's-new)
 * **0.2.3** 
-    * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it.
+    * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
 
 * **0.2.2** 
     * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
@@ -567,15 +567,30 @@ These features are especially useful in recursive and mutually recursive situati
 
 **NOTE**: *The optional* `key` *parameter is for instructional purposes, so you can see the key that's paired with the value of* `d` *in the caller's dictionary. Typically the signature of this function would be just* `def depth(d)`, *and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
-## [The indent-aware writing method *log_message(msg, indent_extra=4)*](id:log_message)
+## [The indent-aware writing method *log_message()*](id:log_message)
 `log_calls` exposes the method it uses to write its messages, `log_message`,
-with full signature:
+whose full signature is:
 
-    `log_message(msg, indent_extra=4, sep=' ', prefix_with_name=False)`
+    `log_message(msg, *msgs, sep=' ', 
+                 extra_indent_level=1, prefix_with_name=False)`
 
+This method takes one or more "messages" (anything you want to see as a string),
+and writes one final output message formed by joining messages separated by `sep`.
+
+`extra_indent_level` is a number of 4-columns wide *indent levels* specifying
+where to begin writing that message. This value * 4 is an offset in columns
+from the left margin of the visual frame established by log_calls – that is,
+an offset from the column in which the function entry/exit messages begin. The default
+of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
+
+`prefix_with_name` is a bool. If true, the final message is prefaced with the
+ possibly prefixed name of the function (using the `prefix` setting), 
+ plus possibly its call number in  square brackets (if the `log_call_numbers` setting
+ is true.
+ 
 If a decorated function or method writes debugging messages, even multiline
 messages, it can use this method to write them so that they sit nicely within
-the frame provided by `log_calls`.
+the visual frame provided by `log_calls`.
 
 Consider the following function:
 
@@ -585,27 +600,33 @@ Consider the following function:
     ...         print("*** Base case n <= 0")
     ...     else:
     ...         print("*** n=%d is %s,\\n    but we knew that."
-    ...               % (n, "odd" if n%2 else "even"))
+    ...                       % (n, "odd" if n%2 else "even"))
+    ...         print("*** (n=%d) We'll be right back, after this:" % n)
     ...         f(n-1)
-    >>> f(2)
+    ...         print("*** (n=%d) We're back." % n)
+    >>> f(2)                                            # doctest: +SKIP
     f [1] <== called by <module>
         arguments: n=2
     *** n=2 is even,
         but we knew that.
+    *** (n=2) We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
     *** n=1 is odd,
         but we knew that.
+    *** (n=1) We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
     *** Base case n <= 0
             f [3] ==> returning to f [2]
+    *** (n=1) We're back.
         f [2] ==> returning to f [1]
+    *** (n=2) We're back.
     f [1] ==> returning to <module>
 
 The debugging messages written by `f` literally "stick out", and it gets difficult,
 especially in more complex situations with multiple functions and methods,
-to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
 `f` uses `log_message`, all of its messages from each invocation align neatly
 within the frame presented by `log_calls`. We also take the opportunity to
 illustrate the keyword parameters of `log_message`:
@@ -613,40 +634,38 @@ illustrate the keyword parameters of `log_message`:
     >>> @log_calls(indent=True, log_call_numbers=True)
     ... def f(n):
     ...     if n <= 0:
-    ...         f.log_message("Base case n=0", prefix_with_name=True)
+    ...         f.log_message("Base case n =", n, prefix_with_name=True)
     ...     else:
     ...         f.log_message("n=%d is %s,\\n    but we knew that."
     ...                       % (n, "odd" if n%2 else "even"),
     ...                       prefix_with_name=True)
-    ...         f.log_message("*** We'll be right back, after this:", indent_extra=0)
+    ...         f.log_message("We'll be right back", "after this:",
+    ...                       extra_indent_level=0, sep=", ", prefix_with_name=True)
     ...         f(n-1)
-    ...         f.log_message("*** We're back.", indent_extra=0)
-    >>> f(2)
+    ...         f.log_message("We're back.", extra_indent_level=0, prefix_with_name=True)
+
+    >>> f(2)                                            # doctest: +SKIP
     f [1] <== called by <module>
         arguments: n=2
         f [1]: n=2 is even,
             but we knew that.
-    *** We'll be right back, after this:
+        f [1]: We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
             f [2]: n=1 is odd,
                 but we knew that.
-        *** We'll be right back, after this:
+            f [2]: We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
-                f [3]: Base case n=0
+                f [3]: Base case n = 0
             f [3] ==> returning to f [2]
-        *** We're back.
+            f [2]: We're back.
         f [2] ==> returning to f [1]
-    *** We're back.
+        f [1]: We're back.
     f [1] ==> returning to <module>
 
-The `indent_extra` value is an offset from the column in which
-the entry and exit messages for the function begin.
-`f` uses the default value `indent_extra=4`, so its messages
-align with "arguments:". `log_calls` itself explicitly supplies
-`indent_extra=0`. Negative values are tolerated :), and do what
-you'd expect.
+See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for a couple of notes 
+and internal links to further examples.
 
 ## [Advanced Features](id:Advanced-features)
 `log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).
