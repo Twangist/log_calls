@@ -32,7 +32,13 @@ of `log_calls` which only collects call history and statistics, and outputs no m
 
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
+##[Version](id:Version)
+This document describes version `0.2.2` of `log_calls`.
+
 ## [What's new](id:What's-new)
+* **0.2.2.post1** 
+    * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it
+
 * **0.2.2** 
     * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
     * [Documentation](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
@@ -44,12 +50,9 @@ This document gives an overview of the decorator's features and their use. A tho
     * Initial public release.
     
 ##[Preliminaries](id:Preliminaries)
-###[Version](id:Version)
-This document describes version `0.2.2` of `log_calls`.
-
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-The *log_calls* package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+. (The software proper probably works with 3.0 and 3.1, but hasn't been tested with those earlier versions.)
+The *log_calls* package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+.
 
 NOTE: This package does require the CPython implementation, as it uses internals
 of stack frames which may well differ in other interpreters.
@@ -90,7 +93,7 @@ which takes switches `-q` for "quiet", `-v` for "verbose", and `-h` for "help".
 
 
 ####[Running the tests after installation](id:tests-after-install)
-You can run the tests for `log_calls` after installing it, by using the command:
+You can run the tests for `log_calls` after installing it, using the command:
 
     $ python -m unittest discover log_calls.tests
 
@@ -565,10 +568,14 @@ These features are especially useful in recursive and mutually recursive situati
 **NOTE**: *The optional* `key` *parameter is for instructional purposes, so you can see the key that's paired with the value of* `d` *in the caller's dictionary. Typically the signature of this function would be just* `def depth(d)`, *and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
 ## [The indent-aware writing method *log_message(msg, indent_extra=4)*](id:log_message)
-`log_calls` exposes the method it uses to write its messages, `log_message`.
-If a decorated function or method writes its own debugging messages,
-it can use can use `log_message` so that they align nicely with the messages
-written by `log_calls`. Even multiline messages will be properly aligned.
+`log_calls` exposes the method it uses to write its messages, `log_message`,
+with full signature:
+
+    `log_message(msg, indent_extra=4, sep=' ', prefix_with_name=False)`
+
+If a decorated function or method writes debugging messages, even multiline
+messages, it can use this method to write them so that they sit nicely within
+the frame provided by `log_calls`.
 
 Consider the following function:
 
@@ -596,34 +603,42 @@ Consider the following function:
         f [2] ==> returning to f [1]
     f [1] ==> returning to <module>
 
-The debugging messages written by `f` literally "stick out", and in a more
-complex situation with multiple functions and methods it could be difficult
-to figure out who actually wrote which message. If instead `f` uses
-`log_message`, all of its messages from each invocation align neatly within 
-the context presented by `log_calls`:
+The debugging messages written by `f` literally "stick out", and it gets difficult,
+especially in more complex situations with multiple functions and methods,
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+`f` uses `log_message`, all of its messages from each invocation align neatly
+within the frame presented by `log_calls`. We also take the opportunity to
+illustrate the keyword parameters of `log_message`:
 
     >>> @log_calls(indent=True, log_call_numbers=True)
     ... def f(n):
     ...     if n <= 0:
-    ...         f.log_message("*** Base case n <= 0")
+    ...         f.log_message("Base case n=0", prefix_with_name=True)
     ...     else:
-    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
-    ...                       % (n, "odd" if n%2 else "even"))
+    ...         f.log_message("n=%d is %s,\\n    but we knew that."
+    ...                       % (n, "odd" if n%2 else "even"),
+    ...                       prefix_with_name=True)
+    ...         f.log_message("*** We'll be right back, after this:", indent_extra=0)
     ...         f(n-1)
+    ...         f.log_message("*** We're back.", indent_extra=0)
     >>> f(2)
     f [1] <== called by <module>
         arguments: n=2
-        *** n=2 is even,
+        f [1]: n=2 is even,
             but we knew that.
+    *** We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
-            *** n=1 is odd,
+            f [2]: n=1 is odd,
                 but we knew that.
+        *** We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
-                *** Base case n <= 0
+                f [3]: Base case n=0
             f [3] ==> returning to f [2]
+        *** We're back.
         f [2] ==> returning to f [1]
+    *** We're back.
     f [1] ==> returning to <module>
 
 The `indent_extra` value is an offset from the column in which
@@ -632,17 +647,6 @@ the entry and exit messages for the function begin.
 align with "arguments:". `log_calls` itself explicitly supplies
 `indent_extra=0`. Negative values are tolerated :), and do what
 you'd expect.
-
-**NOTE**: *In the example above, `f` accesses one of its attributes added by 
-`log_calls`, namely, the `log_message()` method. (log_calls in fact adds two
-more attributes, discussed in subsequent sections: [`log_calls_settings`]
-(#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).) 
-Indeed, any function, and any static method, can access its `log_calls` in the same 
-syntactically straightforward way. Classmethods and instance methods decorated by 
-`log_calls` can also use `log_message()`, but each of those kinds of methods requires 
-its own approach (a little more syntax) to obtaining the `log_calls` wrapper which 
-hosts the attributes. See the section [Functions and methods accessing their 
-own *log_calls* attributes](#accessing-own-attrs) for the not at all gory details.*
 
 ## [Advanced Features](id:Advanced-features)
 `log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).
@@ -800,9 +804,9 @@ parameter; if it is found and of the correct type, *its* value is used; otherwis
 the default value for the `log_calls` parameter is used.
 
 To specify an indirect value for a parameter whose normal type is `str` (only 
-`args_sep`, at present), append an `'='` to the value.  For consistency's sake, 
+`args_sep`, at present), append an `'='` to the value.  For consistency, 
 any indirect value can end in a trailing `'='`, which is stripped. Thus, 
-`enabled='enable_='` indicates an indirect value supplied by the keyword (argument or parameter) `enable_` of the decorated function.
+`enabled='enable_='` indicates an indirect value *to be supplied* by the keyword (argument or parameter) `enable_` of the decorated function.
 
 For example, in:
 
@@ -810,7 +814,7 @@ For example, in:
     ... def f(a, b, c, sep='|'): pass
 
 `args_sep` has an indirect value which names `f`'s explicit keyword parameter `sep`,
-and `prefix` has a direct value (as it always does). A call can dynamically override the default
+and `prefix` has a direct value as it always does. A call can dynamically override the default
 value '|' in the signature of `f` by supplying a value:
 
     >>> f(1, 2, 3, sep=' / ')

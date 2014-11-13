@@ -22,12 +22,13 @@ You can also dynamically get and set these settings using attributes
 with the same names as the keywords, or using a dict-like interface
 whose keys are the keywords.
 
-`log_calls`` can also collect profiling data and statistics, accessible dynamically:
+`log_calls` can also collect profiling data and statistics, accessible dynamically:
 
 * number of calls to a function,
 * total time taken by the function,
 * the function's entire call history (arguments, time elapsed, return values,
-  callers, and more), optionally as text in CSV format.
+  callers, and more), optionally as text in CSV format or, if Pandas is
+  installed, as a DataFrame.
 
 These features and others are optional and configurable settings,
 which can be specified for each decorated function via keyword parameters of

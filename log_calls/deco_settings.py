@@ -42,7 +42,7 @@ whereas neither of the following two statements will trigger logging:
     func2(42, enable=False)
     func2(99)
 
-As a concession to consistency, any parameter value that names a keyword
+For consistency, any parameter value that names a keyword
 parameter of the decorated function can also end in a trailing '=', which
 is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
