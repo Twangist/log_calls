@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.2.post1'
+__version__ = '0.2.3'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -530,7 +530,7 @@ class _deco_base():
         self._output_fname.pop()
 
     def _log_message(self, msg, *msgs, sep=' ',
-                     indent_extra=0,    # TODO deprecated, kill >= 0.2.3
+                     indent_extra=0,    # TODO deprecated, kill >= 0.2.4
                      extra_indent_level=1, prefix_with_name=False):
         """Signature much like that of print, such is the intent.
         "log" one or more "messages", which can be anything - a string,
@@ -564,7 +564,7 @@ class _deco_base():
         logging_fn = self._logging_fn[-1]
         indent_len = (self._indent_len[-1] +
                       + (extra_indent_level * self.INDENT)
-                      + indent_extra     # TODO: remove >= 0.2.3
+                      + indent_extra     # TODO: remove >= 0.2.4
                      )
         if indent_len < 0:
             indent_len = 0   # clamp

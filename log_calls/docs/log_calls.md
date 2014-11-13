@@ -138,7 +138,7 @@ This document will explain all of these features and illustrate how to use them,
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.2.post1` of `log_calls`.
+This document describes version `0.2.3` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
