@@ -36,6 +36,9 @@ This document gives an overview of the decorator's features and their use. A tho
 This document describes version `0.2.2` of `log_calls`.
 
 ## [What's new](id:What's-new)
+* **0.2.2.post1** 
+    * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it
+
 * **0.2.2** 
     * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
     * [Documentation](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
