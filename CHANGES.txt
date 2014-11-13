@@ -1,10 +1,7 @@
 VERSIONS
 --------
 
-0.2.2.post1
-        -  Changes not worth a minor minor version bump.
-
-           Doc and sync'd test improvements, mostly prose,
+0.2.3    - Doc and sync'd test improvements, mostly prose,
            some doctests improved (log_message).
 
            log_message, added keyword parameter
