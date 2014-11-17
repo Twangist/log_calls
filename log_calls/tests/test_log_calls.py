@@ -1642,7 +1642,7 @@ class A_meta(type):
     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
-            logging_fn = cls._get_init_wrapper().log_message
+            logging_fn = A_meta._get_wrapper('__init__').log_message
             logging_fn("    cls.__mro__:", cls.__mro__)
             logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
         try:
@@ -1653,9 +1653,9 @@ class A_meta(type):
                 logging_fn("    calling type.__init__ with no kwargs")
             type.__init__(cls, cls_name, bases, cls_members)
 
-    @classmethod
-    def _get_init_wrapper(cls):
-        return cls.__dict__['__init__']
+    @staticmethod
+    def _get_wrapper(method_name):
+        return A_meta.__dict__[method_name]
 
 
 def main__metaclass_example():
@@ -1832,14 +1832,14 @@ Here's a class exhibiting the full range of possibilities:
     ...     # from their class, via self.__class__.__dict__[method_name]
     ...     @log_calls()
     ...     def __init__(self):
-    ...         wrapper = self.__class__.__dict__['__init__']
+    ...         wrapper = X.__dict__['__init__']        # X not self
     ...         logging_fn = wrapper.log_message
     ...         logging_fn(wrapper.log_calls_settings.enabled)
     ...         logging_fn(wrapper.stats.num_calls_logged)
     ...
     ...     @log_calls(enabled=2)
     ...     def my_method(self):
-    ...         wrapper = self.__class__.__dict__['my_method']
+    ...         wrapper = X.__dict__['my_method']       # X not self
     ...         logging_fn = wrapper.log_message
     ...         logging_fn(wrapper.log_calls_settings.enabled)
     ...         logging_fn(wrapper.stats.num_calls_logged)

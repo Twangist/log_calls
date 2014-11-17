@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.3.post2'
+__version__ = '0.2.3.post3'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -149,7 +149,7 @@ class DecoSettingArgs(DecoSetting):
 #-----------------------------------------------------------------------------
 
 class DecoSettingRetval(DecoSetting):
-    MAXLEN_RETVALS = 60
+    MAXLEN_RETVALS = 77
 
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, False, allow_falsy=True, **kwargs)
@@ -530,7 +530,6 @@ class _deco_base():
         self._output_fname.pop()
 
     def _log_message(self, msg, *msgs, sep=' ',
-                     indent_extra=0,    # TODO deprecated, kill >= 0.2.4
                      extra_indent_level=1, prefix_with_name=False):
         """Signature much like that of print, such is the intent.
         "log" one or more "messages", which can be anything - a string,
@@ -550,11 +549,6 @@ class _deco_base():
             me.log_message("*** An important message", extra_indent_level=-1)
             me.log_message("An ordinary message").
 
-        indent_extra: the earlier parameter, and published in v0.2.2 so
-        gone in 0.2.3. Same as self.INDENT * extra_indent_level
-            when it's a multiple of self.INDENT i.e. of 4.
-            Deprecated in 0.2.3 so its ~0 users don't complain.
-
         prefix_with_name: bool. If True, prepend
                self._output_fname[-1] + ": "
         to the message ultimately written.
@@ -564,7 +558,6 @@ class _deco_base():
         logging_fn = self._logging_fn[-1]
         indent_len = (self._indent_len[-1] +
                       + (extra_indent_level * self.INDENT)
-                      + indent_extra     # TODO: remove >= 0.2.4
                      )
         if indent_len < 0:
             indent_len = 0   # clamp
@@ -578,7 +571,8 @@ class _deco_base():
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
         to decorate. The return value of __call__ is called subsequently.
-        So, this method *returns* the decorator proper."""
+        So, this method *returns* the decorator proper.
+        (~ Bruce Eckel in a book, ___) TODO ref"""
         # First, save prefix + function name for function f
         prefixed_fname = self.prefix + f.__name__
         # Might as well save f too
@@ -619,6 +613,8 @@ class _deco_base():
             _active_call_number = (self._stats.num_calls_logged
                                    if _log_call_numbers else
                                    0)
+            _prefixed_fname = prefixed_fname        # TODO Hack alert (Pt 1)
+
             # Get list of callers up to & including first log_call's-deco'd fn
             # (or just caller, if no such fn)
             call_list, prev_indent_level = self.call_chain_to_next_log_calls_fn()
@@ -819,6 +815,13 @@ class _deco_base():
                     # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                     # Fixup: get prefixed named of wrapped function
                     inner_fn = curr_frame.f_locals['f']
+                    # TODO: (Hack alert (Pt 2)) This doesn't always work --
+                    # todo      B_meta.__prepare__ <== called by A_meta.__prepare__
+                    # todo  but
+                    # todo      B_meta.__new__ <== called by __new__
+                    # todo  __prepare__, classmethod; __new__, staticmethod.
+                    # todo Hence the workaround (_prefixed_fname variable in stackframe;
+                    # todo see above & below)
                     call_list[-1] = getattr(inner_fn,
                                             cls._sentinels['PREFIXED_NAME'])
                     wrapper_frame = curr_frame
@@ -863,10 +866,14 @@ class _deco_base():
             # If found, then call_list[-1] is log_calls-wrapped
             if found:
                 # look in stack frame (!) for
-                #   _do_it, _log_call_numbers, _active_call_number
+                #   _do_it, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed
                 enabled = wrapper_frame.f_locals['_do_it']
                 log_call_numbers = wrapper_frame.f_locals['_log_call_numbers']
                 active_call_number = wrapper_frame.f_locals['_active_call_number']
+                prefixed_fname_from_stack = wrapper_frame.f_locals['_prefixed_fname']   # TODO Hack alert (Pt 3)
+                if prefixed_fname_from_stack:                                           # TODO: DOH? this should always be non-false
+                    call_list[-1] = prefixed_fname_from_stack
+
                 # only change prev_indent_level once, for nearest deco'd fn
                 if prev_indent_level < 0:
                     prev_indent_level = wrapper_frame.f_locals['_extra_indent_level']

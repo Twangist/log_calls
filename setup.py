@@ -27,7 +27,7 @@ whose keys are the keywords.
 * number of calls to a function,
 * total time taken by the function,
 * the function's entire call history (arguments, time elapsed, return values,
-  callers, and more), optionally as text in CSV format or, if Pandas is
+  callers, and more), available as text in CSV format and, if Pandas is
   installed, as a DataFrame.
 
 These features and others are optional and configurable settings,
@@ -36,7 +36,7 @@ the decorator. You can also dynamically get and set these settings using attribu
 with the same names as the keywords, or using a dict-like interface whose keys
 are the keywords. In fact, through a mechanism of "indirect parameter values",
 with just a modest amount of cooperation between decorated functions a calling
-function can ensure uniform settings for all log_calls-decorated functions in
+function can ensure uniform settings for all `log_calls`-decorated functions in
 call chains beneath it.
 
 The package contains another decorator, `record_history`, a stripped-down version
@@ -45,7 +45,7 @@ of `log_calls` which only collects call history and statistics, and outputs no m
 NOTE: This package requires the CPython implementation, as it makes assumptions
 about stack frame internals which may not be valid in other interpreters.
 
-See docs/log_calls.md for details, usage info and examples.
+See `docs/log_calls.md` for details, usage info and examples.
 """
 import log_calls
 

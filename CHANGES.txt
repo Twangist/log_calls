@@ -1,6 +1,91 @@
 VERSIONS
 --------
 
+0.2.4b1 - Lil doc fixups, and
+              (edge case? of) staticmethods not having their prefixed names
+              properly "found" when called by super() - at least, that's
+              the circumstance in which I found this little bug (noconflict3 tests).
+              (
+              + a few other properties
+
+              Fixed with a(nother) stackframe ~hack: putting _prefixed_name
+              on stack in wrapper, for later discovery by `call_chain_to_next_log_calls_fn`
+              Problem being,
+              The block in which the name on top of stack is set to the prefixed name isn't
+              triggered all the time, so, um, added hackily another parameter to the stack.
+
+              Anyway - previous "solution" to that problem doesn't always work, evidently.
+              TODO -1: figure out why (not).
+
+              This needs betterment. Alas I expect documentation is scarce beyond,
+              See the CPython source for a clear presentation of what's going on.
+              Smile.
+              TODO 0: Investigate. Read the source. Get a less empirical understanding
+              of what's going on.
+
+               TODO 1 - pack up those stack parameter hacks, they're growing - pack up in one thing? a ~dict?.
+               A thing with a rare name.
+
+               TODO 2 - Why can't loggers indent? They certainly can. It just looks weird. So?
+               It looks weird because only the message is indented, and every logged output
+               message typically begins with a left-aligned clunky header,
+               which sometimes you don't need.
+               So, return (_, True) from xxx and give an example somewhere
+               of minimal formatters to both the console (stdout and/or stderr)
+               and/or a logfile.
+
+               TODO 3 - Give example: create handlers with formatters that have format strings
+               of just `%(message)s`, which writes just... the message,including
+               possible padding.
+               TODO 4 - example where using `log_message` virtualizes between
+               writing to print or writing to a logger. (Ought to happen ya?)
+               The loggers take just a msg argument not a *msgs instead of
+               or in addition to msg. So, in the example, pass just one
+               thing/message to log_message at a time. Or
+
+               TODO 4.5 virtualize the richer interface of msg, *msgs for loggers,
+               make it available for loggers too, so that loggers can be
+               passed multiple messages maybe - see what's going on there
+               in the code that cooks up a string for print - why can't the same
+               string then/there be used as `%(message)s` too? It's just one
+               message at *some* point.
+
+               TODO 5 - 'promiscuous cooperation' as a name for the paradigm of keyword sharing
+               used in some examples here and elsewhere
+               (noconflict3, a good testbed)
+
+               TODO 7 - how about a `./.log_calls` text config file in cur dir (of a log_calls user,
+               not of the tool itself! from which it would load default settings. A complete or
+               partial set. The usual. Look for and load in __call__ I think.
+               It's perhaps import.getsourcefile() of f, get directory part, look there
+
+                ok TODO 7 How about `.record_history` settings/config file.
+                as JSON. :)
+                TODO 8 We need also stats.history_to_JSON
+                and ___settings.to_JSON() methodd
+                `./.record_history` that is.
+                How about a .save_settings() method, (over)writes or rather updates
+                any existing .record_history file in ./
+               (More generally, ... multiple defaults sets ... but one thing at a time.)
+               Really, in './'?
+                That seems awkward. & it's not always the home directory of the source file
+                that you want to contain a config file... how about, if not there, a level up?
+                if such exists, otherwise to-parent... until reaching, a package root probably
+                How can this be detected?
+
+                OR add keyword arg settings_defaults_path='' or settings_path or defaults_path
+                so it be set 'from above'.
+                Maybe. But then it has to be supplied by every call to the deco, exactly
+                what we're trying NOT to do. It has to be invisible to client code, no?
+                Default should be, './' ? But relative to WHAT? lol. Current directory?
+                maybe not.
+
+
+               TODO 6 - kill indent_extra.
+
+            -- increased max reported length of retvals (as strs) to 77 from 60
+
+0.2.3.post2 - Doc version-number fixups :| even dumber
 0.2.3.post1 - Doc fixups :|
 0.2.3    - Doc and sync'd test improvements, mostly prose,
            some doctests improved (log_message).

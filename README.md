@@ -25,7 +25,9 @@ These and other features are optional and configurable settings, which can be sp
 
 * the number of calls to a function,
 * total time taken by the function,
-* the function's entire call history (arguments, time elapsed, return values, callers, and more), optionally as text in CSV format or as a Pandas DataFrame.
+* the function's entire call history (arguments, time elapsed, return values,
+  callers, and more), available as text in CSV format and, if Pandas is
+  installed, as a `DataFrame`.
 
 The package contains another decorator, `record_history`, a stripped-down version
 of `log_calls` which only collects call history and statistics, and outputs no messages.

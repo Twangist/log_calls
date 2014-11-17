@@ -15,7 +15,9 @@ It can also collect profiling data and statistics, accessible dynamically:
 
 * the number of calls to a function,
 * total time taken by the function,
-* the function's entire call history (arguments, time elapsed, return values, callers, and more), optionally as text in CSV format or as a Pandas DataFrame.
+* the function's entire call history (arguments, time elapsed, return values,
+  callers, and more), available as text in CSV format and, if Pandas is
+  installed, as a `DataFrame`.
 
 The decorator can print its messages, to stdout or another stream, or can write
 to a Python logger. These features and others are optional and configurable settings, which can be specified for each decorated function via keyword parameters of the decorator. You can also examine and change these settings on the fly using attributes with the same names as the keywords, or using a dict-like interface whose keys are the keywords. In fact, through a mechanism of "indirect parameter values", with just a modest amount of cooperation between decorated functions a calling function can ensure uniform settings for all `log_calls`-decorated functions in call chains beneath it.
@@ -1878,7 +1880,7 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
     ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
     ...     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             logging_fn = logging_fn = cls._get_init_wrapper().log_message
+    ...             logging_fn = A_meta._get_wrapper('__init__').log_message
     ...             logging_fn("    cls.__mro__:", cls.__mro__)
     ...             logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
     ...         try:
@@ -1889,9 +1891,9 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
     ...                 logging_fn("    calling type.__init__ with no kwargs")
     ...             type.__init__(cls, cls_name, bases, cls_members)
     ... 
-    ...     @classmethod
-    ...     def _get_init_wrapper(cls):
-    ...         return cls.__dict__['__init__']
+    ...     @staticmethod
+    ...     def _get_wrapper(method_name):
+    ...         return A_meta.__dict__[method_name]
 
 
 The class `A_meta` is a metaclass: it derives from `type`,
@@ -2057,14 +2059,14 @@ Here's a class exhibiting the full range of possibilities:
     ...     # from their class, via self.__class__.__dict__[method_name]
     ...     @log_calls()
     ...     def __init__(self):
-    ...         wrapper = self.__class__.__dict__['__init__']
+    ...         wrapper = X.__dict__['__init__']        # X not self
     ...         logging_fn = wrapper.log_message
     ...         logging_fn(wrapper.log_calls_settings.enabled)
     ...         logging_fn(wrapper.stats.num_calls_logged)
     ...
     ...     @log_calls(enabled=2)
     ...     def my_method(self):
-    ...         wrapper = self.__class__.__dict__['my_method']
+    ...         wrapper = X.__dict__['my_method']       # X not self
     ...         logging_fn = wrapper.log_message
     ...         logging_fn(wrapper.log_calls_settings.enabled)
     ...         logging_fn(wrapper.stats.num_calls_logged)
