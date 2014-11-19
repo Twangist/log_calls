@@ -35,9 +35,18 @@ of `log_calls` which only collects call history and statistics, and outputs no m
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.3.post2` of `log_calls`.
+This document describes version `0.2.4` of `log_calls`.
 
 ## [What's new](id:What's-new)
+* **0.2.4**
+    * <h2>TODO TODO TODO</h2>
+    * The `indent` setting now works with loggers too. See examples:
+        * using `log_message` as a general output function that works whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, function `(TODO)`];
+        * setting up a logger with a minimal formatter that looks "just like" the output of `print` [in `tests/test_log_calls_more.py`, function `(TODO)`].
+    * You can now use a logger name as the value of the `logger` setting.
+    * The deprecated `indent_extra` parameter to `log_message` is gone.
+    * When the `log_retval` setting is True, the maximum displayed length of returned values is now 77, up from 60, not counting trailing ellipsis.
+    
 * **0.2.3** and 0.2.3.post*N*
     * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
 
@@ -103,7 +112,7 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 51 tests in 0.726s
+    Ran 55 tests in 0.832s
     
     OK
 
@@ -304,7 +313,6 @@ For performance profiling, you can measure the time it took a function to execut
 
 ###[The *indent* parameter (default - *False*)](id:indent-parameter)
 The `indent` parameter, when true, indents each new level of logged messages by 4 spaces, providing a visualization of the call hierarchy.
-(`log_calls` indents only when using `print`, not when [using loggers](#Logging).)
 
 A decorated function's logged output is indented only as much as is necessary. Here, the even numbered functions don't indent, so the indented functions that they call are indented just one level more than their "inherited" indentation level:
 
@@ -381,9 +389,9 @@ a call to, and a return from, the method; when reporting the method's return val
 ###[The *file* parameter (default - *sys.stdout*)](id:file-parameter)
 The `file` parameter specifies a stream (an instance of `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function, and, like that parameter, its default value is `sys.stdout`. This parameter is ignored if you've supplied a logger for output using the [`logger`](#logger-parameter) parameter.
 
-If your program writes to the console a lot, you may not want `log_calls` messages interspersed with your real output: your understanding of both logically distinct streams can be compromised, so, better to make them two actually distinct streams. It can also be advantageous to gather all, and only all, of the log_calls messages in one place. You can use `indent=True` with a file, and the indentations will appear as intended, whereas that's not possible with loggers.
+If your program writes to the console a lot, you may not want `log_calls` messages interspersed with your real output: your understanding of both logically distinct streams can be compromised, so, better to make them two actually distinct streams. It can also be advantageous to gather all, and only all, of the `log_calls` messages in one place. You can use `indent=True` with a file, and the indentations will appear as intended.
 
-It's not possible to test this feature with doctest (in fact, there are subtleties to supporting this feature and using doctest at all), so we'll just give an example of writing to `stderr`, and reproduce the output:
+It's not simple to test this feature with doctest (in fact, there are subtleties to supporting this feature and using doctest at all), so we'll just give an example of writing to `stderr`, and reproduce the output:
 
     >>> import sys
     >>> @log_calls(file=sys.stderr, indent=True)
@@ -404,7 +412,12 @@ Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
     f ==> returning to <module>
 
 ##[Using loggers](id:Logging)
-`log_calls` works well with loggers obtained from Python's `logging` module. First, we'll set up a logger with a single handler that writes to the console. Because `doctest` doesn't capture output written to `stderr` (the default stream to which console handlers write), we'll send the console handler's output to `stdout`, using the format `<loglevel>:<loggername>:<message>`.
+`log_calls` works well with loggers obtained from Python's `logging` module –
+that is, objects of type `logging.Logger`.
+First, we'll set up a logger with a single handler that writes to the console.
+Because `doctest` doesn't capture output written to `stderr` (the default stream
+to which console handlers write), we'll send the console handler's output to
+`stdout`, using the format `<loglevel>:<loggername>:<message>`.
 
     >>> import logging
     >>> import sys
@@ -415,7 +428,7 @@ Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
     >>> logger.addHandler(ch)
     >>> logger.setLevel(logging.DEBUG)
 
-###[The *logger* parameter (default – *None*)](id:logger-parameter)
+###The *logger* parameter (default – *None*)
 
 The `logger` keyword parameter tells `log_calls` to write its output using
 that logger rather than the `print` function:
@@ -423,6 +436,12 @@ that logger rather than the `print` function:
     >>> @log_calls(logger=logger)
     ... def somefunc(v1, v2):
     ...     logger.debug(v1 + v2)
+    >>> somefunc(5, 16)             # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:somefunc <== called by <module>
+    DEBUG:a_logger:    arguments: v1=5, v2=16
+    DEBUG:a_logger:21
+    DEBUG:a_logger:somefunc ==> returning to <module>
+
     >>> @log_calls(logger=logger)
     ... def anotherfunc():
     ...     somefunc(17, 19)
@@ -433,6 +452,22 @@ that logger rather than the `print` function:
     DEBUG:a_logger:36
     DEBUG:a_logger:somefunc ==> returning to anotherfunc
     DEBUG:a_logger:anotherfunc ==> returning to <module>
+
+The value of `logger` can be either a logger instance (a `logging.Logger`) or a string
+giving the name of a logger. Instead of passing the logger instance
+as above, we can simply pass `a_logger`:
+
+    >>> @log_calls(logger='a_logger')
+    ... def yetanotherfunc():
+    ...     return 42
+    >>> _ = yetanotherfunc()       # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:yetanotherfunc <== called by <module>
+    DEBUG:a_logger:yetanotherfunc ==> returning to <module>
+
+This works because "all calls to [`logging.getLogger(name)`] with a given name
+return the same logger instance", so that "logger instances never need to be
+passed between different parts of an application",
+as per the [Python documentation for `logging.getLogger`](https://docs.python.org/3/library/logging.html?highlight=logging.getlogger#logging.getLogger)
 
 ###[The *loglevel* parameter (default – *logging.DEBUG*)](id:loglevel-parameter)
 
@@ -448,10 +483,10 @@ using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher t
     ...     return y + z
     >>> # No log_calls output from f
     >>> # because loglevel for f < level of logger
-    >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> f(1,2,3, logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     5
 
-The use of loggers, and of these parameters, is explored further in the main documentation, which contains an example of [using a logger with multiple handlers that have different loglevels](./log_calls/docs/log_calls.html#logging-multiple-handlers).
+The use of loggers, and of these parameters, is explored further in the main documentation, which contains an example of [using a logger with multiple handlers that have different loglevels](http://www.pythonhosted.org/log_calls#logging-multiple-handlers).
 
 ##[Call chains](id:Call-chains)
 
@@ -585,7 +620,7 @@ from the left margin of the visual frame established by log_calls – that is,
 an offset from the column in which the function entry/exit messages begin. The default
 of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
 
-`prefix_with_name` is a bool. If true, the final message is prefaced with the
+`prefix_with_name` is a `bool`. If true, the final message is prefaced with the
  possibly prefixed name of the function (using the `prefix` setting), 
  plus possibly its call number in  square brackets (if the `log_call_numbers` setting
  is true.
@@ -628,7 +663,7 @@ Consider the following function:
 
 The debugging messages written by `f` literally "stick out", and it gets difficult,
 especially in more complex situations with multiple functions and methods,
-to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
 `f` uses `log_message`, all of its messages from each invocation align neatly
 within the frame presented by `log_calls`. We also take the opportunity to
 illustrate the keyword parameters of `log_message`:
@@ -666,8 +701,11 @@ illustrate the keyword parameters of `log_message`:
         f [1]: We're back.
     f [1] ==> returning to <module>
 
-See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for a couple of notes 
-and internal links to further examples.
+The `log_message()` method works whether the output destination is `stdout`, another stream, a file, or a logger. The test file `test_log_calls_more.py` contains an example `main__log_message__all_possible_output_destinations()` which illustrates that.
+
+See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for notes 
+and internal links to further examples. 
+`
 
 ## [Advanced Features](id:Advanced-features)
 `log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).

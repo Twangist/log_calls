@@ -79,8 +79,8 @@ class DecoSetting():
         output_fname
         fparams
         argcount
-        argnames      # argcount-long
-        argvals       # argcount-long
+        argnames      # len = argcount
+        argvals       # len = argcount
         varargs
         explicit_kwargs
         implicit_kwargs
@@ -95,7 +95,8 @@ class DecoSetting():
             return ("%s ==> returning to %s"
                        % (context['output_fname'],
                           ' ==> '.join(context['call_list'])))
-    context adds these keys:
+
+    For a post_call_handler, context adds these keys:
         elapsed_secs
         timestamp
         retval
@@ -120,8 +121,11 @@ class DecoSetting():
         self.__dict__.update(more_attributes)
 
     def __repr__(self):
-        #final_type = repr(self.final_type)[8:-2]     # E.g. <class 'int'>  -->  int
-        final_type = self.final_type.__name__         # WHY NOT THIS? lol
+        if isinstance(self.final_type, tuple):      # it's a tuple of types
+#            final_type = str( tuple( map(lambda t: t.__name__, self.final_type)))
+            final_type = '(' + ', '.join(map(lambda t: t.__name__, self.final_type)) + ')'
+        else:                                       # it's a type
+            final_type = self.final_type.__name__
         #default = self.default if final_type != 'str' else repr(self.default)
         output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s, visible=%s"
                   %
@@ -158,7 +162,7 @@ class DecoSettingsMapping():
         Called before __init__, presently - by deco class.
         Client class should call this *** from class level ***
         e.g.
-            DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list, descr_names)
+            DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
 
         Add item (classname, od) to _classname2SettingsData_dict
         where od is an ordered dict built from items of settings_iter.
@@ -227,6 +231,12 @@ class DecoSettingsMapping():
     def _deco_class_settings_dict(self) -> OrderedDict:
         """Can't use/call till self.deco_class set in __init__"""
         return self._classname2SettingsData_dict[self.deco_class.__name__]
+
+    @classmethod
+    def get_deco_class_settings_dict(cls, clsname) -> OrderedDict:
+        """For use when loading settings files -
+        decorator's DecoSettingsMapping doesn't exist yet."""
+        return cls._classname2SettingsData_dict[clsname]
 
     def _get_DecoSetting(self, key) -> DecoSetting:
         """
@@ -335,13 +345,18 @@ class DecoSettingsMapping():
             if (not value and not allow_falsy) or not isinstance(value, final_type):
                 value = default
         else:                           # val is a nonempty str
-            if final_type != str:       # val designates a keyword of f
+            if final_type != str and \
+               (not isinstance(final_type, tuple) or str not in final_type):
+                # It IS indirect, and val designates a keyword of f
                 indirect = True
                 # Remove trailing self.KEYWORD_MARKER if any
                 if value[-1] == self.KEYWORD_MARKER:
                     value = value[:-1]
-            else:                       # final_type == str
-                # val denotes an f-keyword IFF last char is KEYWORD_MARKER
+            else:
+                # final_type == str, or
+                # isinstance(final_type, tuple) and str in final_type.
+                # so val denotes an indirect value, an f-keyword,
+                # IFF last char is KEYWORD_MARKER
                 indirect = (value[-1] == self.KEYWORD_MARKER)
                 if indirect:
                     value = value[:-1]
@@ -436,7 +451,7 @@ class DecoSettingsMapping():
         THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.
-        A very (deco-)specific method, it seems
+        A very (deco-)specific method, it seems.
         """
         indirect, di_val = self._tagged_values_dict[name]  # di_ - direct or indirect
         if not indirect:
@@ -464,8 +479,10 @@ class DecoSettingsMapping():
             else:
                 val = default
 
-        # fixup: "loggers" that aren't loggers, "strs" that arent strs, etc
+        # fixup: "loggers" that aren't loggers (or strs), "strs" that arent strs, etc
 #        if (not val and not allow_falsy) or (val and not isinstance(val, final_type)):
-        if (not val and not allow_falsy) or (not isinstance(val, final_type)):
+        if (not val and not allow_falsy) or \
+           (type(final_type) == type and not isinstance(val, final_type)) or \
+           (type(final_type) == tuple and all((not isinstance(val, t) for t in final_type))):
             val = default
         return val

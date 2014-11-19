@@ -105,7 +105,7 @@ def main__more_on_logging__more():
 
 The basic setup:
 
-    # Doesn't work on 3.4.0 on Linux (Ubuntu 12.04):
+    # The following doesn't (well, didn't) work on 3.4.0 on Linux (Ubuntu 12.04):
 
     # >>> import logging
     # >>> import sys
@@ -128,7 +128,7 @@ The basic setup:
 You can use an indirect value for the `logger` parameter to make the logging
 destination late-bound.
 
-In the following example, although logger='logger_' is supplied to `log_calls`,
+In the following example, although logger='logger_=' is supplied to `log_calls`,
 no `logger_=foo` is passed to the wrapped function `r` in the actual call, and no
 `logger=bar` is supplied, so `log_calls` uses the default writing function, `print`.
 (Furthermore, no args separator is passed with the `sep_` keyword, so `log_calls`
@@ -144,7 +144,7 @@ uses the default separator ', '.)
     r ==> returning to <module>
 
 Define two more functions, with the outermost function `t` also using
-`logger ='logger_'`, and pass `logger_=logger` to `t` when calling it.
+`logger ='logger_='`, and pass `logger_=logger` to `t` when calling it.
 Now both `t` and `r` use `logger` for output (and both use the supplied
 separator '\\n'):
 
@@ -173,6 +173,27 @@ separator '\\n'):
     DEBUG:mylogger:r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
+#### Test of logger with indirect str value (name of logger)
+Same output as above, with logger_=logger:
+
+    >>> t(1,2,3, enable=True, sep_='\\n', logger_='mylogger')       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    DEBUG:mylogger:t <== called by <module>
+    DEBUG:mylogger:    arguments:
+            x=1
+            y=2
+            z=3
+            [**]kwargs={...}
+    DEBUG:mylogger:r <== called by s <== t
+    DEBUG:mylogger:    arguments:
+            x=1
+            y=2
+            z=3
+            [**]kwargs={...}
+    5
+    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:t ==> returning to <module>
+
+
 ####Test of indirect *loglevel*
 
     >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
@@ -198,6 +219,195 @@ but now we do get output:
     INFO:mylogger:indirect_loglevel ==> returning to <module>
     """
     pass
+
+
+def main__logging_with_indent__minimal_formatters():
+    """
+    >>> import logging
+    >>> import sys
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('%(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> another_logger = logging.getLogger('another_logger')
+    >>> another_logger.addHandler(ch)
+    >>> another_logger.setLevel(logging.DEBUG)
+
+Now the same example as in test_log_calls [the *indent* parameter]
+has the same expected output:
+
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g1():
+    ...     pass
+    >>> @log_calls(logger=another_logger)    # no extra indentation for g1
+    ... def g2():
+    ...     g1()
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g3():
+    ...     g2()
+    >>> @log_calls(logger=another_logger)    # no extra indentation for g3
+    ... def g4():
+    ...     g3()
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g5():
+    ...     g4()
+    >>> g5()
+    g5 <== called by <module>
+    g4 <== called by g5
+        g3 <== called by g4
+        g2 <== called by g3
+            g1 <== called by g2
+            g1 ==> returning to g2
+        g2 ==> returning to g3
+        g3 ==> returning to g4
+    g4 ==> returning to g5
+    g5 ==> returning to <module>
+
+    """
+    pass
+
+
+def main__log_message__all_possible_output_destinations():
+    """
+The `log_message` method lets you write a single output statement
+that works no matter what destination log_calls is writing to --
+a stream, a file, or a logger.
+
+To demonstrate this, let's set up the same logger (in all but name):
+
+    >>> import logging
+    >>> import sys
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('%(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> another_logger = logging.getLogger('yet_another_logger')
+    >>> another_logger.addHandler(ch)
+    >>> another_logger.setLevel(logging.DEBUG)
+
+Here's a simple example that accommodates all possibilities:
+
+    >>> @log_calls(indent=True, logger='logger_=', file='file_')
+    ... def g(**kwargs):
+    ...     g.log_message("Hi",  "from", "g")
+    >>> @log_calls(indent=True, logger='logger_=', file='file_')
+    ... def h(**kwargs):
+    ...     h.log_message("before g... ", prefix_with_name=True)
+    ...     g(**kwargs)
+    ...     h.log_message("... after g", prefix_with_name=True)
+
+We get basically the same expected output,
+whether writing to stdout with `print`:
+
+    >>> h()                         # doctest: +NORMALIZE_WHITESPACE
+    h <== called by <module>
+        arguments: <none>
+        h: before g...
+        g <== called by h
+            arguments: <none>
+            Hi from g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+or writing to a file with `print`, using the `file` parameter:
+
+    >>> from tempfile import TemporaryFile
+    >>> with TemporaryFile(mode='w+') as temp:  # default 'w+b' fails
+    ...     h(file_=temp)
+    ...     # read temp file, write to stdout:
+    ...     _ = temp.seek(0)        # suppress "0" in doctest output
+    ...     lines = temp.readlines()
+    ...     print(''.join(lines))    # doctest: +NORMALIZE_WHITESPACE
+    h <== called by <module>
+        arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=4 mode='w+' encoding='UTF-8'>}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=4 mode='w+' encoding='UTF-8'>}
+            Hi from g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+    <BLANKLINE>
+
+or with the logger defined above, which can be passed as the Logger object itself:
+
+    >>> h(logger_=another_logger)       # doctest: +ELLIPSIS
+    h <== called by <module>
+        arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+            Hi from g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+or as the name of the Logger:
+
+    >>> h(logger_='yet_another_logger')       # doctest: +ELLIPSIS
+    h <== called by <module>
+        arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+            Hi from g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+    """
+    pass
+
+
+# def main__settings_loc():
+#     """
+# Read ./.log_calls, which contains these settings:
+#
+#     enabled=True
+#     args_sep=' / '
+#     log_args=True
+#     log_retval=True
+#     log_elapsed='elapsed_='
+#     log_exit=True
+#     indent=True
+#     log_call_numbers=True
+#     prefix=''
+#     file=None
+#     loglevel=10
+#     record_history=False
+#     logger='logger_='
+#     max_history=57
+#
+# Note that some of them are indirect.
+#
+#     >>> @log_calls(settings_loc='./', log_retval=False)   # reads ./.log_calls
+#     ... def f(n, **kwargs):
+#     ...     if n <= 0: return
+#     ...     f(n-1, **kwargs)
+#     >>> f(1, logger_='mylogger', elapsed_=True)
+#     f <== called by <module>
+#         arguments: n=1, [**]kwargs={'elapsed_': True, 'logger_': 'yet_another_logger'}
+#     f <== called by f
+#         arguments: n=0, [**]kwargs={'elapsed_': True, 'logger_': 'yet_another_logger'}
+#     f ==> returning to f
+#     f ==> returning to <module>
+#
+#     >>> f.log_calls_settings.log_retval == False
+#     True
+#     >>> f.log_calls_settings.log_elapsed
+#     asdfa
+#
+#     >>> f.log_calls_settings.logger
+#     wert
+#
+#     >>> f.log_calls_settings.max_history
+#     a
+#     >>> f.log_calls_settings.args_sep
+#     b
+#     >>> f.log_calls_settings.log_call_numbers
+#     c
+#
+#     """
+#     pass
 
 
 def main__inner_functions__more():
@@ -331,6 +541,30 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+    # import logging
+    # import sys
+    # ch = logging.StreamHandler(stream=sys.stdout)
+    # c_formatter = logging.Formatter('%(message)s')
+    # ch.setFormatter(c_formatter)
+    # another_logger = logging.getLogger('another_logger')
+    # another_logger.addHandler(ch)
+    # another_logger.setLevel(logging.DEBUG)
+    #
+    # @log_calls(settings_loc='./', log_retval=False)   # reads ./.log_calls
+    # def f(n, **kwargs):
+    #     if n <= 0: return
+    #     f(n-1, **kwargs)
+    # f(1, logger_='mylogger', elapsed_=True)
+    #
+    # f.log_calls_settings.log_retval
+    # f.log_calls_settings.log_elapsed
+    # f.log_calls_settings.logger
+    # f.log_calls_settings.max_history
+    # f.log_calls_settings.args_sep
+    # f.log_calls_settings.log_call_numbers
+
+    #---------------------------------------------------------------
 
     doctest.testmod()   # (verbose=True)
 

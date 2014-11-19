@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.3.post3'
+__version__ = '0.2.4b1'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -17,6 +17,7 @@ import inspect
 from functools import wraps, partial
 import logging
 import sys
+import os  #.path.join(...)
 import io   # so we can refer to io.TextIOBase
 import time
 import datetime
@@ -256,7 +257,7 @@ class _deco_base():
     }
 
     @classmethod
-    def set_class_sentinels(cls):
+    def _set_class_sentinels(cls):
         """ 'virtual', called from __init__
         """
         sentinels = cls._sentinels_proto.copy()
@@ -264,7 +265,7 @@ class _deco_base():
             sentinels[sk] = sentinels[sk] % cls.__name__
         return sentinels
 
-    # placeholder! set_class_sentinels called from __init__
+    # placeholder! _set_class_sentinels called from __init__
     _sentinels = None
 
     INDENT = 4      # number of spaces to __ by at a time
@@ -471,12 +472,25 @@ class _deco_base():
     # __init__, __call__
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
+                 settings_loc='',      # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
                  indent=False,
                  prefix='',
                  ** other_values_dict):
         """(See class docstring)"""
+        # 0.2.4 TODO - settings from file would get totally blown away by update
+        if settings_loc:
+            d = self._read_settings_file(settings_loc=settings_loc)
+        else:
+            d = {}
+            d.update(
+                enabled=enabled,
+                log_call_numbers=log_call_numbers,
+                indent=indent,
+                prefix=prefix,
+                ** other_values_dict
+            )
         # Set up pseudo-dict
         #
         # *** DecoSettingsMapping "API" --
@@ -484,16 +498,12 @@ class _deco_base():
         #     that will provide mapping & attribute access to settings, & more
         self._settings_mapping = DecoSettingsMapping(
             deco_class=self.__class__,
-            # the rest are what DecoSettingsMapping calls **values_dict
-            enabled=enabled,
-            log_call_numbers=log_call_numbers,
-            indent=indent,
-            prefix=prefix,
-            **other_values_dict
+            # DecoSettingsMapping calls the rest ** values_dict
+            ** d
         )
 
         if not self.__class__._sentinels:
-            self.__class__._sentinels = self.set_class_sentinels()
+            self.__class__._sentinels = self._set_class_sentinels()
 
         self._stats = ClassInstanceAttrProxy(class_instance=self)
 
@@ -520,13 +530,18 @@ class _deco_base():
         self._output_fname = []     # stack
 
     def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
-        self._logging_fn.append(logging_fn)
+        # self._logging_fn "stack" will have at one element
+        if not self._logging_fn:
+            self._logging_fn.append(logging_fn)
         self._indent_len.append(global_indent_len)
         self._output_fname.append(output_fname)
 
     def _logging_state_pop(self):
-        self._logging_fn.pop()
+        # self._logging_fn "stack" will have at one element
+        # Pop _indent_len or _output_fname first, test for emptiness
         self._indent_len.pop()
+        if not self._indent_len:      # stack is becoming empty
+            self._logging_fn.pop()
         self._output_fname.pop()
 
     def _log_message(self, msg, *msgs, sep=' ',
@@ -566,6 +581,86 @@ class _deco_base():
         if prefix_with_name:
             the_msg = self._output_fname[-1] + ': ' + the_msg
         logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
+
+    def _read_settings_file(self, settings_loc=''):
+        """If settings_loc names a file that exists,
+        load settings from that file.
+        If settings_loc names a directory, load settings from
+            settings_loc + '.' + self.__class__.__name__
+            e.g. the file '.log_calls' in directory specified by settings_loc.
+        If not settings_loc or it doesn't exist, return {}.
+        Format of file - zero or more lines of the form:
+            setting_name=setting_value.
+
+        Note: self._settings_mapping doesn't exist yet!
+              so this function can't use it, e.g. to test for valid settings
+                    if setting in self._settings_mapping: ...
+        """
+        if not settings_loc:
+            return {}
+
+        if os.path.isdir(settings_loc):
+            settings_loc = os.path.join(settings_loc, '.' + self.__class__.__name__)
+        if not os.path.isfile(settings_loc):
+            return {}
+
+        d = {}      # returned
+        try:
+            with open(settings_loc) as f:
+                lines = f.readlines()
+        except BaseException:   # FileNotFoundError?!
+            return d
+
+        settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        for line in lines:
+            line = line.strip()
+            if not line or line[0] == '#':
+                continue
+
+            try:
+                setting, val_txt = line.split('=', 1)   # only split at first '='
+            except ValueError:
+                # TODO: report error?
+                continue                                # bad line
+            setting = setting.strip()
+            val_txt = val_txt.strip()
+
+            if setting not in settings_dict:
+                continue
+
+            # special case: None
+            if val_txt == 'None':
+                if settings_dict[setting].allow_falsy:
+                    d[setting] = None
+                continue
+
+            # If val_txt ends in '=' (indirect value) then let val = val_txt;
+            # otherwise, figure out *the* final type, favoring str if val_txt is enclosed in quotes;
+            # apply the final type to val_txt to get val
+            QUOTES = {"'", '"'}
+            val_is_str = len(val_txt) >= 2 and val_txt[0] == val_txt[-1] and val_txt[0] in QUOTES
+            if val_is_str:
+                val_txt = val_txt[1:-1]
+
+            if val_txt and val_txt[-1] == '=':          # indirect value
+                val = val_txt
+            else:
+                final_type = settings_dict[setting].final_type
+                # Set one_final_type
+                if isinstance(final_type, tuple):
+                    one_final_type = str if (str in final_type and val_is_str) else final_type[0]
+                else:
+                    one_final_type = final_type
+
+                try:
+                    val = one_final_type(val_txt)
+                except BaseException:                   # SyntaxError - what else?
+                    # TODO: report error?
+                    continue                            # bad line
+
+            d[setting] = val
+
+        return d
 
     def __call__(self, f):
         """Because there are decorator arguments, __call__() is called
@@ -631,10 +726,10 @@ class _deco_base():
             # if this f is not enabled (not _do_it).
             # Subclass can return None to suppress printed/logged output.
             # "can_indent" - in log_calls, True iff logging_fn does NOT use a Logger.
-            logging_fn, can_indent = self.get_logging_fn(_get_final_value)
+            logging_fn = self.get_logging_fn(_get_final_value)
 
             # Only do global indentation for print, not for loggers
-            global_indent_len = max(_extra_indent_level, 0) * self.INDENT * int(can_indent)
+            global_indent_len = max(_extra_indent_level, 0) * self.INDENT
 
             # 0.2.2.post1 - save output_fname for log_message use
             call_number_str = ((' [%d]' % _active_call_number)
@@ -791,7 +886,7 @@ class _deco_base():
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
-        return print, True
+        return print
 
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
@@ -965,7 +1060,8 @@ class log_calls(_deco_base):
         DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
         DecoSetting('file',             io.TextIOBase,  None,          allow_falsy=True),
-        DecoSetting('logger',           logging.Logger, None,          allow_falsy=True),
+        DecoSetting('logger',           (logging.Logger,
+                                         str),          None,          allow_falsy=True),
         DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
         DecoSettingHistory('record_history'),
         DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
@@ -974,6 +1070,7 @@ class log_calls(_deco_base):
                                                 _setting_info_list)
 
     def __init__(self,
+                 settings_loc='',      # 0.2.4. TODO: document (new parameter, but NOT a "setting")
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
@@ -990,7 +1087,21 @@ class log_calls(_deco_base):
                  max_history=0,
     ):
         """(See class docstring)"""
-        super().__init__(enabled=enabled,
+        # # TODO: First, figure out which of our billion parameters were NOT supplied
+        # # by the actual call - the 'defaulted' arguments
+        # init_params = inspect.signature(f).parameters
+        # bound_args = inspect.signature(f).bind(*args, **kwargs)
+        #
+        # defaulted_kwargs = [
+        #     param.name
+        #     for param in f_params.values()
+        #      if param.name not in bound_args.arguments
+        #      and param.default != inspect._empty
+        # ]
+
+        super().__init__(
+                         settings_loc=settings_loc,
+                         enabled=enabled,
                          args_sep=args_sep,
                          log_args=log_args,
                          log_retval=log_retval,
@@ -1008,17 +1119,22 @@ class log_calls(_deco_base):
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
-        """Return pair: logging_fn or None, paired with can_indent: bool.
+        """Return logging_fn or None.
         cls: unused. Present so this method can be overridden."""
         outfile = _get_final_value_fn('file')
         if not outfile:
             outfile = sys.stdout    # possibly rebound by doctest
 
         logger = _get_final_value_fn('logger')
+        # 0.2.4 logger can also be a name of a logger
+        if logger and isinstance(logger, str):  # not None, not ''
+            logger = logging.getLogger(logger)
         loglevel = _get_final_value_fn('loglevel')
         # Establish logging function
         logging_fn = (partial(logger.log, loglevel)
                       if logger else
-                      lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=True, **pkwargs))
-        # Global indentation only for print, not for loggers
-        return logging_fn, not logger
+                      lambda msg: print(msg, file=outfile, flush=True))
+#                      lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=True, **pkwargs))
+        # 0.2.4 - Everybody can indent.
+        # loggers - just use formatters with '%(message)s'.
+        return logging_fn

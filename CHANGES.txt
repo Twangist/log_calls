@@ -15,7 +15,7 @@ VERSIONS
               triggered all the time, so, um, added hackily another parameter to the stack.
 
               Anyway - previous "solution" to that problem doesn't always work, evidently.
-              TODO -1: figure out why (not).
+              TODO -1: figure out why (not). (trace through noconflict3)
 
               This needs betterment. Alas I expect documentation is scarce beyond,
               See the CPython source for a clear presentation of what's going on.
@@ -25,63 +25,73 @@ VERSIONS
 
                TODO 1 - pack up those stack parameter hacks, they're growing - pack up in one thing? a ~dict?.
                A thing with a rare name.
+               What's the speed penalty for the thing/wrapper?
+               Performance already evidently abysmal.
 
-               TODO 2 - Why can't loggers indent? They certainly can. It just looks weird. So?
+           -- logger setting can have as its value either a logger instance (logging.Logger object)
+              OR the name of a logger.
+
+           -- Loggers can indent too. Why shouldn't they? It just looks weird. So?
+               "We're all adults here."
                It looks weird because only the message is indented, and every logged output
                message typically begins with a left-aligned clunky header,
                which sometimes you don't need.
-               So, return (_, True) from xxx and give an example somewhere
-               of minimal formatters to both the console (stdout and/or stderr)
-               and/or a logfile.
-
-               TODO 3 - Give example: create handlers with formatters that have format strings
+            - example: create handlers with formatters that have format strings
                of just `%(message)s`, which writes just... the message,including
                possible padding.
-               TODO 4 - example where using `log_message` virtualizes between
-               writing to print or writing to a logger. (Ought to happen ya?)
-               The loggers take just a msg argument not a *msgs instead of
-               or in addition to msg. So, in the example, pass just one
-               thing/message to log_message at a time. Or
+               test_log_calls_more, function:
+                    def main__logging_with_indent__minimal_formatters():
 
-               TODO 4.5 virtualize the richer interface of msg, *msgs for loggers,
+            -- loggers can use `log_message` too
+               virtualize the richer interface of msg, *msgs for loggers,
                make it available for loggers too, so that loggers can be
-               passed multiple messages maybe - see what's going on there
-               in the code that cooks up a string for print - why can't the same
-               string then/there be used as `%(message)s` too? It's just one
-               message at *some* point.
+               passed multiple messages.
+               See example where using `log_message` virtualizes between
+               writing to print or writing to a logger.
+               test_log_calls_more, function:
+                    def main__log_message__all_possible_output_destinations():
+
+            -- Internals
+                * get_logging_fn returns just a logging function,
+                  not a pair of a logging fn and a "can indent" bool:
+                  now everyone can indent.
+
+                * keeping a stack of logging functions was silly, who needs it -
+                  just keep a stack of at most one of those (the other components grow larger)
+
+                * DecoSetting final_type can now be a type (as before) or a tuple of types.
+                  E.g. logger setting has final_type (logging.Logger, str)
+                  Added test(s) for this and its repr.
 
                TODO 5 - 'promiscuous cooperation' as a name for the paradigm of keyword sharing
                used in some examples here and elsewhere
                (noconflict3, a good testbed)
 
-               TODO 7 - how about a `./.log_calls` text config file in cur dir (of a log_calls user,
-               not of the tool itself! from which it would load default settings. A complete or
-               partial set. The usual. Look for and load in __call__ I think.
-               It's perhaps import.getsourcefile() of f, get directory part, look there
+            -  TODO document settings_path='' parameter to log_calls: directory of default settings file '.log_calls'
+            - TODO DUNNO ABOUT THIS............
+            -  Added a parameter to log_calls (and deco_base) __init__, settings_loc=''.
+               It is NOT a "setting"! just another keyword parameter. If it's nonempty,
+               log_calls/deco_base loads default settings from there
+               look in the directory it names for a file named .log_calls
+               (similarly, other derived classes will look for '.' + self.__class__.__name__)
+               and there, a complete or partial set.
+               It would be nice to have automatic lookup, but it's not clear what directory
+               these files should reside in:
+                    ./                                             ?
+                    the directory of the wrapped function's source ?
+                        (import.getsourcefile() of f, get directory part, look there)
+               Objections to each.
 
-                ok TODO 7 How about `.record_history` settings/config file.
-                as JSON. :)
+                TODO? How about a .save_settings(settings_path) method,
+                todo? or f.log_calls_settings.save(settings_path, update=False)
+                (over)writes (update=False) or updates (update=True)
+                any existing .log_calls file in settings_path
+
                 TODO 8 We need also stats.history_to_JSON
-                and ___settings.to_JSON() methodd
-                `./.record_history` that is.
-                How about a .save_settings() method, (over)writes or rather updates
-                any existing .record_history file in ./
-               (More generally, ... multiple defaults sets ... but one thing at a time.)
-               Really, in './'?
-                That seems awkward. & it's not always the home directory of the source file
-                that you want to contain a config file... how about, if not there, a level up?
-                if such exists, otherwise to-parent... until reaching, a package root probably
-                How can this be detected?
+                # (todo -- we do?)
+                and ___settings.to_JSON() method
 
-                OR add keyword arg settings_defaults_path='' or settings_path or defaults_path
-                so it be set 'from above'.
-                Maybe. But then it has to be supplied by every call to the deco, exactly
-                what we're trying NOT to do. It has to be invisible to client code, no?
-                Default should be, './' ? But relative to WHAT? lol. Current directory?
-                maybe not.
-
-
-               TODO 6 - kill indent_extra.
+            -- killed `indent_extra` parameter to `log_message`.
 
             -- increased max reported length of retvals (as strs) to 77 from 60
 

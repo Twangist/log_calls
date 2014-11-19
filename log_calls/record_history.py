@@ -30,9 +30,9 @@ class record_history(_deco_base):
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
-        """Return pair: logging_fn or None, paired with can_indent: bool.
-        cls: unused. Present so this method can be overridden."""
-        return None, False
+        """Return None: no output.
+        cls: unused.."""
+        return None
 
     def __call__(self, f):
         return super().__call__(f)
