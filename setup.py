@@ -1,11 +1,11 @@
 __doc__ = """
 `log_calls` is a Python 3 decorator that can print much useful information
 about calls to a decorated function. It can write to `stdout`, to another
-stream, or to a logger. It can save you from writing, rewriting, copying,
-pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep
-your codebase free of that clutter.
+stream or file, or to a logger. It can save you from writing, rewriting,
+copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it
+can keep your codebase free of that clutter.
 
-For each call of a decorated function, `log_calls` can show you:
+For each call to a decorated function, `log_calls` can show you:
 
 * the caller,
 * the arguments passed to the function, and any default values used,
@@ -39,13 +39,19 @@ with just a modest amount of cooperation between decorated functions a calling
 function can ensure uniform settings for all `log_calls`-decorated functions in
 call chains beneath it.
 
-The package contains another decorator, `record_history`, a stripped-down version
-of `log_calls` which only collects call history and statistics, and outputs no messages.
+The package contains two other decorators:
+
+* `record_history`, a stripped-down version of `log_calls`,
+only collects call history and statistics, and outputs no messages;
+* `used_unused_keywords` lets a function easily determine, per-call,
+which of its keyword parameters were actually supplied by the caller,
+and which received their default values.
 
 NOTE: This package requires the CPython implementation, as it makes assumptions
 about stack frame internals which may not be valid in other interpreters.
 
-See `docs/log_calls.md` for details, usage info and examples.
+See the documentation [online]((http://www.pythonhosted.org/log_calls/index.html)
+or at `docs/log_calls.*` for usage, details, examples and *tips und tricks*.
 """
 import log_calls
 

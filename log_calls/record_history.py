@@ -10,7 +10,7 @@ class record_history(_deco_base):
     """
     # allow indirection for all except prefix and max_history, which also isn't mutable
     _setting_info_list = (
-        DecoSetting('log_call_numbers', bool, False,  allow_falsy=True, visible=False),
+        DecoSetting('log_call_numbers', bool, True,   allow_falsy=True, visible=False),
         DecoSetting('indent',           bool, False,  allow_falsy=True, visible=False),
         # visible:
         DecoSettingHistory('enabled'),  # alias "record_history" in log_calls

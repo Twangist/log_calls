@@ -37,17 +37,19 @@ This document gives an overview of the decorator's features and their use. A tho
 ##[Version](id:Version)
 This document describes version `0.2.4` of `log_calls`.
 
-## [What's new](id:What's-new)
+## [What's New](id:What's-new)
 * **0.2.4**
-    * <h2>TODO TODO TODO</h2>
+    * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings_path-parameter) for details, discussion and examples.
+    * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
     * The `indent` setting now works with loggers too. See examples:
-        * using `log_message` as a general output function that works whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, function `(TODO)`];
-        * setting up a logger with a minimal formatter that looks "just like" the output of `print` [in `tests/test_log_calls_more.py`, function `(TODO)`].
-    * You can now use a logger name as the value of the `logger` setting.
+        * using `log_message` as a general output function that works as expected, whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, docstring of `main__log_message__all_possible_output_destinations()`];
+        * setting up a logger with a minimal formatter that looks just like the output of `print` [in `tests/test_log_calls_more.py`, docstring of  `main__logging_with_indent__minimal_formatters()`].
+    * Added the decorator `used_unused_keywords` to support the `settings_path` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values. For examples, see the docstring of `main()` in `used_unused_kwds.py`.
+    * When displaying returned values (`log_retval` setting is true), the maximum displayed length of values is now 77, up from 60, not counting trailing ellipsis.
     * The deprecated `indent_extra` parameter to `log_message` is gone.
-    * When the `log_retval` setting is True, the maximum displayed length of returned values is now 77, up from 60, not counting trailing ellipsis.
+    * Little bug fixes, improvements.
     
-* **0.2.3** and 0.2.3.post*N*
+* **0.2.3** and **0.2.3.post***N*
     * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
 
 * **0.2.2** 
@@ -83,10 +85,13 @@ You have two simple options:
   
   to install log_calls from PyPI (the Python Package Index). Here and elsewhere, `$` at the *beginning* of a line indicates your command prompt, whatever it may be.
 
-Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
+Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*). 
+In Python 3.3+, virtual environments are easier than ever to set up because those 
+distributions include everything you need to do so. For an excellent overview of
+these new capabilities, see [Lightweight Virtual Environments in Python 3.4](http://www.drdobbs.com/architecture-and-design/lightweight-virtual-environments-in-pyth/240167069).
 
 ###[Running the tests](id:Testing)
-Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
+Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` itself has two more. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
 You can run the test suites either before or after installing `log_calls`.
 
@@ -112,11 +117,11 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 55 tests in 0.832s
+    Ran 57 tests in 0.832s
     
     OK
 
-indicating that all went well. If any test fails, it will say so.
+indicating that all went well. If any tests failed, it will tell you.
 
 ##[Basic usage](id:Basic-usage)
 

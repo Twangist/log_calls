@@ -60,7 +60,7 @@
 </li>
 <li><a href="#enabling-with-ints">Using <em>enabled</em> as a level of verbosity</a></li>
 <li><a href="#log_call_settings-indirect">Using <em>log_calls_settings</em> to set indirect values</a></li>
-<li><a href="#lkwarg-paradigm">Paradigms for handling keyword parameters</a></li>
+<li><a href="#kwargs-paradigms">Paradigms for handling keyword parameters</a></li>
 
 </ul>
 <h5><a href="#call-history-and-statistics">Call history and statistics – the <em>stats</em> attribute and the <em>*_history</em> parameters</a></h5>
@@ -80,6 +80,12 @@
 <li><a href="#stats.history_as_DataFrame">The <em>history_as_DataFrame</em> attribute</a></li>
 <li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
+<h5><a href="#settings_path-parameter">The <em>settings_path</em> parameter</a></h5>
+<ul>
+<li><a href="#format-of-a-settings-file">Format of a settings file</a></li>
+<li><a href="#settings_path-example">Example and discussion</a></li>
+<li><a href="#settings_path-more-examples">Where to find more examples</a></li>
+</ul>
 <h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
 <h5><a href="#realistic-examples">Realistic examples</a></h5>
 <ul>
@@ -87,18 +93,18 @@
 <li><a href="#A-metaclass-example">A metaclass example</a></li>
 </ul>
 
-<h5><a href="accessing-own-attrs">Functions and methods accessing their own *log_calls* attributes</a></h5>
+<h5><a href="#accessing-own-attrs">Functions and methods accessing their own *log_calls* attributes</a></h5>
 <ul>
-<li><a href="global-and-inner-functions-accessing-attrs">Global functions and inner functions accessing their attributes</a></li>
+<li><a href="#global-and-inner-functions-accessing-attrs">Global functions and inner functions accessing their attributes</a></li>
 <ul>
-<li><a href="global-function-accessing-attrs">Global function test</a></li>
-<li><a href="inner-function-accessing-attrs">Inner function test</a></li>
+<li><a href="#global-function-accessing-attrs">Global function test</a></li>
+<li><a href="#inner-function-accessing-attrs">Inner function test</a></li>
 </ul>    
-<li><a href="methods-accessing-attrs">Methods accessing their attributes</a></li>
+<li><a href="#methods-accessing-attrs">Methods accessing their attributes</a></li>
 <ul>
-<li><a href="instance-method-accessing-attrs">Instance method tests</a></li>
-<li><a href="class-method-accessing-attrs">Class method test</a></li>
-<li><a href="static-method-accessing-attrs">Static method test</a></li>
+<li><a href="#instance-method-accessing-attrs">Instance method tests</a></li>
+<li><a href="#class-method-accessing-attrs">Class method test</a></li>
+<li><a href="#static-method-accessing-attrs">Static method test</a></li>
 </ul>    
 </ul>
 

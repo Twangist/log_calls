@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.2'
+__version__ = '0.2.4'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -326,7 +326,7 @@ class DecoSettingsMapping():
 
         final_type = info.final_type
         default = info.default
-        allow_falsy = info.default
+        allow_falsy = info.allow_falsy          # 0.2.4 was info.default :| FIXED.
         allow_indirect = info.allow_indirect
 
         # if the setting is immutable (/not mutable/set-once-only),

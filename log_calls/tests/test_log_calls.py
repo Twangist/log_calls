@@ -1,5 +1,5 @@
-__author__ = "Brian O'Neill"
-__version__ = '0.2.3.post2'
+d__author__ = "Brian O'Neill"
+__version__ = '0.2.4'
 
 from log_calls import log_calls
 
@@ -29,7 +29,12 @@ though of course you can use multiple parameters in any call to the decorator::
 * [`prefix`](#prefix-parameter)
 * [`file`](#file-parameter)
 
-The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much history ([max_history](#max_history-parameter)), are discussed in [Call history and statistics – the *stats* attribute and the *\*_history* parameters](#call-history-and-statistics).
+The two parameters that let you output `log_calls` messages to a `Logger`
+([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter))
+are discussed in [Using loggers](#Logging). The two that determine whether
+call history is retained ([record_history](#record_history-parameter)),
+and then just how much([max_history](#max_history-parameter)), are discussed
+in [Call history and statistics – the *stats* attribute and the *\*_history* parameters](#call-history-and-statistics).
 
 Every example in this document uses `log_calls`, so without further ado:
 
@@ -272,9 +277,9 @@ indentation level:
 
 Especially useful for clarity when decorating methods, the `prefix` keyword
 parameter lets you specify a string with which to prefix the name of the
-method. `log_calls` uses the prefixed name in its output: when logging
-a call to, and a return from, the method; when reporting the method's return
-value; and when the method is at the end of a [call or return chain](#Call-chains).
+function (or method). `log_calls` uses the prefixed name in its output: when logging
+a call to, and a return from, the function; when reporting the function's return
+value; and when the function is at the end of a [call or return chain](#Call-chains).
 
     >>> import math
     >>> class Point():
@@ -418,13 +423,17 @@ as above, we can simply pass `a_logger`:
 
 This works because "all calls to [`logging.getLogger(name)`] with a given name
 return the same logger instance", so that "logger instances never need to be
-passed between different parts of an application",
-as per the [Python documentation for `logging.getLogger`]
-(https://docs.python.org/3/library/logging.html?highlight=logging.getlogger#logging.getLogger)
+passed between different parts of an application"
+as per the [Python documentation for
+`logging.getLogger()`](https://docs.python.org/3/library/logging.html?highlight=logging.getlogger#logging.getLogger).
+
+**NOTE**: *If the value of `logger` is a `Logger` instance that has no handlers
+(which can happen if you specify a logger name for a (theretofore) nonexistent logger),
+that logger won't be able to write anything, so `log_calls` will fall back to `print`.*
 
 ###The *loglevel* parameter (default – *logging.DEBUG*)
 
-`log_calls` also takes a `loglevel` keyword parameter, whose value must be
+`log_calls` also takes a `loglevel` keyword parameter, an `int` whose value must be
 one of the `logging` module's constants - `logging.DEBUG`, `logging.INFO`, etc.
 – or a custom logging level if you've added any. `log_calls` writes output messages
 using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher than
@@ -452,9 +461,9 @@ def main__call_chains():
 `log_calls` does its best to chase back along the call chain to find
 the first *enabled* `log_calls`-decorated function on the stack.
 If there's no such function, it just displays the immediate caller.
-If there is such a function, however, it displays the entire list of
-functions on the stack up to and including that function when reporting
-calls and returns. Without this, you'd have to guess at what was called
+If there is such a function, however, when reporting calls and returns
+it displays the entire list of functions on the stack up to and including
+that function. Without this, you'd have to guess at what was called
 in between calls to functions decorated by `log_calls`. If you specified
 a prefix for the decorated caller on the end of a call chain, `log_calls`
 will use the prefixed name:
@@ -621,7 +630,8 @@ then the call number of f will be displayed in the call chain:
 
 ###[Indentation and call numbers with recursion](id:recursion-example)
 These features are especially useful in recursive and mutually recursive
-situations. We have to use `OrderedDict`s here because of doctest:
+situations. We have to use `OrderedDict`s here because they're more
+doctest-friendly:
 
     >>> from collections import OrderedDict
     >>> @log_calls(log_call_numbers=True, log_retval=True, indent=True)
@@ -685,18 +695,19 @@ whose full signature is:
                  extra_indent_level=1, prefix_with_name=False)`
 
 This method takes one or more "messages" (anything you want to see as a string),
-and writes one final output message formed by joining messages separated by `sep`.
+and writes one final output message formed by joining those messages separated
+by `sep`.
 
-`extra_indent_level` is a number of 4-columns wide *indent levels* specifying
-where to begin writing that message. This value * 4 is an offset in columns
+`extra_indent_level` is a number of 4-column-wide *indent levels* specifying
+where to begin writing that message. This value x 4 is an offset in columns
 from the left margin of the visual frame established by log_calls – that is,
 an offset from the column in which the function entry/exit messages begin. The default
 of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
 
-`prefix_with_name` is a bool. If true, the final message is prefaced with the
+`prefix_with_name` is a `bool`. If true, the final message is prefaced with the
 possibly prefixed name of the function (using the `prefix` setting),
 plus possibly its call number in  square brackets (if the `log_call_numbers` setting
-is true.
+is true).
 
 If a decorated function or method writes debugging messages, even multiline
 messages, it can use this method to write them so that they sit nicely within
@@ -734,11 +745,11 @@ Consider the following function:
     *** (n=2) We're back.
     f [1] ==> returning to <module>
 
-The debugging messages written by `f` literally "stick out", and it gets difficult,
+The debugging messages written by `f` literally "stick out", and it becomes difficult,
 especially in more complex situations with multiple functions and methods,
 to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
 `f` uses `log_message`, all of its messages from each invocation align neatly
-within the frame presented by `log_calls`. We also take the opportunity to
+within the `log_calls` visual frame. We take this opportunity to also
 illustrate the keyword parameters of `log_message`:
 
     >>> @log_calls(indent=True, log_call_numbers=True)
@@ -746,9 +757,9 @@ illustrate the keyword parameters of `log_message`:
     ...     if n <= 0:
     ...         f.log_message("Base case n =", n, prefix_with_name=True)
     ...     else:
-    ...         f.log_message("n=%d is %s,\\n    but we knew that."
+    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
     ...                       % (n, "odd" if n%2 else "even"),
-    ...                       prefix_with_name=True)
+    ...                       extra_indent_level=0)
     ...         f.log_message("We'll be right back", "after this:",
     ...                       sep=", ", prefix_with_name=True)
     ...         f(n-1)
@@ -756,13 +767,13 @@ illustrate the keyword parameters of `log_message`:
     >>> f(2)
     f [1] <== called by <module>
         arguments: n=2
-        f [1]: n=2 is even,
-            but we knew that.
+    *** n=2 is even,
+        but we knew that.
         f [1]: We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
-            f [2]: n=1 is odd,
-                but we knew that.
+        *** n=1 is odd,
+            but we knew that.
             f [2]: We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
@@ -780,14 +791,14 @@ which illustrates that.
 
 **NOTE**: *In the example above, `f` accesses one of its attributes added by
 `log_calls`, namely, the `log_message()` method. (`log_calls` in fact adds two
-more attributes, discussed in subsequent sections: [`log_calls_settings`]
-(#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).)
-Indeed, any function, and any static method, can access its `log_calls` in the same
-syntactically straightforward way. Classmethods and instance methods decorated by
-`log_calls` can also use `log_message()`, but each of those kinds of methods requires
-its own approach (a little more syntax) to obtaining the `log_calls` wrapper which
-hosts the attributes. See the section [Functions and methods accessing their
-own *log_calls* attributes](#accessing-own-attrs) for details.*
+more attributes, discussed in subsequent sections:
+[`log_calls_settings`](#Dynamic-control-log_calls_settings) and [`stats`](#call-history-and-statistics).)
+Indeed, any function, and any static method, can access its `log_calls` attributes
+in the same syntactically straightforward way. Classmethods and instance methods
+decorated by `log_calls` can also use `log_message()`, but each of those kinds
+of methods requires its own approach (a little more syntax) to obtaining the
+`log_calls` wrapper which hosts the attributes. See the section
+[Functions and methods accessing their own *log_calls* attributes](#accessing-own-attrs) for details.*
 
     """
     pass
@@ -1015,8 +1026,9 @@ the use-case just illustrated, `update()` is considerate enough to skip over
 immutable settings.*
 
 2. `log_calls` *continues to track call numbers even when it isn't reporting
-them. The last call to* `f` *was the 4th, as shown, although the call number of
-the 3rd call wasn't displayed.*
+them: it tracks them regardless of the `log_call_numbers` setting. Thus, the
+last call to* `f` *was the 4th, as shown, although the call number of the 3rd
+call wasn't displayed.*
 
     """
 
@@ -1049,7 +1061,7 @@ parameter; if it is found and of the correct type, *its* value is used; otherwis
 a default value is used.
 
 To specify an indirect value for a parameter whose normal type is `str` (only
-`args_sep`, at present), append an `'='` to the value.  For consistency's sake,
+`args_sep` and `logger`, at present), append an `'='` to the value.  For consistency,
 any indirect value can end in a trailing `'='`, which is stripped. Thus,
 `enabled='enable_='` indicates an indirect value *to be supplied* by the keyword
 (argument or parameter) `enable_` of a decorated function.
@@ -1160,7 +1172,7 @@ Similarly, you can control indentation from above.
     ... def g(n, **kwargs):
     ...     f(n+1, **kwargs)
 
-Without an indirect value for `indent`, `log_calls` displays this calls to
+Without an indirect value for `indent`, `log_calls` displays the calls to
 `f` and `g` in a "flat" way:
 
     >>> g(1) #, lc_indent=True)
@@ -1177,7 +1189,7 @@ Without an indirect value for `indent`, `log_calls` displays this calls to
     f [1] ==> returning to g
     g ==> returning to <module>
 
-But the call hierarchy is represented visually when you pass the specified
+but the call hierarchy is represented visually when you pass the specified
 indirect value:
 
     >>> g(2, lc_indent=True)
@@ -1259,18 +1271,16 @@ The statistics and history are accessible via the `stats` attribute
 which `log_calls` adds to a decorated function.
 
 ###The *stats* attribute
-The `stats` attribute is an object of class `ClassInstanceAttrProxy`, defined
-in `log_calls/proxy_descriptors.py`. That class has its own test suite,
-in `log_calls/tests/test_proxy_descriptors.py`; here, we only have to
-test and illustrate its use by `log_calls`.
+The class of the `stats` attribute has its own test suite,
+so here we only have to test and illustrate its use by `log_calls`.
 
-Let's define a decorated function with call number logging turned on,
+Define a decorated function with call number logging turned on,
 but with exit logging turned off for brevity:
 
     >>> @log_calls(log_call_numbers=True, log_exit=False)
     ... def f(a, *args, x=1, **kwargs): pass
 
-Now call it 2 times:
+Let's call it 2 times:
 
     >>> f(0)
     f [1] <== called by <module>
@@ -1280,7 +1290,7 @@ Now call it 2 times:
     f [2] <== called by <module>
         arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
 
-and start to explore the `stats` attribute.
+and explore its `stats`.
 
 ####The *stats.num_calls_logged* attribute
 The `stats.num_calls_logged` attribute contains the number of the most
@@ -1313,7 +1323,7 @@ will still equal 2:
 
 As a further illustration, let's re-enable logging for `f` and call it again.
 The displayed call number will the number of the *logged* call, 3, the same
-value as `f.stats.num_calls_logged` after the call:
+value as `f.stats.num_calls_logged` after (and during!) the call:
 
     >>> f.log_calls_settings.enabled = True
     >>> f(10, 20, z=5000)
@@ -1345,7 +1355,7 @@ Let's define `f` just as before, but with `record_history` set to true:
     >>> @log_calls(record_history=True, log_call_numbers=True, log_exit=False)
     ... def f(a, *args, x=1, **kwargs): pass
 
-With logging enabled, let's call f three times:
+With logging enabled, let's call `f` three times:
 
     >>> f(0)
     f [1] <== called by <module>
@@ -1359,7 +1369,7 @@ With logging enabled, let's call f three times:
         arguments: a=10, [*]args=(20,), [**]kwargs={'z': 5000}
         defaults:  x=1
 
-No surprises there. But now, f has a call history, which we'll examine next.
+No surprises there. But now, `f` has a call history, which we'll examine next.
 
 ####The *stats.history* attribute
 The `stats.history` attribute of a decorated function provides the call history
@@ -1465,9 +1475,11 @@ The only way to change its value is with the [`clear_history`](#clear_history-me
 The value `stats.history_as_csv` attribute is a text representation
 of a decorated function's call history in CSV format. You can save this string
 and import it into the program or tool of your choice for further analysis.
-CSV format is only partially human-friendly, but this representation
-breaks out each argument into its own column, throwing away information about
-whether an argument's value was passed or is a default.
+(*Note: if your tool of choice is [Pandas](http://pandas.pydata.org), you can use
+the `stats` attribute [`stats.history_as_DataFrame`](#stats.history_as_DataFrame) to obtain history
+directly in the representation you really want.*)
+The CSV representation breaks out each argument into its own column,
+throwing away information about whether an argument's value was passed or is a default.
 
     >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     call_num|a|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
@@ -1508,7 +1520,19 @@ As usual, `log_calls` will use whatever names you use for *varargs* parameters
 items within that field are guaranteed to be in sorted order (otherwise this
 last example would sometimes fail as a doctest).
 
-####[The *stats.clear_history(max_history=0)* method](id:clear_history-method)
+###[The *history_as_DataFrame* attribute](id:stats.history_as_DataFrame)
+The `stats.history_as_DataFrame` attribute returns the history of a decorated
+function as a [Pandas](http://pandas.pydata.org) [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe),
+if the Pandas library is installed. This saves you the intermediate step of
+calling `DataFrame.from_csv` with the proper arguments (and also saves you from
+having to know or care what those are).
+
+If Pandas is not installed, the value of this attribute is `None`.
+
+The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](./record_history.html#stats.history_as_DataFrame)
+which also illustrates its use in an iPython notebook.
+
+###[The *stats.clear_history(max_history=0)* method](id:clear_history-method)
 As you might expect, the `stats.clear_history(max_history=0)` method clears
 the call history of a decorated function. In addition, it resets all counters:
 `num_calls_total` and `num_calls_logged` are reset to 0, and
@@ -1589,7 +1613,7 @@ the console.
     >>> ch.setLevel(logging.INFO)
 
 Suppose we have two functions: one that's lower-level/often-called,
-and another that's "higher-level"/infrequently called.
+and another that's higher-level/infrequently called.
 
     >>> @log_calls(logger=logger, loglevel=logging.DEBUG)
     ... def popular():
@@ -1698,10 +1722,11 @@ the methods succeed at doing so, so that they can write their messages using
 
 All of `A_meta`'s methods take an explicit keyword parameter `A_debug`,
 used as the indirect value of the `log_calls` keyword parameter `enabled`.
-The methods treat it as an integer verbosity level: when its value is above
-When we include `A_debug=True` as a keyword argument to a class that
+The methods treat it as an integer verbosity level: they write extra messages
+when the value of their parameter `A_debug` is above `A_DBG_INTERNAL`.
+When we include `A_debug=A_DBG_INTERNAL` as a keyword argument to a class that
 uses `A_meta` as its metaclass, that argument gets passed to all of
-`A_meta`'s methods, so calls to them will be logged, and those methods
+`A_meta`'s methods, so not only will calls to them be logged, but those methods
 will also print extra debugging information:
 
     >>> class A(metaclass=A_meta, A_debug=A_DBG_INTERNAL):    # doctest: +NORMALIZE_WHITESPACE
@@ -1771,7 +1796,7 @@ In the metaclass example, two of the methods – an instance method, and
 a classmethod – had to perform extra legerdemain in order to get at their
 attributes. Happily, those are the only special cases.
 
-This section collects all the different cases of functions and methods
+This section surveys all the different cases of functions and methods
 accessing their `log_calls` attributes.
 
 NOTE: The most artificial aspect of the examples in this section

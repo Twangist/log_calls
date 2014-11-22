@@ -5,8 +5,13 @@ __all__ = [
     'is_keyword_param',
     'get_args_pos',
     'get_args_kwargs_param_names',
+    'get_defaulted_kwargs_OD',
+    'get_explicit_kwargs_OD',
     'dict_to_sorted_str'
 ]
+
+from collections import OrderedDict
+import inspect
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -151,6 +156,45 @@ def get_args_kwargs_param_names(fparams) -> (str, str):
         if args_name and kwargs_name:
             break   # found both: done
     return args_name, kwargs_name
+
+
+def get_defaulted_kwargs_OD(f_params, bound_args) -> OrderedDict:
+    """For some call to a function f, args *arg and **kwargs,
+    :param f_params:   inspect.signature(f).parameters
+    :param bound_args: inspect.signature(f).bind(*args, **kwargs)
+
+    :return: OrderedDict of the (param.name, param.default)
+             for keyword parameters param of f that are NOT explicitly passed.
+
+    An ad-hoc little function, but needed in 2 different places.
+
+    TODO (doc)tests?
+    """
+    return OrderedDict(
+        [(param.name, param.default)
+         for param in f_params.values()
+         if param.name not in bound_args.arguments
+            and param.default != inspect._empty]
+    )
+
+
+def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
+    """For some call to a function f, args *arg and **kwargs,
+    :param f_params:   inspect.signature(f).parameters
+    :param bound_args: inspect.signature(f).bind(*args, **kwargs)
+
+    :return: OrderedDict of the (kwd, kwargs[kwd])
+             for keyword parameters kwd of f that ARE explicitly passed.
+
+    Another ad-hoc little function, needed in 2 different places.
+
+    TODO (doc)tests?
+    """
+    return OrderedDict(
+        [(k, kwargs[k])
+         for k in f_params
+         if k in bound_args.arguments and k in kwargs]
+    )
 
 
 def dict_to_sorted_str(d):

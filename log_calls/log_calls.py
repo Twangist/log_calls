@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4b1'
+__version__ = '0.2.4'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -21,14 +21,16 @@ import os  #.path.join(...)
 import io   # so we can refer to io.TextIOBase
 import time
 import datetime
-from collections import namedtuple, OrderedDict, deque
+from collections import namedtuple, deque
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .helpers import (get_args_pos, get_args_kwargs_param_names,
+                      get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
+from .used_unused_kwds import used_unused_keywords
 
-__all__ = ['log_calls', 'record_history', '__version__', '__author__']
+__all__ = ['log_calls', '__version__', '__author__']
 
 
 #------------------------------------------------------------------------------
@@ -472,26 +474,40 @@ class _deco_base():
     # __init__, __call__
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
-                 settings_loc='',      # 0.2.4 new parameter, but NOT a "setting"
+                 settings_path='',          # 0.2.4 new parameter, but NOT a "setting"
+                 _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
                  indent=False,
                  prefix='',
                  ** other_values_dict):
-        """(See class docstring)"""
-        # 0.2.4 TODO - settings from file would get totally blown away by update
-        if settings_loc:
-            d = self._read_settings_file(settings_loc=settings_loc)
-        else:
-            d = {}
-            d.update(
-                enabled=enabled,
-                log_call_numbers=log_call_numbers,
-                indent=indent,
-                prefix=prefix,
-                ** other_values_dict
-            )
-        # Set up pseudo-dict
+        """(See class docstring)
+        _used_keywords_dict: passed by subclass via super().__init__:
+            the *explicit* keyword args of subclass that the user actually passed,
+            not ones that are implicit keyword args,
+            and not ones that the user did not pass and which have default values.
+            (It's default value is mutable, but we don't change it.)
+        """
+        # 0.2.4 settings_path stuff
+        # Set up dict d with log_calls's defaults - the default defaults:
+        #   self.__class__.__name__ is name *of subclass*, clsname,
+        #   which we trust has already called
+        #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
+        #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
+        #   has .default = False, for "technical" reasons
+        od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        d = {k: od[k].default for k in od}
+        d['enabled'] = True
+        # ... read default settings from file if one was given,
+        # return a dict of them ({} if settings_path empty or nonexistent)
+        d.update(
+            self._read_settings_file(settings_path=settings_path)
+        )
+        # ... and update d with settings *explicitly* passed to caller
+        # of subclass's __init__
+        d.update(_used_keywords_dict)
+
+        # NOW set up pseudo-dict, using settings given by d.
         #
         # *** DecoSettingsMapping "API" --
         # (2) construct DecoSettingsMapping object
@@ -582,31 +598,35 @@ class _deco_base():
             the_msg = self._output_fname[-1] + ': ' + the_msg
         logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
 
-    def _read_settings_file(self, settings_loc=''):
-        """If settings_loc names a file that exists,
+    def _read_settings_file(self, settings_path=''):
+        """If settings_path names a file that exists,
         load settings from that file.
-        If settings_loc names a directory, load settings from
-            settings_loc + '.' + self.__class__.__name__
-            e.g. the file '.log_calls' in directory specified by settings_loc.
-        If not settings_loc or it doesn't exist, return {}.
-        Format of file - zero or more lines of the form:
-            setting_name=setting_value.
+        If settings_path names a directory, load settings from
+            settings_path + '.' + self.__class__.__name__
+            e.g. the file '.log_calls' in directory specified by settings_path.
+        If not settings_path or it doesn't exist, return {}.
+        Format of settings file - zero or more lines of the form:
+            setting_name=setting_value
+        with possible whitespace around *_name.
+        Blank lines are ok & ignored; lines whose first non-whitespace char is '#'
+        are treated as comments & ignored.
 
         Note: self._settings_mapping doesn't exist yet!
-              so this function can't use it, e.g. to test for valid settings
+              so this function can't use it, e.g. to test for valid settings,
                     if setting in self._settings_mapping: ...
+              won't work.
         """
-        if not settings_loc:
+        if not settings_path:
             return {}
 
-        if os.path.isdir(settings_loc):
-            settings_loc = os.path.join(settings_loc, '.' + self.__class__.__name__)
-        if not os.path.isfile(settings_loc):
+        if os.path.isdir(settings_path):
+            settings_path = os.path.join(settings_path, '.' + self.__class__.__name__)
+        if not os.path.isfile(settings_path):
             return {}
 
         d = {}      # returned
         try:
-            with open(settings_loc) as f:
+            with open(settings_path) as f:
                 lines = f.readlines()
         except BaseException:   # FileNotFoundError?!
             return d
@@ -620,12 +640,12 @@ class _deco_base():
             try:
                 setting, val_txt = line.split('=', 1)   # only split at first '='
             except ValueError:
-                # TODO: report error?
+                # fail silently. (Or, TODO: report error? ill-formed line)
                 continue                                # bad line
             setting = setting.strip()
             val_txt = val_txt.strip()
 
-            if setting not in settings_dict:
+            if setting not in settings_dict or not val_txt:
                 continue
 
             # special case: None
@@ -642,7 +662,7 @@ class _deco_base():
             if val_is_str:
                 val_txt = val_txt[1:-1]
 
-            if val_txt and val_txt[-1] == '=':          # indirect value
+            if val_is_str and val_txt and val_txt[-1] == '=':      # indirect value
                 val = val_txt
             else:
                 final_type = settings_dict[setting].final_type
@@ -652,13 +672,34 @@ class _deco_base():
                 else:
                     one_final_type = final_type
 
+                if one_final_type == str and not val_is_str:
+                    continue
+
                 try:
-                    val = one_final_type(val_txt)
-                except BaseException:                   # SyntaxError - what else?
-                    # TODO: report error?
+                    if one_final_type == bool:
+                        errmsg = ("settings file %s, line '%s': expected True or False, got %s"
+                                  % (settings_path, line, val_txt))
+                        if val_is_str:
+                            raise ValueError(errmsg)
+                        elif val_txt.upper() == 'TRUE':
+                            val = True
+                        elif val_txt.upper() == 'FALSE':
+                            val = False
+                        else:
+                            raise ValueError(errmsg)
+                    else:
+                        val = one_final_type(val_txt)   # might raise ValueError (or...?)
+                except ValueError as e:
+                    # fail silently. (Or, TODO: report error? bad value)
                     continue                            # bad line
 
             d[setting] = val
+
+        # Fixups:
+        if 'file' in d:
+            d['file'] = None
+        if 'logger' in d and isinstance(d['logger'], logging.Logger):
+            d['logger'] = None
 
         return d
 
@@ -695,8 +736,9 @@ class _deco_base():
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # if nothing to do, hurry up & don't do it.
             # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
-            # to find these next 4 _xxx variables (really!)
-            # They must be set before calling f.
+            # to find (0.2.4) _log_calls__active_call_items__ (really!)
+            # It and its values (the following _XXX variables)
+            # must be set before calling f.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             _do_it = _get_final_value('enabled')
             # Bump call counters, before calling fn.
@@ -708,8 +750,6 @@ class _deco_base():
             _active_call_number = (self._stats.num_calls_logged
                                    if _log_call_numbers else
                                    0)
-            _prefixed_fname = prefixed_fname        # TODO Hack alert (Pt 1)
-
             # Get list of callers up to & including first log_call's-deco'd fn
             # (or just caller, if no such fn)
             call_list, prev_indent_level = self.call_chain_to_next_log_calls_fn()
@@ -720,6 +760,15 @@ class _deco_base():
             do_indent = _get_final_value('indent')
             _extra_indent_level = (prev_indent_level +
                                    int(not not do_indent and not not _do_it))
+
+            # Stackframe hack:
+            _log_calls__active_call_items__ = {
+                '_do_it': _do_it,
+                '_log_call_numbers': _log_call_numbers,
+                '_prefixed_fname': prefixed_fname,          # Hack alert (Pt 1)
+                '_active_call_number': _active_call_number,
+                '_extra_indent_level': _extra_indent_level
+            }
 
             # Get logging function IF ANY.
             # For the benefit of callees further down the call chain,
@@ -737,9 +786,9 @@ class _deco_base():
             output_fname = prefixed_fname + call_number_str
 
             # 0.2.2 -- self._log_message() will use
-            # the _logging_fn and _indent_len on top of these stacks:
-            # So verbose functions should use THIS to write their blather.
-            # There's stack of these, or parallel stacks of these,
+            # the logging_fn, indent_len and output_fname at top of these stacks;
+            # thus, verbose functions should use log_message to write their blather.
+            # There are parallel stacks of these,
             # used by self._log_message(), maintained in this wrapper.
             self._logging_state_push(logging_fn, global_indent_len, output_fname)
 
@@ -782,18 +831,8 @@ class _deco_base():
             (context['varargs_name'],
              context['kwargs_name']) = get_args_kwargs_param_names(self.f_params)
 
-            context['defaulted_kwargs'] = OrderedDict(
-                [(param.name, param.default)
-                 for param in self.f_params.values()
-                 if param.name not in bound_args.arguments
-                 and param.default != inspect._empty
-                ]
-            )
-            context['explicit_kwargs'] = OrderedDict(
-                [(k, kwargs[k])
-                 for k in self.f_params
-                 if k in bound_args.arguments and k in kwargs]
-            )
+            context['defaulted_kwargs'] = get_defaulted_kwargs_OD(self.f_params, bound_args)
+            context['explicit_kwargs'] = get_explicit_kwargs_OD(self.f_params, bound_args, kwargs)
             context['implicit_kwargs'] = {
                 k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
             }
@@ -910,13 +949,9 @@ class _deco_base():
                     # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                     # Fixup: get prefixed named of wrapped function
                     inner_fn = curr_frame.f_locals['f']
-                    # TODO: (Hack alert (Pt 2)) This doesn't always work --
-                    # todo      B_meta.__prepare__ <== called by A_meta.__prepare__
-                    # todo  but
-                    # todo      B_meta.__new__ <== called by __new__
-                    # todo  __prepare__, classmethod; __new__, staticmethod.
-                    # todo Hence the workaround (_prefixed_fname variable in stackframe;
-                    # todo see above & below)
+                    # (Hack alert (Pt 2)) This doesn't always work --
+                    # Hence the workaround (_prefixed_fname variable in stackframe;
+                    # see above & below)
                     call_list[-1] = getattr(inner_fn,
                                             cls._sentinels['PREFIXED_NAME'])
                     wrapper_frame = curr_frame
@@ -960,18 +995,19 @@ class _deco_base():
 
             # If found, then call_list[-1] is log_calls-wrapped
             if found:
-                # look in stack frame (!) for
-                #   _do_it, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed
-                enabled = wrapper_frame.f_locals['_do_it']
-                log_call_numbers = wrapper_frame.f_locals['_log_call_numbers']
-                active_call_number = wrapper_frame.f_locals['_active_call_number']
-                prefixed_fname_from_stack = wrapper_frame.f_locals['_prefixed_fname']   # TODO Hack alert (Pt 3)
-                if prefixed_fname_from_stack:                                           # TODO: DOH? this should always be non-false
-                    call_list[-1] = prefixed_fname_from_stack
+                # Look in stack frame (!) for (0.2.4) _log_calls__active_call_items__
+                # and use its values
+                #   _do_it, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed_fname
+                active_call_items = wrapper_frame.f_locals['_log_calls__active_call_items__']
+                enabled = active_call_items['_do_it']
+                log_call_numbers = active_call_items['_log_call_numbers']
+                active_call_number = active_call_items['_active_call_number']
+                call_list[-1] = active_call_items['_prefixed_fname']   # Hack alert (Pt 3)
 
                 # only change prev_indent_level once, for nearest deco'd fn
                 if prev_indent_level < 0:
-                    prev_indent_level = wrapper_frame.f_locals['_extra_indent_level']
+                    prev_indent_level = active_call_items['_extra_indent_level']
+
                 if enabled and log_call_numbers:
                     call_list[-1] += " [" + str(active_call_number) + "]"
                 found_enabled = enabled     # done with outer loop too if enabled
@@ -1069,38 +1105,34 @@ class log_calls(_deco_base):
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
 
+    @used_unused_keywords()
     def __init__(self,
-                 settings_loc='',      # 0.2.4. TODO: document (new parameter, but NOT a "setting")
+                 settings_path='',      # 0.2.4. (new parameter, but NOT a "setting")
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
                  log_retval=False,
                  log_elapsed=False,
                  log_exit=True,
-                 indent=False,   # probably better than =True
+                 indent=False,         # probably better than =True
                  log_call_numbers=False,
                  prefix='',
-                 file=None,      # detectable value so we late-bind to sys.stdout
+                 file=None,    # detectable value so we late-bind to sys.stdout
                  logger=None,
                  loglevel=logging.DEBUG,
                  record_history=False,
                  max_history=0,
     ):
         """(See class docstring)"""
-        # # TODO: First, figure out which of our billion parameters were NOT supplied
-        # # by the actual call - the 'defaulted' arguments
-        # init_params = inspect.signature(f).parameters
-        # bound_args = inspect.signature(f).bind(*args, **kwargs)
-        #
-        # defaulted_kwargs = [
-        #     param.name
-        #     for param in f_params.values()
-        #      if param.name not in bound_args.arguments
-        #      and param.default != inspect._empty
-        # ]
+        # 0.2.4 settings_path stuff:
+        # determine which keyword arguments were actually passed by caller!
+        used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
+        if 'settings_path' in used_keywords_dict:
+            del used_keywords_dict['settings_path']
 
         super().__init__(
-                         settings_loc=settings_loc,
+                         settings_path=settings_path,
+                         _used_keywords_dict=used_keywords_dict,
                          enabled=enabled,
                          args_sep=args_sep,
                          log_args=log_args,
@@ -1128,7 +1160,13 @@ class log_calls(_deco_base):
         logger = _get_final_value_fn('logger')
         # 0.2.4 logger can also be a name of a logger
         if logger and isinstance(logger, str):  # not None, not ''
+            # We can't first check f there IS such a logger.
+            # This creates one (with no handlers) if it doesn't exist:
             logger = logging.getLogger(logger)
+        # If logger has no handlers then it can't write anything,
+        # so we'll fall back on print
+        if logger and not logger.hasHandlers():
+            logger = None
         loglevel = _get_final_value_fn('loglevel')
         # Establish logging function
         logging_fn = (partial(logger.log, loglevel)
@@ -1136,5 +1174,5 @@ class log_calls(_deco_base):
                       lambda msg: print(msg, file=outfile, flush=True))
 #                      lambda *pargs, **pkwargs: print(*pargs, file=outfile, flush=True, **pkwargs))
         # 0.2.4 - Everybody can indent.
-        # loggers - just use formatters with '%(message)s'.
+        # loggers: just use formatters with '%(message)s'.
         return logging_fn

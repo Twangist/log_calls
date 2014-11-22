@@ -1,0 +1,5 @@
+args_sep=' | '
+log_args=False
+log_retval=True
+log_elapsed='elapsed_='
+logger='star3_logger'
