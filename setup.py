@@ -69,7 +69,7 @@ setup(
     keywords='decorator debugging profiling logging function call caller stack recursion teaching',
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
-    test_suite='log_calls.tests',     # log_calls.tests.run_tests
+    test_suite='run_tests.py',     # log_calls.tests
     scripts=['scripts/log_calls-path-to-docs'],
     include_package_data=True,
     classifiers=[
