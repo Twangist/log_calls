@@ -51,7 +51,7 @@ This document describes version `0.2.4` of `log_calls`.
     * The deprecated `indent_extra` parameter to `log_message` is gone.
     * Little bug fixes, improvements.
     
-* **0.2.3** and **0.2.3.post***N*
+* **0.2.3** and **0.2.3.post** *N*
     * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
 
 * **0.2.2** 
@@ -1018,7 +1018,7 @@ value as `f.stats.num_calls_logged` after the call:
     >>> f.stats.num_calls_logged
     3
 
-**ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So, ***comment it out in production code!** 
+**ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So,* **comment it out in production code!** 
 
 #####[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
 The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
