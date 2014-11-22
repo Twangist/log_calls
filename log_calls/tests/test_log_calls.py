@@ -1060,7 +1060,7 @@ explicit keyword parameters with default values, are both searched for the named
 parameter; if it is found and of the correct type, *its* value is used; otherwise
 a default value is used.
 
-To specify an indirect value for a parameter whose normal type is `str` (only
+To specify an indirect value for a parameter whose normal values are or can be `str`s (only
 `args_sep` and `logger`, at present), append an `'='` to the value.  For consistency,
 any indirect value can end in a trailing `'='`, which is stripped. Thus,
 `enabled='enable_='` indicates an indirect value *to be supplied* by the keyword
@@ -1530,7 +1530,7 @@ having to know or care what those are).
 If Pandas is not installed, the value of this attribute is `None`.
 
 The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](./record_history.html#stats.history_as_DataFrame)
-which also illustrates its use in an iPython notebook.
+which also illustrates its use in an IPython notebook.
 
 ###[The *stats.clear_history(max_history=0)* method](id:clear_history-method)
 As you might expect, the `stats.clear_history(max_history=0)` method clears
