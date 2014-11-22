@@ -441,7 +441,7 @@ in one order or the other.
     *** f [1] ==> returning to <module>
 
 Next, we provide `settings_path` as a path to an existing file,
-`log_calls/tests/log_calls-settings.txt`, which contains these settings:
+`log_calls/tests/log_calls-settings.txt`, which contains:
 
     args_sep=' | '
     log_args=False

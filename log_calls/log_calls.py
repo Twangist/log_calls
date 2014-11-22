@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4'
+__version__ = '0.2.4.post1'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -632,6 +632,8 @@ class _deco_base():
             return d
 
         settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        QUOTES = {"'", '"'}
+        
         for line in lines:
             line = line.strip()
             if not line or line[0] == '#':
@@ -657,7 +659,6 @@ class _deco_base():
             # If val_txt ends in '=' (indirect value) then let val = val_txt;
             # otherwise, figure out *the* final type, favoring str if val_txt is enclosed in quotes;
             # apply the final type to val_txt to get val
-            QUOTES = {"'", '"'}
             val_is_str = len(val_txt) >= 2 and val_txt[0] == val_txt[-1] and val_txt[0] in QUOTES
             if val_is_str:
                 val_txt = val_txt[1:-1]
@@ -696,10 +697,10 @@ class _deco_base():
             d[setting] = val
 
         # Fixups:
-        if 'file' in d:
-            d['file'] = None
+        if 'file' in d and isinstance(d['file'], io.TextIOBase):
+            del d['file']
         if 'logger' in d and isinstance(d['logger'], logging.Logger):
-            d['logger'] = None
+            del d['logger']
 
         return d
 

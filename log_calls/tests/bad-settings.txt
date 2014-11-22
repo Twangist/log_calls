@@ -3,7 +3,7 @@
 # Ill-formed lines, nonexistent settings, bad values.
 # When log_calls parses a settings file, it creates a dictionary
 # of the settings names and values. The dictionary resulting
-# from this file will contain only 'logger': None.
+# from this file will be empty
 ##################################################################
 # int('hardly') raises ValueError
 enabled='hardly'
