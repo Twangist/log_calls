@@ -10,7 +10,7 @@ class record_history(_deco_base):
     """
     # allow indirection for all except prefix and max_history, which also isn't mutable
     _setting_info_list = (
-        DecoSetting('log_call_numbers', bool, False,  allow_falsy=True, visible=False),
+        DecoSetting('log_call_numbers', bool, True,   allow_falsy=True, visible=False),
         DecoSetting('indent',           bool, False,  allow_falsy=True, visible=False),
         # visible:
         DecoSettingHistory('enabled'),  # alias "record_history" in log_calls
@@ -30,9 +30,9 @@ class record_history(_deco_base):
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn) -> tuple:
-        """Return pair: logging_fn or None, paired with can_indent: bool.
-        cls: unused. Present so this method can be overridden."""
-        return None, False
+        """Return None: no output.
+        cls: unused.."""
+        return None
 
     def __call__(self, f):
         return super().__call__(f)

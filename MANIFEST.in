@@ -1,5 +1,6 @@
 include README.md
 include log_calls/docs/*
+include log_calls/tests/*
 
 # include LICENSE.txt
 # include CHANGES.txt

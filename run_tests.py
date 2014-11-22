@@ -28,6 +28,11 @@ if len(sys.argv) > 1:
 
 home, _ = os.path.split(__file__)
 tests_dir = os.path.join(home, 'log_calls', 'tests')
+
+# 0.2.4 Change to tests_dir so that tests can find settings files
+tests_dir = os.path.abspath(tests_dir)
+os.chdir(tests_dir)
+
 unittest.TextTestRunner(verbosity=verbosity).run(
     unittest.defaultTestLoader.discover(tests_dir)
 )

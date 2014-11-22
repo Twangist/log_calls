@@ -1,0 +1,14 @@
+enabled=1
+args_sep=' / '
+log_args=True
+log_retval=True
+log_elapsed='elapsed_='
+log_exit=True
+indent=True
+log_call_numbers=True
+prefix=''
+file=None
+logger='logger_='
+loglevel=10
+record_history=False
+max_history=57

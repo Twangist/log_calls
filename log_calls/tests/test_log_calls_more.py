@@ -1,8 +1,9 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.14'
+__version__ = '0.2.4'
 
 from log_calls import log_calls
 
+import pprint
 import doctest
 import unittest
 
@@ -105,7 +106,7 @@ def main__more_on_logging__more():
 
 The basic setup:
 
-    # Doesn't work on 3.4.0 on Linux (Ubuntu 12.04):
+    # The following doesn't (well, didn't) work on 3.4.0 on Linux (Ubuntu 12.04):
 
     # >>> import logging
     # >>> import sys
@@ -128,7 +129,7 @@ The basic setup:
 You can use an indirect value for the `logger` parameter to make the logging
 destination late-bound.
 
-In the following example, although logger='logger_' is supplied to `log_calls`,
+In the following example, although logger='logger_=' is supplied to `log_calls`,
 no `logger_=foo` is passed to the wrapped function `r` in the actual call, and no
 `logger=bar` is supplied, so `log_calls` uses the default writing function, `print`.
 (Furthermore, no args separator is passed with the `sep_` keyword, so `log_calls`
@@ -144,7 +145,7 @@ uses the default separator ', '.)
     r ==> returning to <module>
 
 Define two more functions, with the outermost function `t` also using
-`logger ='logger_'`, and pass `logger_=logger` to `t` when calling it.
+`logger ='logger_='`, and pass `logger_=logger` to `t` when calling it.
 Now both `t` and `r` use `logger` for output (and both use the supplied
 separator '\\n'):
 
@@ -173,6 +174,27 @@ separator '\\n'):
     DEBUG:mylogger:r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
+#### Test of logger with indirect str value (name of logger)
+Same output as above, with logger_=logger:
+
+    >>> t(1,2,3, enable=True, sep_='\\n', logger_='mylogger')       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    DEBUG:mylogger:t <== called by <module>
+    DEBUG:mylogger:    arguments:
+            x=1
+            y=2
+            z=3
+            [**]kwargs={...}
+    DEBUG:mylogger:r <== called by s <== t
+    DEBUG:mylogger:    arguments:
+            x=1
+            y=2
+            z=3
+            [**]kwargs={...}
+    5
+    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:t ==> returning to <module>
+
+
 ####Test of indirect *loglevel*
 
     >>> logger.setLevel(logging.INFO)   # raise logger's level to INFO
@@ -196,6 +218,334 @@ but now we do get output:
     INFO:mylogger:    arguments: a=5, x=3, y=3, [**]kwargs={...}
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
+    """
+    pass
+
+
+def main__logging_with_indent__minimal_formatters():
+    """
+    >>> import logging
+    >>> import sys
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('%(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> another_logger = logging.getLogger('another_logger')
+    >>> another_logger.addHandler(ch)
+    >>> another_logger.setLevel(logging.DEBUG)
+
+Now the same example as in test_log_calls [the *indent* parameter]
+has the same expected output:
+
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g1():
+    ...     pass
+    >>> @log_calls(logger=another_logger)    # no extra indentation for g1
+    ... def g2():
+    ...     g1()
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g3():
+    ...     g2()
+    >>> @log_calls(logger=another_logger)    # no extra indentation for g3
+    ... def g4():
+    ...     g3()
+    >>> @log_calls(indent=True, logger=another_logger)
+    ... def g5():
+    ...     g4()
+    >>> g5()
+    g5 <== called by <module>
+    g4 <== called by g5
+        g3 <== called by g4
+        g2 <== called by g3
+            g1 <== called by g2
+            g1 ==> returning to g2
+        g2 ==> returning to g3
+        g3 ==> returning to g4
+    g4 ==> returning to g5
+    g5 ==> returning to <module>
+
+    """
+    pass
+
+
+def main__log_message__all_possible_output_destinations():
+    """
+The `log_message` method lets you write a single output statement
+that works no matter what destination log_calls is writing to --
+a stream, a file, or a logger.
+
+To demonstrate this, let's set up the same logger (in all but name):
+
+    >>> import logging
+    >>> import sys
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('%(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> another_logger = logging.getLogger('yet_another_logger')
+    >>> another_logger.addHandler(ch)
+    >>> another_logger.setLevel(logging.DEBUG)
+
+Here's a simple example that accommodates all possibilities:
+
+    >>> @log_calls(indent=True, logger='logger_=', file='file_')
+    ... def g(**kwargs):
+    ...     g.log_message("Regards, g")
+    >>> @log_calls(indent=True, logger='logger_=', file='file_')
+    ... def h(**kwargs):
+    ...     h.log_message("before", "g... ", prefix_with_name=True)
+    ...     g(**kwargs)
+    ...     h.log_message("... after", "g", prefix_with_name=True)
+
+We get basically the same expected output,
+whether writing to stdout with `print`:
+
+    >>> h()                         # doctest: +NORMALIZE_WHITESPACE
+    h <== called by <module>
+        arguments: <none>
+        h: before g...
+        g <== called by h
+            arguments: <none>
+            Regards, g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+or writing to a file with `print`, using the `file` parameter:
+
+    >>> from tempfile import TemporaryFile
+    >>> with TemporaryFile(mode='w+') as temp:  # default 'w+b' fails
+    ...     h(file_=temp)
+    ...     # read temp file, write to stdout:
+    ...     _ = temp.seek(0)        # suppress "0" in doctest output
+    ...     lines = temp.readlines()
+    ...     print(''.join(lines))    # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    h <== called by <module>
+        arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+            Regards, g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+    <BLANKLINE>
+
+or with the logger defined above, which can be passed either as the Logger instance itself:
+
+    >>> h(logger_=another_logger)       # doctest: +ELLIPSIS
+    h <== called by <module>
+        arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+            Regards, g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+or as the name of the Logger:
+
+    >>> h(logger_='yet_another_logger')       # doctest: +ELLIPSIS
+    h <== called by <module>
+        arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+        h: before g...
+        g <== called by h
+            arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+            Regards, g
+        g ==> returning to h
+        h: ... after g
+    h ==> returning to <module>
+
+    """
+    pass
+
+
+def main__settings_path():
+    """
+The `.log_calls` settings file in the `log_calls/tests/` directory
+contains these settings, some of them indirect:
+
+    enabled=1
+    args_sep=' / '
+    log_args=True
+    log_retval=True
+    log_elapsed='elapsed_='
+    log_exit=True
+    indent=True
+    log_call_numbers=True
+    prefix=''
+    file=None
+    logger='logger_='
+    loglevel=10
+    record_history=False
+    max_history=57
+
+If you pass `settings_path` with a value that's an existing directory,
+`log_calls` will look for a `.log_calls` file in that directory
+and will try to use it as a settings file. If you pass a value that's
+a path to a existing file, `log_calls` will try to use that file.
+In the examples below, we assume that the current directory './' is
+`log_calls/tests/`, so that passing './' tells log_calls to use `./.log_calls`
+as a settings file.
+
+First, logger setup:
+
+    >>> import logging
+    >>> import sys
+    >>> ch = logging.StreamHandler(stream=sys.stdout)
+    >>> c_formatter = logging.Formatter('*** %(message)s')
+    >>> ch.setFormatter(c_formatter)
+    >>> another_logger = logging.getLogger('star3_logger')
+    >>> another_logger.addHandler(ch)
+    >>> another_logger.setLevel(logging.DEBUG)
+
+Now the function declaration. The value from the settings file for
+`log_retval`, True, is overridden by the explicit setting keyword
+for the decorator.
+
+    >>> @log_calls(settings_path='./', log_retval=False)
+    ... def f(n, **kwargs):
+    ...     if n <= 0: return
+    ...     f(n-1, **kwargs)
+
+Verify the settings:
+
+    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
+    {'enabled': 1,
+     'args_sep': ' / ',
+     'log_args': True,
+     'log_retval': False,
+     'log_elapsed': 'elapsed_',
+     'log_exit': True,
+     'indent': True,
+     'log_call_numbers': True,
+     'prefix': '',
+     'file': None,
+     'logger': 'logger_',
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 57}
+
+Finally, call the function. The call supplies final
+values for the indirect values of `log_elapsed` and `logger`.
+In the output, `kwargs` is `{'logger_': 'star3_logger', 'elapsed_': True}`
+in one order or the other.
+
+    >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
+    *** f [1] <== called by <module>
+    ***     arguments: n=1 / [**]kwargs={...}
+    ***     f [2] <== called by f [1]
+    ***         arguments: n=0 / [**]kwargs={...}
+    ***         elapsed time: 0.0... [secs]
+    ***     f [2] ==> returning to f [1]
+    ***     elapsed time: 0.0... [secs]
+    *** f [1] ==> returning to <module>
+
+Next, we provide `settings_path` as a path to an existing file,
+`log_calls/tests/log_calls-settings.txt`, which contains these settings:
+
+    args_sep=' | '
+    log_args=False
+    log_retval=True
+    log_elapsed='elapsed_='
+    logger='star3_logger'
+
+Notice that the `logger` setting is the *name* of a logger.
+A settings file doesn't have to contain every possible setting:
+settings not given values start out with their usual default values.
+Again, we override some of the defaults with explicit setting parameters,
+and again, we assume that the current directory is `log_calls/tests`.
+
+    >>> @log_calls(settings_path='./log_calls-settings.txt', log_args=True, log_call_numbers=True)
+    ... def g(m, n, **kwargs):
+    ...     return 2 * m * n
+
+Let's examine the settings:
+
+    >>> pprint.pprint(g.log_calls_settings.as_OrderedDict())
+    {'enabled': True,
+     'args_sep': ' | ',
+     'log_args': True,
+     'log_retval': True,
+     'log_elapsed': 'elapsed_',
+     'log_exit': True,
+     'indent': False,
+     'log_call_numbers': True,
+     'prefix': '',
+     'file': None,
+     'logger': 'star3_logger',
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 0}
+
+and finally call the function:
+
+    >>> _ = g(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
+    *** g [1] <== called by <module>
+    ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
+    ***     g [1] return value: 70
+    ***     elapsed time: 0.0... [secs]
+    *** g [1] ==> returning to <module>
+
+Nothing happens if we provide a `settings_path` that *doesn't* exist –
+`log_calls` uses its usual defaults, overridden by whatever setting parameters
+are supplied:
+
+    >>> @log_calls(settings_path='no-such-dir/no-such-file', log_retval=True)
+    ... def h(m, n):
+    ...     return 19 * m + n
+    >>> _ = h(1, 3)            # doctest: +ELLIPSIS
+    h <== called by <module>
+        arguments: m=1, n=3
+        h return value: 22
+    h ==> returning to <module>
+
+Finally, a test using a settings file that has many ill-formed lines
+and bogus settings. We'll use `tests/bad-settings.txt`:
+
+    ##################################################################
+    # bad-settings.txt
+    # Ill-formed lines, nonexistent settings, bad values.
+    # When log_calls parses a settings file, it creates a dictionary
+    # of the settings names and values. The dictionary resulting
+    # from this file will contain only 'logger': None.
+    ##################################################################
+    # int('hardly') raises ValueError
+    enabled='hardly'
+    # args_sep requires a string but RHS isn't in quotes
+    args_sep=1492
+    log_args=
+    no_such_setting=True
+    log_elapsed
+    indent
+    # ='TruE' or ="fAlSe" etc would work for bool settings
+    #   (without or with quotes; case-insensitive)
+    log_exit='not an option'
+    # int('7.3') raises ValueError
+    max_history=7.3
+    # logger will be set to a created logging.Logger (with no handlers) and then to None
+    logger=<logging.Logger object at 0x1b48d8c0>
+
+Let's use this troubled settings file and examine the resulting settings:
+
+    >>> @log_calls(settings_path='./bad-settings.txt')
+    ... def qq(j, k):
+    ...     return (j+1) * (k+1)
+    >>> pprint.pprint(qq.log_calls_settings.as_OrderedDict())
+    {'enabled': True,
+     'args_sep': ', ',
+     'log_args': True,
+     'log_retval': False,
+     'log_elapsed': False,
+     'log_exit': True,
+     'indent': False,
+     'log_call_numbers': False,
+     'prefix': '',
+     'file': None,
+     'logger': None,
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 0}
+
     """
     pass
 
@@ -331,6 +681,23 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+    # import logging
+    # import sys
+    # ch = logging.StreamHandler(stream=sys.stdout)
+    # c_formatter = logging.Formatter('%(message)s')
+    # ch.setFormatter(c_formatter)
+    # another_logger = logging.getLogger('not_another_logger')
+    # another_logger.addHandler(ch)
+    # another_logger.setLevel(logging.DEBUG)
+
+    # @log_calls(settings_path='./bad-settings.txt')
+    # def qq(j, k):
+    #     return (j+1) * (k+1)
+    # import pprint
+    # pprint.pprint(qq.log_calls_settings.as_OrderedDict())      # doctest: +NORMALIZE_WHITESPACE
+
+    #---------------------------------------------------------------
 
     doctest.testmod()   # (verbose=True)
 

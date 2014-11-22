@@ -1,11 +1,11 @@
 __doc__ = """
 `log_calls` is a Python 3 decorator that can print much useful information
 about calls to a decorated function. It can write to `stdout`, to another
-stream, or to a logger. It can save you from writing, rewriting, copying,
-pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep
-your codebase free of that clutter.
+stream or file, or to a logger. It can save you from writing, rewriting,
+copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it
+can keep your codebase free of that clutter.
 
-For each call of a decorated function, `log_calls` can show you:
+For each call to a decorated function, `log_calls` can show you:
 
 * the caller,
 * the arguments passed to the function, and any default values used,
@@ -27,7 +27,7 @@ whose keys are the keywords.
 * number of calls to a function,
 * total time taken by the function,
 * the function's entire call history (arguments, time elapsed, return values,
-  callers, and more), optionally as text in CSV format or, if Pandas is
+  callers, and more), available as text in CSV format and, if Pandas is
   installed, as a DataFrame.
 
 These features and others are optional and configurable settings,
@@ -36,16 +36,22 @@ the decorator. You can also dynamically get and set these settings using attribu
 with the same names as the keywords, or using a dict-like interface whose keys
 are the keywords. In fact, through a mechanism of "indirect parameter values",
 with just a modest amount of cooperation between decorated functions a calling
-function can ensure uniform settings for all log_calls-decorated functions in
+function can ensure uniform settings for all `log_calls`-decorated functions in
 call chains beneath it.
 
-The package contains another decorator, `record_history`, a stripped-down version
-of `log_calls` which only collects call history and statistics, and outputs no messages.
+The package contains two other decorators:
+
+* `record_history`, a stripped-down version of `log_calls`,
+only collects call history and statistics, and outputs no messages;
+* `used_unused_keywords` lets a function easily determine, per-call,
+which of its keyword parameters were actually supplied by the caller,
+and which received their default values.
 
 NOTE: This package requires the CPython implementation, as it makes assumptions
 about stack frame internals which may not be valid in other interpreters.
 
-See docs/log_calls.md for details, usage info and examples.
+See the documentation [online]((http://www.pythonhosted.org/log_calls/index.html)
+or at `docs/log_calls.*` for usage, details, examples and *tips und tricks*.
 """
 import log_calls
 
@@ -63,7 +69,7 @@ setup(
     keywords='decorator debugging profiling logging function call caller stack recursion teaching',
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
-    test_suite='log_calls.tests',     # log_calls.tests.run_tests
+    test_suite='run_tests.py',     # log_calls.tests
     scripts=['scripts/log_calls-path-to-docs'],
     include_package_data=True,
     classifiers=[

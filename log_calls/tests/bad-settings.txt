@@ -1,0 +1,22 @@
+##################################################################
+# bad-settings.txt
+# Ill-formed lines, nonexistent settings, bad values.
+# When log_calls parses a settings file, it creates a dictionary
+# of the settings names and values. The dictionary resulting
+# from this file will contain only 'logger': None.
+##################################################################
+# int('hardly') raises ValueError
+enabled='hardly'
+# args_sep requires a string but RHS isn't in quotes
+args_sep=1492
+log_args=
+no_such_setting=True
+log_elapsed
+indent
+# ='TruE' or ="fAlSe" etc would work for bool settings
+#   (without or with quotes; case-insensitive)
+log_exit='not an option'
+# int('7.3') raises ValueError
+max_history=7.3
+# logger will be set to a created logging.Logger (with no handlers) and then to None
+logger=<logging.Logger object at 0x1b48d8c0>

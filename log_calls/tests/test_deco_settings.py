@@ -10,6 +10,7 @@ from log_calls.log_calls import DecoSettingEnabled, DecoSettingHistory
 
 from collections import OrderedDict
 import inspect
+import logging  # not to use, just for the logging.Logger type
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper
@@ -38,6 +39,9 @@ class TestDecoSetting(TestCase):
         cls.hidden = DecoSetting('hidden', bool, True,
                                  allow_falsy=True, visible=False)
 
+        cls.twotype = DecoSetting('twotype', (logging.Logger, str), None,
+                                 allow_falsy=True)
+
         # with extra fields
         cls.info_extended = DecoSetting('extended', tuple, ('Joe', "Schmoe"),
                                         allow_falsy=True, allow_indirect=False,
@@ -55,7 +59,7 @@ class TestDecoSetting(TestCase):
         self.assertEqual(self.info_plain._user_attrs, [])
 
     def test___init__2(self):
-        """WITH additional attributes."""
+        """without any additional attributes"""
         self.assertEqual(self.hidden.name, 'hidden')
         self.assertEqual(self.hidden.final_type, bool)
         self.assertEqual(self.hidden.default, True)
@@ -65,6 +69,16 @@ class TestDecoSetting(TestCase):
         self.assertEqual(self.hidden.visible, False)
 
     def test___init__3(self):
+        """without any additional attributes"""
+        self.assertEqual(self.twotype.name, 'twotype')
+        self.assertEqual(self.twotype.final_type, (logging.Logger, str))
+        self.assertEqual(self.twotype.default, None)
+        self.assertEqual(self.twotype.allow_falsy, True)
+        self.assertEqual(self.twotype.allow_indirect, True)  # because visible=False
+        self.assertEqual(self.twotype.mutable, True)
+        self.assertEqual(self.twotype.visible, True)
+
+    def test___init__4(self):
         """WITH additional attributes."""
         self.assertEqual(self.info_extended.name, 'extended')
         self.assertEqual(self.info_extended.final_type, tuple)
@@ -89,6 +103,11 @@ class TestDecoSetting(TestCase):
         self.assertEqual(repr(self.hidden), hidden_repr)
 
     def test___repr__3(self):
+        twotype_repr = "DecoSetting('twotype', (Logger, str), None, allow_falsy=True, " \
+                      "allow_indirect=True, mutable=True, visible=True)"
+        self.assertEqual(repr(self.twotype), twotype_repr)
+
+    def test___repr__4(self):
         ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), " \
                    "allow_falsy=True, allow_indirect=False, " \
                    "mutable=True, visible=True, " \

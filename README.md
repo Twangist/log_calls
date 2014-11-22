@@ -1,12 +1,10 @@
 #*log_calls* — A decorator for debugging and profiling
 ---
-<small>*(This document is a work in progress: an overly fat README that I'll be reducing alot [v0.2.2: though not before adding to it] and making more of a "quick intro". Complete documentation is [here](http://www.pythonhosted.org/log_calls). Thanks for your patience/check this space! — BTO)*</small>
+<small>*(This document is a work in progress: an overly fat README that I still promise or threaten to reduce alot and make more of a "quick intro". Complete documentation is [here](http://www.pythonhosted.org/log_calls). Thanks for your continued patience/check this space! — BTO)*</small>
 
 `log_calls` is a Python 3 decorator that can print much useful information
 about calls to a decorated function. It can write to `stdout`, to another
-stream, or to a logger. It can save you from writing, rewriting, copying,
-pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep
-your codebase free of that clutter.
+stream or file, or to a logger. It can save you from writing, rewriting, copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep your codebase free of that clutter.
 
 For each call of a decorated function, `log_calls` can show you:
 
@@ -25,18 +23,35 @@ These and other features are optional and configurable settings, which can be sp
 
 * the number of calls to a function,
 * total time taken by the function,
-* the function's entire call history (arguments, time elapsed, return values, callers, and more), optionally as text in CSV format or as a Pandas DataFrame.
+* the function's entire call history (arguments, time elapsed, return values,
+  callers, and more), available as text in CSV format and, if [Pandas](http://pandas.pydata.org) is installed, as a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe).
 
-The package contains another decorator, `record_history`, a stripped-down version
-of `log_calls` which only collects call history and statistics, and outputs no messages.
+The package contains two other decorators:
+
+* `record_history`, a stripped-down version of `log_calls`, 
+only collects call history and statistics, and outputs no messages;
+* `used_unused_keywords` lets a function easily determine, per-call,
+which of its keyword parameters were actually supplied by the caller,
+and which received their default values.
 
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.3.post2` of `log_calls`.
+This document describes version `0.2.4` of `log_calls`.
 
-## [What's new](id:What's-new)
-* **0.2.3** and 0.2.3.post*N*
+## [What's New](id:What's-new)
+* **0.2.4**
+    * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings_path-parameter) for details, discussion and examples.
+    * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
+    * The `indent` setting now works with loggers too. See examples:
+        * using `log_message` as a general output function that works as expected, whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, docstring of `main__log_message__all_possible_output_destinations()`];
+        * setting up a logger with a minimal formatter that looks just like the output of `print` [in `tests/test_log_calls_more.py`, docstring of  `main__logging_with_indent__minimal_formatters()`].
+    * Added the decorator `used_unused_keywords` to support the `settings_path` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values. For examples, see the docstring of `main()` in `used_unused_kwds.py`.
+    * When displaying returned values (`log_retval` setting is true), the maximum displayed length of values is now 77, up from 60, not counting trailing ellipsis.
+    * The deprecated `indent_extra` parameter to `log_message` is gone.
+    * Little bug fixes, improvements.
+    
+* **0.2.3** and **0.2.3.post***N*
     * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
 
 * **0.2.2** 
@@ -52,7 +67,7 @@ This document describes version `0.2.3.post2` of `log_calls`.
 ##[Preliminaries](id:Preliminaries)
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-The *log_calls* package has no dependencies - it requires no other packages. All it does require is a standard distribution of Python 3.2+.
+The *log_calls* package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2+.
 
 NOTE: This package does require the CPython implementation, as it uses internals
 of stack frames which may well differ in other interpreters.
@@ -72,16 +87,19 @@ You have two simple options:
   
   to install log_calls from PyPI (the Python Package Index). Here and elsewhere, `$` at the *beginning* of a line indicates your command prompt, whatever it may be.
 
-Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
+Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*). 
+In Python 3.3+, virtual environments are easier than ever to set up because those 
+distributions include everything you need to do so. For an excellent overview of
+these new capabilities, see [Lightweight Virtual Environments in Python 3.4](http://www.drdobbs.com/architecture-and-design/lightweight-virtual-environments-in-pyth/240167069).
 
 ###[Running the tests](id:Testing)
-Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` has a second, `test_log_calls_more.py`. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
+Each `*.py` file in the log_calls directory has a corresponding test file `test_*.py` in the `log_calls/tests/` directory; `log_calls.py` itself has two more. The tests provide essentially 100% coverage (98% for `log_calls.py`, 100% for the others). All tests have passed on every tested platform + Python version; however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
 You can run the test suites either before or after installing `log_calls`.
 
 ####[Running the tests before installation](id:tests-before-install)
 To do this, download the compressed repository, as in 1. above.
-After you uncompress the archive into a directory, and before you run the install command, first run one of the following commands:
+After you uncompress the archive into a directory, and before you run `python setup.py install`, first run one of the following commands:
 
     $ python setup.py test [-q]
 
@@ -101,15 +119,15 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 51 tests in 0.726s
+    Ran 57 tests in 0.832s
     
     OK
 
-indicating that all went well. If any test fails, it will say so.
+indicating that all went well. If any tests failed, it will tell you.
 
 ##[Basic usage](id:Basic-usage)
 
-`log_calls` has many features, and thus many, mostly independent, keyword parameters (14 in all). This section introduces all but four of them, one at a time, though of course you can use multiple parameters in any call to the decorator:
+`log_calls` has many features, and thus many, mostly independent, keyword parameters (15 in all). This section introduces all but five of them, one at a time, though of course you can use multiple parameters in any call to the decorator:
 
 * [`enabled`](#enabled-parameter)
 * [`args_sep`](#args_sep-parameter)
@@ -122,7 +140,7 @@ indicating that all went well. If any test fails, it will say so.
 * [`prefix`](#prefix-parameter)
 * [`file`](#file-parameter)
 
-The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics).
+The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics). The one parameter that is not a "setting", `settings_path`, lets you specify a file containing default settings; it's discussed in the section [The *settings_path* parameter](http://www.pythonhosted.org/log_calls/index.html#settings_path-parameter) of the main documentation.
 
 Every example in this document uses `log_calls`, so without further ado:
 
@@ -302,7 +320,6 @@ For performance profiling, you can measure the time it took a function to execut
 
 ###[The *indent* parameter (default - *False*)](id:indent-parameter)
 The `indent` parameter, when true, indents each new level of logged messages by 4 spaces, providing a visualization of the call hierarchy.
-(`log_calls` indents only when using `print`, not when [using loggers](#Logging).)
 
 A decorated function's logged output is indented only as much as is necessary. Here, the even numbered functions don't indent, so the indented functions that they call are indented just one level more than their "inherited" indentation level:
 
@@ -336,9 +353,8 @@ A decorated function's logged output is indented only as much as is necessary. H
 ###[The *prefix* parameter (default - `''`): decorating methods](id:prefix-parameter)
 
 Especially useful for clarity when decorating methods, the `prefix` keyword
-parameter lets you specify a string with which to prefix the name of the
-method. `log_calls` uses the prefixed name in its output: when logging
-a call to, and a return from, the method; when reporting the method's return value; and when the method is at the end of a [call or return chain](#Call-chains).
+parameter lets you specify a string with which to prefix the name of a function or method. `log_calls` uses the prefixed name in its output: 
+when logging a call to, and a return from, the function; when reporting the function's return value; and when the function is at the end of a [call or return chain](#Call-chains).
 
     >>> import math
     >>> class Point():
@@ -379,9 +395,9 @@ a call to, and a return from, the method; when reporting the method's return val
 ###[The *file* parameter (default - *sys.stdout*)](id:file-parameter)
 The `file` parameter specifies a stream (an instance of `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function, and, like that parameter, its default value is `sys.stdout`. This parameter is ignored if you've supplied a logger for output using the [`logger`](#logger-parameter) parameter.
 
-If your program writes to the console a lot, you may not want `log_calls` messages interspersed with your real output: your understanding of both logically distinct streams can be compromised, so, better to make them two actually distinct streams. It can also be advantageous to gather all, and only all, of the log_calls messages in one place. You can use `indent=True` with a file, and the indentations will appear as intended, whereas that's not possible with loggers.
+If your program writes to the console a lot, you may not want `log_calls` messages interspersed with your real output: your understanding of both logically distinct streams can be compromised, so, better to make them two actually distinct streams. It can also be advantageous to gather all, and only all, of the `log_calls` messages in one place. You can use `indent=True` with a file, and the indentations will appear as intended.
 
-It's not possible to test this feature with doctest (in fact, there are subtleties to supporting this feature and using doctest at all), so we'll just give an example of writing to `stderr`, and reproduce the output:
+It's not simple to test this feature with doctest (in fact, there are subtleties to supporting this feature and using doctest at all), so we'll just give an example of writing to `stderr`, and reproduce the output:
 
     >>> import sys
     >>> @log_calls(file=sys.stderr, indent=True)
@@ -390,7 +406,7 @@ It's not possible to test this feature with doctest (in fact, there are subtleti
     ...         return 'a'
     ...     return '(' + f(n-1) + ')'
 
-Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
+Running `>>> f(2)` will return `'((a))'` and will write the following to `stderr`:
 
     f <== called by <module>
         f <== called by f
@@ -402,7 +418,12 @@ Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
     f ==> returning to <module>
 
 ##[Using loggers](id:Logging)
-`log_calls` works well with loggers obtained from Python's `logging` module. First, we'll set up a logger with a single handler that writes to the console. Because `doctest` doesn't capture output written to `stderr` (the default stream to which console handlers write), we'll send the console handler's output to `stdout`, using the format `<loglevel>:<loggername>:<message>`.
+`log_calls` works well with loggers obtained from Python's `logging` module –
+that is, objects of type `logging.Logger`.
+First, we'll set up a logger with a single handler that writes to the console.
+Because `doctest` doesn't capture output written to `stderr` (the default stream
+to which console handlers write), we'll send the console handler's output to
+`stdout`, using the format `<loglevel>:<loggername>:<message>`.
 
     >>> import logging
     >>> import sys
@@ -413,7 +434,7 @@ Running `>>> f(2)` will return '((a))' and will write the following to `stderr`:
     >>> logger.addHandler(ch)
     >>> logger.setLevel(logging.DEBUG)
 
-###[The *logger* parameter (default – *None*)](id:logger-parameter)
+###The *logger* parameter (default – *None*)
 
 The `logger` keyword parameter tells `log_calls` to write its output using
 that logger rather than the `print` function:
@@ -421,6 +442,12 @@ that logger rather than the `print` function:
     >>> @log_calls(logger=logger)
     ... def somefunc(v1, v2):
     ...     logger.debug(v1 + v2)
+    >>> somefunc(5, 16)             # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:somefunc <== called by <module>
+    DEBUG:a_logger:    arguments: v1=5, v2=16
+    DEBUG:a_logger:21
+    DEBUG:a_logger:somefunc ==> returning to <module>
+
     >>> @log_calls(logger=logger)
     ... def anotherfunc():
     ...     somefunc(17, 19)
@@ -431,6 +458,22 @@ that logger rather than the `print` function:
     DEBUG:a_logger:36
     DEBUG:a_logger:somefunc ==> returning to anotherfunc
     DEBUG:a_logger:anotherfunc ==> returning to <module>
+
+The value of `logger` can be either a logger instance (a `logging.Logger`) or a string
+giving the name of a logger. Instead of passing the logger instance
+as above, we can simply pass `a_logger`:
+
+    >>> @log_calls(logger='a_logger')
+    ... def yetanotherfunc():
+    ...     return 42
+    >>> _ = yetanotherfunc()       # doctest: +NORMALIZE_WHITESPACE
+    DEBUG:a_logger:yetanotherfunc <== called by <module>
+    DEBUG:a_logger:yetanotherfunc ==> returning to <module>
+
+This works because "all calls to [`logging.getLogger(name)`] with a given name
+return the same logger instance", so that "logger instances never need to be
+passed between different parts of an application",
+as per the [Python documentation for `logging.getLogger`](https://docs.python.org/3/library/logging.html?highlight=logging.getlogger#logging.getLogger)
 
 ###[The *loglevel* parameter (default – *logging.DEBUG*)](id:loglevel-parameter)
 
@@ -446,10 +489,10 @@ using `logger.log(loglevel, …)`. Thus, if the `logger`'s log level is higher t
     ...     return y + z
     >>> # No log_calls output from f
     >>> # because loglevel for f < level of logger
-    >>> f(1,2,3, enable=True, sep_='\\n', logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    >>> f(1,2,3, logger_=logger)       # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     5
 
-The use of loggers, and of these parameters, is explored further in the main documentation, which contains an example of [using a logger with multiple handlers that have different loglevels](./log_calls/docs/log_calls.html#logging-multiple-handlers).
+The use of loggers, and of these parameters, is explored further in the main documentation, which contains an example of [using a logger with multiple handlers that have different loglevels](http://www.pythonhosted.org/log_calls#logging-multiple-handlers).
 
 ##[Call chains](id:Call-chains)
 
@@ -575,22 +618,22 @@ whose full signature is:
                  extra_indent_level=1, prefix_with_name=False)`
 
 This method takes one or more "messages" (anything you want to see as a string),
-and writes one final output message formed by joining messages separated by `sep`.
+and writes one final output message formed by joining those messages separated by `sep`.
 
-`extra_indent_level` is a number of 4-columns wide *indent levels* specifying
-where to begin writing that message. This value * 4 is an offset in columns
+`extra_indent_level` is a number of 4-column-wide *indent levels* specifying
+where to begin writing that message. This value x 4 is an offset in columns
 from the left margin of the visual frame established by log_calls – that is,
 an offset from the column in which the function entry/exit messages begin. The default
 of 1 aligns the message with the "arguments: " line of `log_calls`'s output.
 
-`prefix_with_name` is a bool. If true, the final message is prefaced with the
+`prefix_with_name` is a `bool`. If true, the final message is prefaced with the
  possibly prefixed name of the function (using the `prefix` setting), 
  plus possibly its call number in  square brackets (if the `log_call_numbers` setting
- is true.
+ is true).
  
 If a decorated function or method writes debugging messages, even multiline
 messages, it can use this method to write them so that they sit nicely within
-the visual frame provided by `log_calls`.
+the `log_calls` visual frame.
 
 Consider the following function:
 
@@ -624,11 +667,11 @@ Consider the following function:
     *** (n=2) We're back.
     f [1] ==> returning to <module>
 
-The debugging messages written by `f` literally "stick out", and it gets difficult,
+The debugging messages written by `f` literally "stick out", and it becomes difficult,
 especially in more complex situations with multiple functions and methods,
-to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
+to figure out who actually wrote which message; hence the "(n=%d)" tag. If instead
 `f` uses `log_message`, all of its messages from each invocation align neatly
-within the frame presented by `log_calls`. We also take the opportunity to
+within the `log_calls` visual frame. We take this opportunity to also
 illustrate the keyword parameters of `log_message`:
 
     >>> @log_calls(indent=True, log_call_numbers=True)
@@ -636,24 +679,23 @@ illustrate the keyword parameters of `log_message`:
     ...     if n <= 0:
     ...         f.log_message("Base case n =", n, prefix_with_name=True)
     ...     else:
-    ...         f.log_message("n=%d is %s,\\n    but we knew that."
+    ...         f.log_message("*** n=%d is %s,\\n    but we knew that."
     ...                       % (n, "odd" if n%2 else "even"),
-    ...                       prefix_with_name=True)
+    ...                       extra_indent_level=0)
     ...         f.log_message("We'll be right back", "after this:",
-    ...                       extra_indent_level=0, sep=", ", prefix_with_name=True)
+    ...                       sep=", ", prefix_with_name=True)
     ...         f(n-1)
-    ...         f.log_message("We're back.", extra_indent_level=0, prefix_with_name=True)
-
+    ...         f.log_message("We're back.", prefix_with_name=True)
     >>> f(2)                                            # doctest: +SKIP
     f [1] <== called by <module>
         arguments: n=2
-        f [1]: n=2 is even,
-            but we knew that.
+    *** n=2 is even,
+        but we knew that.
         f [1]: We'll be right back, after this:
         f [2] <== called by f [1]
             arguments: n=1
-            f [2]: n=1 is odd,
-                but we knew that.
+        *** n=1 is odd,
+            but we knew that.
             f [2]: We'll be right back, after this:
             f [3] <== called by f [2]
                 arguments: n=0
@@ -664,8 +706,13 @@ illustrate the keyword parameters of `log_message`:
         f [1]: We're back.
     f [1] ==> returning to <module>
 
-See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for a couple of notes 
-and internal links to further examples.
+The `log_message()` method works whether the output destination is `stdout`,
+another stream, a file, or a logger. The test file `test_log_calls_more.py`
+contains an example `main__log_message__all_possible_output_destinations()`
+which illustrates that.
+
+See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for notes 
+and internal links to further examples. 
 
 ## [Advanced Features](id:Advanced-features)
 `log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).
@@ -701,8 +748,8 @@ of `DEBUG`, established when the definition was processed:
 
 `log_calls` provides *two* ways to overcome this limitation and dynamically control the settings of a decorated function:
 
-* the `log_calls_settings` attribute, which provides a mapping interface and an attribute-based interface to settings, and 
-* *indirect values. 
+* [the `log_calls_settings` attribute](#log_call_settings), which provides a mapping interface and an attribute-based interface to settings, and 
+* [indirect values](#Indirect-values). 
 
 The following two subsections give a brief introduction to these features, which [the main documentation]((http://www.pythonhosted.org/log_calls) presents in depth.
 
@@ -774,7 +821,7 @@ The `update()` method of the `log_calls_settings` object lets you update several
     f ==> returning to <module>
 
 You can retrieve the entire collection of settings as either an `OrderedDict` using the `as_OrderedDict()` method, or as a `dict` using `as_dict()`.
-Either can serve as a snapshot of the settings, so that you can change settings temporarily, use the new settings, and then use `update()` restore settings from the snapshot.
+Either can serve as a snapshot of the settings, so that you can change settings temporarily, use the new settings, and then use `update()` to restore settings from the snapshot.
 in addition to taking keyword arguments, as shown above, `update()` can take one or more dicts – in particular, a dictionary retrieved from one of the `as_*` methods. For example:
 
 Retrieve settings (here, as an `OrderedDict` because those are more doctest-friendly, but using `as_dict()` suffices):
@@ -822,8 +869,7 @@ explicit keyword parameters with default values, are both searched for the named
 parameter; if it is found and of the correct type, *its* value is used; otherwise 
 the default value for the `log_calls` parameter is used.
 
-To specify an indirect value for a parameter whose normal type is `str` (only 
-`args_sep`, at present), append an `'='` to the value.  For consistency, 
+To specify an indirect value for a parameter whose normal values are or can be `str`s (only `args_sep` and `logger`, at present), append an `'='` to the value.  For consistency, 
 any indirect value can end in a trailing `'='`, which is stripped. Thus, 
 `enabled='enable_='` indicates an indirect value *to be supplied* by the keyword (argument or parameter) `enable_` of the decorated function.
 
@@ -883,7 +929,7 @@ function. It can collect the entire history of calls to a function if asked
 to, or just the most recent `n` calls; the \*_history parameters, discussed next, determine these settings. The statistics and history are accessible via the `stats` attribute which `log_calls` adds to a decorated function.
 
 #### [The *record_history* and *max_history* parameters](id:_history-parameters)
-The two parameters we haven't yet discussed govern the recording of a decorated function's call history.
+The two settings parameters we haven't yet discussed govern the recording of a decorated function's call history.
 
 #####[The *record_history* parameter (default – *False*)](id:record_history-parameter)
 When the `record_history` setting is true for a decorated function `f`, `log_calls` will retain a sequence of records holding the details of each logged call to that function. That history is accessible via attributes of the `stats` object. 
@@ -893,7 +939,7 @@ Let's define a function `f` with `record_history` set to true:
     >>> @log_calls(record_history=True, log_call_numbers=True, log_exit=False)
     ... def f(a, *args, x=1, **kwargs): pass
 
-We'll call this function f in the following subsections, manipulate its settings, and examine its statistics.
+In the following subsections, we'll call this function, manipulate its settings, and examine its statistics.
 
 #####[The *max_history* parameter (default – 0)](id:max_history-parameter)
 The `max_history` parameter determines how many call history records are retained for a decorated function whose call history is recorded. If this value is 0 or negative, unboundedly many records are retained (unless or until
@@ -917,7 +963,7 @@ The first three don't depend on the `record_history` setting at all.The last thr
 
 The `stats` attribute also provides one method, [`stats.clear_history()`](#stats.clear_history).
 
-Let's call the function `f` defined above twice:
+Let's call the function `f` twice:
 
     >>> f(0)
     f [1] <== called by <module>
@@ -927,7 +973,7 @@ Let's call the function `f` defined above twice:
     f [2] <== called by <module>
         arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
 
-and look at its `stats`.
+and explore its `stats`.
 
 #####[The *num_calls_logged* attribute](id:stats.num_calls_logged)
 The `stats.num_calls_logged` attribute contains the number of the most
@@ -1016,8 +1062,8 @@ The value `stats.history_as_csv` attribute is a text representation in CSV forma
 of a decorated function's call history. You can save this string
 and import it into the program or tool of your choice for further analysis.
 (*Note: if your tool of choice is [Pandas](http://pandas.pydata.org), you can use 
-the `stats` attribute `stats.history_as_DataFrame` to directly obtain history in 
-the representation you ultimately want.*)
+the `stats` attribute [`stats.history_as_DataFrame`](#stats.history_as_DataFrame) to obtain history 
+directly in the representation you really want.*)
 The CSV representation
 breaks out each argument into its own column, throwing away 
 information about whether an argument's value was passed or is a default.
@@ -1064,6 +1110,9 @@ having to know or care what those are).
 
 If Pandas is not installed, the value of this attribute is `None`.
 
+The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](./record_history.html#stats.history_as_DataFrame) 
+which also illustrates its use in an IPython notebook.
+
 #####[The *clear_history(max_history=0)* method](id:stats.clear_history)
 As you might expect, the `stats.clear_history(max_history=0)` method clears 
 the call history of a decorated function. In addition, it resets all running sums:
@@ -1106,10 +1155,33 @@ dynamically through the `log_calls_settings` attribute, these settings of
 so it has the same methods and behaviors described in the [`log_calls_settings`](#log_call_settings) section.
 
 Functions decorated by `record_history` have a full-featured `stats` attribute,
-as described in the [Call history and statistics](#call-history-and-statistics) section.
+as described in the [Call history and statistics](#call-history-and-statistics) section above.
 
-See the documentation for [`record_history`](http://www.pythonhosted.org/record_history) for examples and tests.
+See the documentation for [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html) for examples and tests.
 
-**ATTENTION**: *Like* `log_calls`, `record_history` *has some overhead. So, ***comment it out in production code!** 
+**ATTENTION**: *Like* `log_calls`, `record_history` *has some overhead. So,* **comment it out in production code!** 
+
+##[Appendix – Keyword Parameters Reference](id:KeywordParametersReference)
+
+The `log_calls` decorator takes various keyword arguments, all with hopefully sensible defaults:
+
+Keyword parameter | Default value | Description
+----------------: | :------------ | :------------------
+       `enabled`    | `True`          | An `int`. If true, then `log_calls` will output (or "log") messages.
+       `args_sep`   | `', '`          | `str` used to separate arguments. The default is  `', '`, which lists all args on the same line. If `args_sep='\n'` is used, or more generally if the `args_sep` string ends in `\n`, then additional spaces are appended to the separator for a neater display. Other separators in which `'\n'` occurs are left unchanged, and are untested – experiment/use at your own risk.
+       `log_args`   | `True`          | If true, arguments passed to the decorated function, and default values used by the function, will be logged.
+       `log_retval` | `False`         | If true, log what the decorated function returns. At most 60 chars are printed, with a trailing ellipsis if the value is truncated.
+       `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
+       `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
+       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds.
+       `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
+       `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
+       `file`     | `sys.stdout`      | If `logger` is `None`, a stream (an instance of type `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function.
+       `logger`     | `None`          | If not `None`, either a logger (a `logging.Logger` instance), or the name of a logger (a `str` that will be passed to `logging.getLogger()`); that logger will be used to write messages, provided it exists/has handlers. Otherwise, `print` is used.
+       `loglevel`   | `logging.DEBUG` | Logging level, ignored unless a logger is specified. This should be one of the logging levels recognized by the `logging` module – one of the constants defined by that module, or a custom level you've added.
+       `record_history` | `False`     | If true, a list of records will be kept, one for each logged call to the function. Each record holds: call number (1-based), arguments and defaulted keyword arguments, return value, time elapsed, time of call, prefixed function name, caller (call chain). The value of this attribute is a `tuple`.
+       `max_history` | `0`            | An `int`. *value* > 0 --> store at most *value*-many records, oldest records overwritten; *value* ≤ 0 --> store unboundedly many records. Ignored unless `record_history` is true.
+       `settings_loc` | `''`            | A string giving the path to a *settings file*. If the path is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override any values for those settings from the file.
+
 
 ####— Brian O'Neill, October-November 2014, NYC
