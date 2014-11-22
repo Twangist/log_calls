@@ -1018,7 +1018,7 @@ value as `f.stats.num_calls_logged` after the call:
     >>> f.stats.num_calls_logged
     3
 
-**ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So, ***comment it out in production code!** 
+**ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So,* **comment it out in production code!** 
 
 #####[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
 The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
