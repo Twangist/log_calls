@@ -16,20 +16,6 @@ For each call to a decorated function, `log_calls` can show you:
 * the function's return value,
 * and more!
 
-These and other features are optional and configurable settings, which
-can be specified for each decorated function via keyword parameters.
-You can also dynamically get and set these settings using attributes
-with the same names as the keywords, or using a dict-like interface
-whose keys are the keywords.
-
-`log_calls` can also collect profiling data and statistics, accessible dynamically:
-
-* number of calls to a function,
-* total time taken by the function,
-* the function's entire call history (arguments, time elapsed, return values,
-  callers, and more), available as text in CSV format and, if Pandas is
-  installed, as a DataFrame.
-
 These features and others are optional and configurable settings,
 which can be specified for each decorated function via keyword parameters of
 the decorator. You can also dynamically get and set these settings using attributes
@@ -38,6 +24,14 @@ are the keywords. In fact, through a mechanism of "indirect parameter values",
 with just a modest amount of cooperation between decorated functions a calling
 function can ensure uniform settings for all `log_calls`-decorated functions in
 call chains beneath it.
+
+`log_calls` can also collect profiling data and statistics, accessible dynamically:
+
+* number of calls to a function,
+* total time taken by the function,
+* the function's entire call history (arguments, time elapsed, return values,
+  callers, and more), available as text in CSV format and, if Pandas is
+  installed, as a DataFrame.
 
 The package contains two other decorators:
 
