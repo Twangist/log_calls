@@ -220,7 +220,7 @@ class DecoSettingHistory(DecoSetting_bool):
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# DecoSetting subclasses overriding value_from_str
+# DecoSetting subclasses overriding value_from_str and has_acceptable_type
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class DecoSettingFile(DecoSetting):
@@ -228,9 +228,24 @@ class DecoSettingFile(DecoSetting):
         """Virtual method for use by _deco_base._read_settings_file.
         0.2.4.post1"""
         if s == 'sys.stderr':
+            ### print("DecoSettingFile.value_from_str, s=%s, returning %r (sys.stderr?)" % (s, sys.stderr))
             return sys.stderr
         # 'sys.stdout' ultimately becomes None via this:
         return super().value_from_str(s)
+
+    def has_acceptable_type(self, value):
+        """Accommodate IPython, whose sys.stderr is of type IPython.kernel.zmq.iostream.OutStream.
+        """
+        if not value:
+            return False
+        if super().has_acceptable_type(value):
+            return True
+        # Hmmm ok maybe we're running under IPython:
+        try:
+            import IPython
+            return isinstance(value, IPython.kernel.zmq.iostream.OutStream)
+        except ImportError:
+            return False
 
 
 class DecoSettingLogger(DecoSetting):
@@ -683,6 +698,7 @@ class _deco_base():
             val_txt = val_txt.strip()
 
             if setting not in settings_dict or not val_txt:
+                # fail silently. (Or, TODO: report error? ill-formed line)
                 continue
 
             # special case: None
@@ -691,14 +707,14 @@ class _deco_base():
                     d[setting] = None
                 continue
 
-            # If val_txt is enclosed in quotes (same one!)
+            # If val_txt is enclosed in quotes (single or double)
             # and ends in '=' (indirect value) then let val = val_txt;
-            # otherwise, defer to settings_dict[setting].value_from_str(val_txt)
+            # otherwise, defer to settings_dict[setting].value_from_str
             is_indirect = (is_quoted_str(val_txt) and
                            len(val_txt) >= 3 and
                            val_txt[-2] == '=')
             if is_indirect:
-                val = val_txt[1:-1]
+                val = val_txt[1:-1]     # remove quotes
             else:
                 try:
                     val = settings_dict[setting].value_from_str(val_txt)
