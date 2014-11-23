@@ -125,7 +125,7 @@ section of README.
 <ul>
 <li><a href="#settings-as-dict">Example of <em>settings</em> as a <em>dict</em></a></li>
 <li><a href="#format-of-a-settings-file">Format of a settings file</a></li>
-<li><a href="#settings-file-example">*settings* as a file: example and discussion</a></li>
+<li><a href="#settings-file-example"><em>settings</em> as a file: example and discussion</a></li>
 <li><a href="#settings-more-examples">Where to find more examples</a></li>
 </ul>
 <h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
