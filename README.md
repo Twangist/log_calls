@@ -37,9 +37,13 @@ and which received their default values.
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.4.post1` of `log_calls`.
+This document describes version `0.2.4.post4` of `log_calls`.
 
 ## [What's New](id:What's-new)
+* *0.2.4.post4*
+    * *(docs & description changes only, no code changes)*
+* *0.2.4.post3*
+    * *(never existed)*
 * **0.2.4.post2**
     * The `settings` parameter (formerly `settings_path`) lets you specify default values for multiple settings either as a dictionary, or as a file. The `settings_path` parameter is deprecated, as `settings` is a superset. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
 

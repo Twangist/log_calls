@@ -1,8 +1,9 @@
 VERSIONS
 --------
-0.2.4.post3
+0.2.4.post4
       - edited redundant "long description" in setup.py
-
+0.2.4.post3
+      - never existed
 0.2.4.post2
       - Renamed the `settings_path` parameter to `settings`
         as it can now be a dict or a pathname.
