@@ -44,7 +44,7 @@ This document describes version `0.2.4.post1` of `log_calls`.
     * The `settings` parameter (formerly `settings_path`) lets you specify default values for multiple settings either as a dictionary, or as a file. The `settings_path` parameter is deprecated, as `settings` is a superset. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
 
 * **0.2.4.post1**
-    * *`settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing*
+    * `settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing.
 * **0.2.4**
     * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
     * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
