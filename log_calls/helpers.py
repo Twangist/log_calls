@@ -7,7 +7,8 @@ __all__ = [
     'get_args_kwargs_param_names',
     'get_defaulted_kwargs_OD',
     'get_explicit_kwargs_OD',
-    'dict_to_sorted_str'
+    'dict_to_sorted_str',
+    'is_quoted_str',
 ]
 
 from collections import OrderedDict
@@ -213,6 +214,29 @@ def dict_to_sorted_str(d):
            '}')
     return ret
 
+
+def is_quoted_str(s):
+    """
+    >>> is_quoted_str('')
+    False
+    >>> is_quoted_str('"')
+    False
+    >>> is_quoted_str('Hi')
+    False
+    >>> is_quoted_str('"Hi\\'')
+    False
+    >>> is_quoted_str('"Hi"')
+    True
+    >>> is_quoted_str("''")
+    True
+    >>> any( map(is_quoted_str, [0, tuple(), list()]))
+    False
+    """
+    QUOTES = {"'", '"'}
+    return isinstance(s, str) and len(s) >= 2 and s[0] == s[-1] and s[0] in QUOTES
+
+
+#############################################################################
 
 if __name__ == "__main__":
     import doctest

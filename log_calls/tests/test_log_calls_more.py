@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.4'
+__version__ = '0.2.4.post1'
 
 from log_calls import log_calls
 
@@ -448,6 +448,9 @@ Next, we provide `settings_path` as a path to an existing file,
     log_retval=True
     log_elapsed='elapsed_='
     logger='star3_logger'
+    # file: this is just for testing, as logger takes precedence.
+    #    Note: NO QUOTES around the value sys.stderr
+    file=sys.stderr
 
 Notice that the `logger` setting is the *name* of a logger.
 A settings file doesn't have to contain every possible setting:
@@ -471,13 +474,20 @@ Let's examine the settings:
      'indent': False,
      'log_call_numbers': True,
      'prefix': '',
-     'file': None,
+     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
      'logger': 'star3_logger',
      'loglevel': 10,
      'record_history': False,
      'max_history': 0}
 
-and finally call the function:
+The settings `args_sep`, `log_retval`, `log_elapsed`, `file` and `logger` have
+values from the settings file. `log_args` is set to `False` in the settings file,
+but that is overridden by the `True` value supplied to the decorator. The default
+value `False` of `log_call_numbers` is unchanged by the settings file, but
+the value of `True` is supplied to the decorator. The other settings all have
+their `log_calls` default values.
+
+Now call the function, supplying a final value for `log_elapsed`:
 
     >>> _ = g(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
     *** g [1] <== called by <module>

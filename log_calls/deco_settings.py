@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4'
+__version__ = '0.2.4.post1'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -47,17 +47,18 @@ parameter of the decorated function can also end in a trailing '=', which
 is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import pprint
-from .helpers import is_keyword_param
+from .helpers import is_keyword_param, is_quoted_str
 
 
 __all__ = ['DecoSetting', 'DecoSettingsMapping']
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# classes
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#----------------------------------------------------------------------------
+# DecoSetting & basic subclasses
+#----------------------------------------------------------------------------
+
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
                          sans any value.
@@ -139,7 +140,48 @@ class DecoSetting():
         output += ")"
         return output
 
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        0.2.4.post1"""
+        raise ValueError()
 
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# DecoSetting subclasses
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+class DecoSetting_bool(DecoSetting):
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        0.2.4.post1"""
+        ddict = defaultdict(lambda: self.default)
+        ddict['TRUE'] = True
+        ddict['FALSE'] = False
+        return ddict[s.upper()]
+
+
+class DecoSetting_int(DecoSetting):
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        0.2.4.post1"""
+        try:
+            return int(s)
+        except ValueError:
+            return super().value_from_str(s)
+
+
+class DecoSetting_str(DecoSetting):
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        s must be enclosed in quotes (the same one on each end!)
+        and then we return what's quoted... or raise ValueError
+        0.2.4.post1"""
+        if is_quoted_str(s):
+            return s[1:-1]
+        return super().value_from_str(s)
+
+#----------------------------------------------------------------------------
+# DecoSettingsMapping
+#----------------------------------------------------------------------------
 class DecoSettingsMapping():
     """Usable with any class-based decorator that wants to implement
     a mapping interface and attribute interface for its keyword params,

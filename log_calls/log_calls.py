@@ -23,10 +23,13 @@ import time
 import datetime
 from collections import namedtuple, deque
 
-from .deco_settings import DecoSetting, DecoSettingsMapping
+from .deco_settings import (DecoSetting,
+                            DecoSetting_bool, DecoSetting_int, DecoSetting_str,
+                            DecoSettingsMapping)
 from .helpers import (get_args_pos, get_args_kwargs_param_names,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
-                      dict_to_sorted_str, prefix_multiline_str)
+                      dict_to_sorted_str, prefix_multiline_str,
+                      is_quoted_str)
 from .proxy_descriptors import ClassInstanceAttrProxy
 from .used_unused_kwds import used_unused_keywords
 
@@ -75,7 +78,7 @@ CallRecord = namedtuple(
 #     kwargs
 #-----------------------------------------------------------------------------
 
-class DecoSettingEnabled(DecoSetting):
+class DecoSettingEnabled(DecoSetting_int):
     def __init__(self, name, **kwargs):
         super().__init__(name, int, False, allow_falsy=True, **kwargs)
 
@@ -84,8 +87,19 @@ class DecoSettingEnabled(DecoSetting):
                 % (context['output_fname'],
                    ' <== '.join(context['call_list'])))
 
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        0.2.4.post1"""
+        try:
+            return int(s)
+        except ValueError:
+            try:
+                return bool(s)
+            except ValueError:
+                return self.default
 
-class DecoSettingArgs(DecoSetting):
+
+class DecoSettingArgs(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, True, allow_falsy=True, **kwargs)
 
@@ -151,7 +165,7 @@ class DecoSettingArgs(DecoSetting):
 #     retval
 #-----------------------------------------------------------------------------
 
-class DecoSettingRetval(DecoSetting):
+class DecoSettingRetval(DecoSetting_bool):
     MAXLEN_RETVALS = 77
 
     def __init__(self, name, **kwargs):
@@ -165,7 +179,7 @@ class DecoSettingRetval(DecoSetting):
                 "%s return value: %s" % (context['output_fname'], retval_str))
 
 
-class DecoSettingElapsed(DecoSetting):
+class DecoSettingElapsed(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, False, allow_falsy=True, **kwargs)
 
@@ -174,7 +188,7 @@ class DecoSettingElapsed(DecoSetting):
                 "elapsed time: %f [secs]" % context['elapsed_secs'])
 
 
-class DecoSettingExit(DecoSetting):
+class DecoSettingExit(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, True, allow_falsy=True, **kwargs)
 
@@ -184,7 +198,7 @@ class DecoSettingExit(DecoSetting):
                       ' ==> '.join(context['call_list'])))
 
 
-class DecoSettingHistory(DecoSetting):
+class DecoSettingHistory(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, False, allow_falsy=True, **kwargs)
 
@@ -204,6 +218,29 @@ class DecoSettingHistory(DecoSetting):
         )
         return None
 
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# DecoSetting subclasses overriding value_from_str
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+class DecoSettingFile(DecoSetting):
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        0.2.4.post1"""
+        if s == 'sys.stderr':
+            return sys.stderr
+        # 'sys.stdout' ultimately becomes None via this:
+        return super().value_from_str(s)
+
+
+class DecoSettingLogger(DecoSetting):
+    def value_from_str(self, s):
+        """Virtual method for use by _deco_base._read_settings_file.
+        s is the name of a logger, enclosed in quotes, or something bad.
+        0.2.4.post1"""
+        if is_quoted_str(s):
+            return s[1:-1]
+        return super().value_from_str(s)
 
 #-----------------------------------------------------------------------------
 # Fat base class for log_calls and record_history decorators
@@ -281,9 +318,9 @@ class _deco_base():
     #
     # _setting_info_list = (
     #     DecoSettingEnabled('enabled'),
-    #     DecoSetting('indent',           bool,           False,         allow_falsy=True),
-    #     DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
-    #     DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
+    #     DecoSetting_bool(  'indent',           bool, False, allow_falsy=True),
+    #     DecoSetting_bool(  'log_call_numbers', bool, False, allow_falsy=True),
+    #     DecoSetting_str(   'prefix',           str,  '',    allow_falsy=True,  allow_indirect=False)
     # )
     # DecoSettingsMapping.register_class_settings('_deco_base',
     #                                             _setting_info_list)
@@ -632,8 +669,6 @@ class _deco_base():
             return d
 
         settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
-        QUOTES = {"'", '"'}
-        
         for line in lines:
             line = line.strip()
             if not line or line[0] == '#':
@@ -656,51 +691,22 @@ class _deco_base():
                     d[setting] = None
                 continue
 
-            # If val_txt ends in '=' (indirect value) then let val = val_txt;
-            # otherwise, figure out *the* final type, favoring str if val_txt is enclosed in quotes;
-            # apply the final type to val_txt to get val
-            val_is_str = len(val_txt) >= 2 and val_txt[0] == val_txt[-1] and val_txt[0] in QUOTES
-            if val_is_str:
-                val_txt = val_txt[1:-1]
-
-            if val_is_str and val_txt and val_txt[-1] == '=':      # indirect value
-                val = val_txt
+            # If val_txt is enclosed in quotes (same one!)
+            # and ends in '=' (indirect value) then let val = val_txt;
+            # otherwise, defer to settings_dict[setting].value_from_str(val_txt)
+            is_indirect = (is_quoted_str(val_txt) and
+                           len(val_txt) >= 3 and
+                           val_txt[-2] == '=')
+            if is_indirect:
+                val = val_txt[1:-1]
             else:
-                final_type = settings_dict[setting].final_type
-                # Set one_final_type
-                if isinstance(final_type, tuple):
-                    one_final_type = str if (str in final_type and val_is_str) else final_type[0]
-                else:
-                    one_final_type = final_type
-
-                if one_final_type == str and not val_is_str:
-                    continue
-
                 try:
-                    if one_final_type == bool:
-                        errmsg = ("settings file %s, line '%s': expected True or False, got %s"
-                                  % (settings_path, line, val_txt))
-                        if val_is_str:
-                            raise ValueError(errmsg)
-                        elif val_txt.upper() == 'TRUE':
-                            val = True
-                        elif val_txt.upper() == 'FALSE':
-                            val = False
-                        else:
-                            raise ValueError(errmsg)
-                    else:
-                        val = one_final_type(val_txt)   # might raise ValueError (or...?)
+                    val = settings_dict[setting].value_from_str(val_txt)
                 except ValueError as e:
                     # fail silently. (Or, TODO: report error? bad value)
                     continue                            # bad line
 
             d[setting] = val
-
-        # Fixups:
-        if 'file' in d and isinstance(d['file'], io.TextIOBase):
-            del d['file']
-        if 'logger' in d and isinstance(d['logger'], logging.Logger):
-            del d['logger']
 
         return d
 
@@ -1023,6 +1029,9 @@ class _deco_base():
         return call_list, prev_indent_level
 
 
+#----------------------------------------------------------------------------
+# log_calls
+#----------------------------------------------------------------------------
 class log_calls(_deco_base):
     """
     This decorator logs the caller of a decorated function, and optionally
@@ -1088,20 +1097,23 @@ class log_calls(_deco_base):
     # allow indirection for all except prefix and max_history, which also isn't mutable
     _setting_info_list = (
         DecoSettingEnabled('enabled'),
-        DecoSetting('args_sep',         str,            ', ',          allow_falsy=False),
+        DecoSetting_str('args_sep',          str,            ', ',          allow_falsy=False),
         DecoSettingArgs('log_args'),
         DecoSettingRetval('log_retval'),
         DecoSettingElapsed('log_elapsed'),
         DecoSettingExit('log_exit'),
-        DecoSetting('indent',           bool,           False,         allow_falsy=True),
-        DecoSetting('log_call_numbers', bool,           False,         allow_falsy=True),
-        DecoSetting('prefix',           str,            '',            allow_falsy=True,  allow_indirect=False),
-        DecoSetting('file',             io.TextIOBase,  None,          allow_falsy=True),
-        DecoSetting('logger',           (logging.Logger,
-                                         str),          None,          allow_falsy=True),
-        DecoSetting('loglevel',         int,            logging.DEBUG, allow_falsy=False),
+        DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
+        DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
+        DecoSetting_str( 'prefix',           str,            '',            allow_falsy=True,
+                         allow_indirect=False),
+
+        DecoSettingFile('file',              io.TextIOBase,  None,          allow_falsy=True),
+        DecoSettingLogger('logger',          (logging.Logger,
+                                              str),          None,          allow_falsy=True),
+        DecoSetting_int('loglevel',          int,            logging.DEBUG, allow_falsy=False),
         DecoSettingHistory('record_history'),
-        DecoSetting('max_history',      int,            0,             allow_falsy=True, allow_indirect=False, mutable=False),
+        DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
+                        allow_indirect=False, mutable=False),
     )
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
