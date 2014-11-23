@@ -471,7 +471,7 @@ The call number is also displayed when `log_retval` is true:
         f [1] return value: 81
     f [1] ==> returning to <module>
 
-This is particularly valuable in the presence of recursion, for example.
+This is particularly valuable in the presence of recursion, for instance.
 See the [recursion example](#recursion-example) later, where the feature
 is used to good effect.
 
