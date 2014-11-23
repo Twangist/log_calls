@@ -40,10 +40,13 @@ This document gives an overview of the decorator's features and their use. A tho
 This document describes version `0.2.4.post1` of `log_calls`.
 
 ## [What's New](id:What's-new)
-* *0.2.4.post1*
+* **0.2.4.post2**
+    * The `settings` parameter (formerly `settings_path`) lets you specify default values for multiple settings either as a dictionary, or as a file. The `settings_path` parameter is deprecated, as `settings` is a superset. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
+
+* **0.2.4.post1**
     * *`settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing*
 * **0.2.4**
-    * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings_path-parameter) for details, discussion and examples.
+    * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
     * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
     * The `indent` setting now works with loggers too. See examples:
         * using `log_message` as a general output function that works as expected, whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, docstring of `main__log_message__all_possible_output_destinations()`];
@@ -1183,7 +1186,7 @@ Keyword parameter | Default value | Description
        `loglevel`   | `logging.DEBUG` | Logging level, ignored unless a logger is specified. This should be one of the logging levels recognized by the `logging` module – one of the constants defined by that module, or a custom level you've added.
        `record_history` | `False`     | If true, a list of records will be kept, one for each logged call to the function. Each record holds: call number (1-based), arguments and defaulted keyword arguments, return value, time elapsed, time of call, prefixed function name, caller (call chain). The value of this attribute is a `tuple`.
        `max_history` | `0`            | An `int`. *value* > 0 --> store at most *value*-many records, oldest records overwritten; *value* ≤ 0 --> store unboundedly many records. Ignored unless `record_history` is true.
-       `settings_loc` | `''`            | A string giving the path to a *settings file*. If the path is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override any values for those settings from the file.
+       `settings` | `None`            | A dictionary containing settings and values, or a string giving the pathname to a *settings file* containing settings and values. If the pathname is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override their values.
 
 
 ####— Brian O'Neill, October-November 2014, NYC

@@ -121,11 +121,12 @@ section of README.
 <li><a href="#stats.history_as_DataFrame">The <em>history_as_DataFrame</em> attribute</a></li>
 <li><a href="#stats.clear_history">The <em>clear_history()</em> method</a></li>
 </ul>
-<h5><a href="#settings_path-parameter">The <em>settings_path</em> parameter</a></h5>
+<h5><a href="#settings-parameter">The <em>settings</em> parameter</a></h5>
 <ul>
+<li><a href="#settings-as-dict">Example of <em>settings</em> as a <em>dict</em></a></li>
 <li><a href="#format-of-a-settings-file">Format of a settings file</a></li>
-<li><a href="#settings_path-example">Example and discussion</a></li>
-<li><a href="#settings_path-more-examples">Where to find more examples</a></li>
+<li><a href="#settings-file-example">*settings* as a file: example and discussion</a></li>
+<li><a href="#settings-more-examples">Where to find more examples</a></li>
 </ul>
 <h5><a href="#record_history-decorator">The <em>record_history</em> decorator</a></h5>
 <h5><a href="#realistic-examples">Realistic examples</a></h5>
@@ -154,7 +155,7 @@ section of README.
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.4.post1` of `log_calls`.
+This document describes version `0.2.4.post2` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
@@ -298,7 +299,7 @@ though of course you can use multiple parameters in any call to the decorator:
 * [`prefix`](#prefix-parameter)
 * [`file`](#file-parameter)
 
-The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([`record_history`](#record_history-parameter)), and then how much of it ([`max_history`](#max_history-parameter)), are discussed in [Call history and statistics – the *stats* attribute and the *\*_history* parameters](#call-history-and-statistics). The one parameter that is not a "setting", `settings_path`, lets you specify a file containing default settings; it's discussed in the section [The *settings_path* parameter](#settings_path-parameter).
+The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([`record_history`](#record_history-parameter)), and then how much of it ([`max_history`](#max_history-parameter)), are discussed in [Call history and statistics – the *stats* attribute and the *\*_history* parameters](#call-history-and-statistics). The one parameter that is not a "setting", `settings`, lets you specify a `dict` or a file containing default settings; it's discussed in the section [The *settings* parameter](#settings-parameter).
 
 Every example in this document uses `log_calls`, so without further ado:
 
@@ -1490,7 +1491,16 @@ Several uses of "indirect values" described in this section rely on multiple fun
 every method [f, say,  is] cooperatively designed to accept keyword arguments and a keyword-arguments dictionary, to remove any arguments that it needs, and to forward the remaining arguments using **kwds [via super().f(…, **kwds), where … are positional args], eventually leaving the dictionary empty for the final call in the chain.
 </blockquote>
 
-Taken literally, this implies that no two implementations of the same method in different classes should ever share a keyword parameter, as the first one to "need" it will "remove it" before passing the baton to its kinfolk further on down the mro list. Certainly that's a clear if stringent approach to cooperation, one consistent with the behavior of certain "final calls in the chain" that land in core Python; for example, `object.__init__` and `type.__init__` raise an exception if they receive any `**kwargs`. But the "promiscuous" paradigm of cooperation is also valid and useful, and causes no harm as long as it's clear what all cooperating parties are agreeing *to*.
+Certainly this condition implies that a subclass's implementation of a method should never share keywords with its parent class's implementation. 
+But it's more stringent than that. It requires that a class's implementation 
+of a method *never* share keywords with any implementation of that method
+in *any* class that might *ever* be on its [mro](https://docs.python.org/3/glossary.html#term-method-resolution-order) list. Indeed, following this prescription, an implementation simply *can't* share keyword parameters: 
+each method will "remove any [parameters] that it needs" before passing 
+the baton via `super()` to its kinfolk further on down the mro list. 
+In the presence of multiple inheritance, which alters a class's static mro, 
+this can be difficult to guarantee, to put it mildly.
+
+Certainly this is a clear if stern approach to cooperation, one consistent with the behavior of certain "final calls in the chain" that land in core Python; for example, `object.__init__` and `type.__init__` raise an exception if they receive any `**kwargs`. But the "promiscuous" paradigm of cooperation is also valid and useful, and causes no harm as long as it's clear what all cooperating parties are agreeing *to*.
 
 ##[Call history and statistics – the *stats* attribute and the *\*_history* parameters](id:call-history-and-statistics)
 `log_calls` always collects a few basic statistics about calls to a decorated
@@ -1801,23 +1811,80 @@ and `stats` tallies are reset:
     >>> f.stats.elapsed_secs_logged
     0.0
 
-##[The *settings_path* parameter](id:settings_path-parameter)
+##[The *settings* parameter (default – *None*)](id:settings-parameter)
 
-The `settings_path` parameter lets you specify a pathname to a *settings file*
-that contains `log_calls` settings and values to use as defaults. If the pathname 
-is a directory, `log_calls` looks there for a file named `.log_calls` and uses 
-that as a settings file; if the pathname is a file, `log_calls` uses that. 
-The values of settings specified in the settings file override `log_calls`'s default
+The `settings` parameter lets you specify either a settings dictionary, or a pathname to a *settings file*, containing `log_calls` settings and values to use as defaults. If it's a pathname and is just a directory, `log_calls` looks there for a file named `.log_calls` and uses 
+that as a settings file if it exists; if the pathname is a file, `log_calls` uses that file if it exists. 
+The values of settings specified in the dictionary or settings file override `log_calls`'s default
 values for those settings, and any of the resulting settings are in turn overridden 
 by corresponding keywords passed directly to the decorator.
 
-`settings_path`is a useful shorthand if you have a module with several 
+`settings`is a useful shorthand if you have a module with several 
 `log_calls`-decorated functions, all with multiple, mostly identical settings 
-that differ from `log_calls`'s defaults.
+which differ from `log_calls`'s defaults.
 
-`settings_path` is the only parameter to `log_calls` that's not a "setting", 
+`settings` is the only parameter to `log_calls` that's not a "setting", 
 in the technical sense that the `log_calls_settings` object has no such
 key or attribute.
+
+**NOTE**: *In versions 0.2.4.post1 and 0.2.4 of `log_calls`, 
+`settings` was called `settings_path` and it could only be a pathname.
+Starting in version 0.2.4.post2, setting can also be a `dict`.
+The older keyword `settings_path` still works, but it is deprecated
+and will be removed in a future version. While it still exists,
+if you specify both parameters then `settings` takes precedence 
+and `settings_path` is ignored.
+So, do convert to the newer keyword `settings`. We regret any inconvenience :)*
+
+###[*settings* as a *dict*](id:settings-as-dict)
+
+The value of settings can be a `dict`, or more generally any object `d` for which
+it's true that `isinstance(d, dict)`. A simple example should suffice. Here is a settings `dict` and a `log_calls`-decorated function using it:
+
+    >>> d = {
+    ...     'args_sep': ' | ',
+    ...     'log_args': False,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'max_history': 39,
+    ... }
+    >>> @log_calls(settings=d, log_args=True)
+    ... def fn(n):
+    ...     if n <= 0: return
+    ...     fn(n-1)
+
+Examine the settings of `ff`:
+
+    >>> import pprint
+    >>> pprint.pprint(fn.log_calls_settings.as_OrderedDict())
+    {'enabled': True,
+     'args_sep': ' | ',
+     'log_args': True,
+     'log_retval': False,
+     'log_elapsed': False,
+     'log_exit': True,
+     'indent': True,
+     'log_call_numbers': True,
+     'prefix': '',
+     'file': None,
+     'logger': None,
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 39}
+    
+The settings `args_sep`, `indent`, `log_call_numbers` and `max_history` get their 
+values from the settings file. `log_args` is set to `False` in the settings file, 
+but that's overridden by the `True` value supplied to the decorator. All other settings have their `log_calls` default values.
+
+Now call `fn` to confirm that `log_calls` output reflects these settings:
+
+    >>> fn(1)   # doctest: +ELLIPSIS
+    fn [1] <== called by <module>
+        arguments: n=1
+        fn [2] <== called by fn [1]
+            arguments: n=0
+        fn [2] ==> returning to fn [1]
+    fn [1] ==> returning to <module>
 
 ###[Format of a settings file](id:format-of-a-settings-file)
 A *settings file* is a text file containing zero or more lines of the form</br>
@@ -1826,25 +1893,24 @@ Whitespace is permitted around *setting_name* and *value*, and is stripped.
 Blank lines are ignored, as are lines whose first non-whitespace character is `#`
 and which therefore you can use as comments. 
 
-####Special cases
-The *value* of a setting will be treated as an indirect value provided it ends with '=' and is then enclosed in (single or double) quotes, *e.g.*:</br>
+The *value* of a setting is treated as an indirect value if it's enclosed in (single or double) quotes and its last non-quote character is `'='`. For example:</br>
 &nbsp;&nbsp;&nbsp;&nbsp; ```file='file_='```</br>
 
 Here are the allowed "direct" values for settings:
  
 Setting | Allowed "direct" value
-----------------: | :------------------ 
+:---------------- | :------------------ 
 `log_args`, `log_retval`, `log_elapsed`, `log_exit`, `indent`, `log_call_numbers`, `record_history` | boolean (case-insensitive – `True`, `False`, `tRuE`, `FALSE`, etc.)
 `enabled` | int, or boolean as above
 `args_sep`, `prefix` | string enclosed in quotes
 `loglevel`, `max_history` | int
-`file` | `sys.stderr`, NOT enclosed in quotes (or None)
-`logger` | name of a logger, enclosed in quotes (or None)
+`file` | `sys.stderr`, **not** enclosed in quotes (or `None`)
+`logger` | name of a logger, enclosed in quotes (or `None`)
 
 **NOTE**: *Ill-formed lines, bad values, and nonexistent settings are all 
 ignored, **silently**.*
 
-### [Example and discussion](id:settings_path-example)
+### [*settings* as a file: example and discussion](id:settings-file-example)
 
 For this example we'll need a logger named `'star3_logger'`:
 
@@ -1857,7 +1923,7 @@ For this example we'll need a logger named `'star3_logger'`:
     >>> another_logger.addHandler(ch)
     >>> another_logger.setLevel(logging.DEBUG)
 
-We'll use the settings file `tests/log_calls-settings.txt`, which contains:
+We'll use the settings file `log_calls-settings.txt` (found in both `log_calls/tests/` and `log_calls/docs/`), which contains:
 
     args_sep=' | '
     log_args=False
@@ -1871,19 +1937,18 @@ We'll use the settings file `tests/log_calls-settings.txt`, which contains:
 Notice that `log_elapsed` has an [indirect value](#Indirect-values), and that 
 the value of the `logger` setting is the *name* of the logger defined above.
 A settings file doesn't have to contain every possible setting:
-settings not given values start out with their usual default values.
+those not given values start out with their usual default values.
 
-Finally, let's decorate a function and use this settings file. We assume that 
-the current directory is `log_calls/tests`, or at least that this file and 
-the settings file are in the same directory.
+Let's decorate a function and use this settings file. We assume that 
+the settings file is in the same directory as the file containing 
+the following code (possibly this document!).
 
-    >>> @log_calls(settings_path='./log_calls-settings.txt', log_args=True, log_call_numbers=True)
+    >>> @log_calls(settings='./log_calls-settings.txt', log_args=True, log_call_numbers=True)
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
 Examine the settings:
 
-    >>> import pprint
     >>> pprint.pprint(g.log_calls_settings.as_OrderedDict())
     {'enabled': True,
      'args_sep': ' | ',
@@ -1916,12 +1981,14 @@ Now call the function, supplying a final value for `log_elapsed`:
     ***     elapsed time: 0.0... [secs]
     *** g [1] ==> returning to <module>
 
-### [Where to find more examples](id:settings_path-more-examples)
+### [Where to find more examples](id:settings-more-examples)
 The test file `tests/test_log_call_more.py`, in the docstring of the function
-`main__settings_path()`, contains several doctests of the `settings_path` feature. Two
+`main__settings()`, contains several doctests of the `settings` feature. Two
 of the tests there use "good" settings files in the `tests` directory: `.log_calls`
 and `log_calls-settings.txt`. Two more test what happens (nothing) when specifying
 a nonexistent file or a file with "bad" settings (`tests/bad-settings.txt`). 
+Another tests that `settings_path` still works; yet another tests `settings` 
+as a `dict`.
 
 ##[The *record_history* decorator](id:record_history-decorator)
 The `record_history` decorator is a stripped-down version of `log_calls` which
@@ -2304,7 +2371,7 @@ Keyword parameter | Default value | Description
        `loglevel`   | `logging.DEBUG` | Logging level, ignored unless a logger is specified. This should be one of the logging levels recognized by the `logging` module – one of the constants defined by that module, or a custom level you've added.
        `record_history` | `False`     | If true, a list of records will be kept, one for each logged call to the function. Each record holds: call number (1-based), arguments and defaulted keyword arguments, return value, time elapsed, time of call, prefixed function name, caller (call chain). The value of this attribute is a `tuple`.
        `max_history` | `0`            | An `int`. *value* > 0 --> store at most *value*-many records, oldest records overwritten; *value* ≤ 0 --> store unboundedly many records. Ignored unless `record_history` is true.
-       `settings_loc` | `''`            | A string giving the path to a *settings file*. If the path is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override any values for those settings from the file.
+       `settings` | `None`            | A dictionary containing settings and values, or a string giving the pathname to a *settings file* containing settings and values. If the pathname is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override their values.
 
 
 ####— Brian O'Neill, October-November 2014, NYC

@@ -359,7 +359,7 @@ or as the name of the Logger:
     pass
 
 
-def main__settings_path():
+def main__settings():
     """
 The `.log_calls` settings file in the `log_calls/tests/` directory
 contains these settings, some of them indirect:
@@ -379,7 +379,7 @@ contains these settings, some of them indirect:
     record_history=False
     max_history=57
 
-If you pass `settings_path` with a value that's an existing directory,
+If you pass `settings` with a value that's an existing directory,
 `log_calls` will look for a `.log_calls` file in that directory
 and will try to use it as a settings file. If you pass a value that's
 a path to a existing file, `log_calls` will try to use that file.
@@ -399,10 +399,10 @@ First, logger setup:
     >>> another_logger.setLevel(logging.DEBUG)
 
 Now the function declaration. The value from the settings file for
-`log_retval`, True, is overridden by the explicit setting keyword
+`log_retval`, `True`, is overridden by the explicit setting keyword
 for the decorator.
 
-    >>> @log_calls(settings_path='./', log_retval=False)
+    >>> @log_calls(settings='./', log_retval=False)
     ... def f(n, **kwargs):
     ...     if n <= 0: return
     ...     f(n-1, **kwargs)
@@ -440,7 +440,9 @@ in one order or the other.
     ***     elapsed time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
-Next, we provide `settings_path` as a path to an existing file,
+------------------------------------------------------------------------------
+
+Next, we provide `settings` as a path to an existing file,
 `log_calls/tests/log_calls-settings.txt`, which contains:
 
     args_sep=' | '
@@ -458,7 +460,7 @@ settings not given values start out with their usual default values.
 Again, we override some of the defaults with explicit setting parameters,
 and again, we assume that the current directory is `log_calls/tests`.
 
-    >>> @log_calls(settings_path='./log_calls-settings.txt', log_args=True, log_call_numbers=True)
+    >>> @log_calls(settings='./log_calls-settings.txt', log_args=True, log_call_numbers=True)
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
@@ -496,11 +498,50 @@ Now call the function, supplying a final value for `log_elapsed`:
     ***     elapsed time: 0.0... [secs]
     *** g [1] ==> returning to <module>
 
-Nothing happens if we provide a `settings_path` that *doesn't* exist –
+------------------------------------------------------------------------------
+TODO 0.2.6 remove
+Test the deprecated `settings_path` just to make sure it works while it exists.
+Test copied from above.
+
+    >>> @log_calls(settings_path='./log_calls-settings.txt',
+    ...            log_args=True, log_call_numbers=True)
+    ... def g_path(m, n, **kwargs):
+    ...     return 2 * m * n
+
+Examine the settings:
+
+    >>> pprint.pprint(g_path.log_calls_settings.as_OrderedDict())
+    {'enabled': True,
+     'args_sep': ' | ',
+     'log_args': True,
+     'log_retval': True,
+     'log_elapsed': 'elapsed_',
+     'log_exit': True,
+     'indent': False,
+     'log_call_numbers': True,
+     'prefix': '',
+     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
+     'logger': 'star3_logger',
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 0}
+
+and call the function, as before:
+
+    >>> _ = g_path(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
+    *** g_path [1] <== called by <module>
+    ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
+    ***     g_path [1] return value: 70
+    ***     elapsed time: 0.0... [secs]
+    *** g_path [1] ==> returning to <module>
+
+------------------------------------------------------------------------------
+
+Nothing happens if we provide a `settings` that *doesn't* exist –
 `log_calls` uses its usual defaults, overridden by whatever setting parameters
 are supplied:
 
-    >>> @log_calls(settings_path='no-such-dir/no-such-file', log_retval=True)
+    >>> @log_calls(settings='no-such-dir/no-such-file', log_retval=True)
     ... def h(m, n):
     ...     return 19 * m + n
     >>> _ = h(1, 3)            # doctest: +ELLIPSIS
@@ -509,7 +550,9 @@ are supplied:
         h return value: 22
     h ==> returning to <module>
 
-Finally, a test using a settings file that has many ill-formed lines
+------------------------------------------------------------------------------
+
+Here's a test using a settings file that has many ill-formed lines
 and bogus settings. We'll use `tests/bad-settings.txt`:
 
     ##################################################################
@@ -537,7 +580,7 @@ and bogus settings. We'll use `tests/bad-settings.txt`:
 
 Let's use this troubled settings file and examine the resulting settings:
 
-    >>> @log_calls(settings_path='./bad-settings.txt')
+    >>> @log_calls(settings='./bad-settings.txt')
     ... def qq(j, k):
     ...     return (j+1) * (k+1)
     >>> pprint.pprint(qq.log_calls_settings.as_OrderedDict())
@@ -555,6 +598,57 @@ Let's use this troubled settings file and examine the resulting settings:
      'loglevel': 10,
      'record_history': False,
      'max_history': 0}
+
+------------------------------------------------------------------------------
+
+Now let's test `settings` as a dict:
+
+    >>> d = {
+    ...     'enabled': 2,
+    ...     'args_sep': ' / ',
+    ...     'log_args': False,
+    ...     'log_elapsed': 'elapsed_=',
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'logger': 'logger_=',
+    ...     'max_history': 57,
+    ... }
+
+    >>> @log_calls(settings=d, log_args=True)
+    ... def f(n, **kwargs):
+    ...     if n <= 0: return
+    ...     f(n-1, **kwargs)
+
+Verify that `f`'s settings are as expected:
+
+    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
+    {'enabled': 2,
+     'args_sep': ' / ',
+     'log_args': True,
+     'log_retval': False,
+     'log_elapsed': 'elapsed_',
+     'log_exit': True,
+     'indent': True,
+     'log_call_numbers': True,
+     'prefix': '',
+     'file': None,
+     'logger': 'logger_',
+     'loglevel': 10,
+     'record_history': False,
+     'max_history': 57}
+
+Call `f`. Again, `kwargs` is `{'elapsed_': True, 'logger_': 'star3_logger'}`
+in one of the two possible orders.
+
+    >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
+    *** f [1] <== called by <module>
+    ***     arguments: n=1 / [**]kwargs={...}
+    ***     f [2] <== called by f [1]
+    ***         arguments: n=0 / [**]kwargs={...}
+    ***         elapsed time: 0.0... [secs]
+    ***     f [2] ==> returning to f [1]
+    ***     elapsed time: 0.0... [secs]
+    *** f [1] ==> returning to <module>
 
     """
     pass
@@ -691,21 +785,6 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-
-    # import logging
-    # import sys
-    # ch = logging.StreamHandler(stream=sys.stdout)
-    # c_formatter = logging.Formatter('%(message)s')
-    # ch.setFormatter(c_formatter)
-    # another_logger = logging.getLogger('not_another_logger')
-    # another_logger.addHandler(ch)
-    # another_logger.setLevel(logging.DEBUG)
-
-    # @log_calls(settings_path='./bad-settings.txt')
-    # def qq(j, k):
-    #     return (j+1) * (k+1)
-    # import pprint
-    # pprint.pprint(qq.log_calls_settings.as_OrderedDict())      # doctest: +NORMALIZE_WHITESPACE
 
     #---------------------------------------------------------------
 
