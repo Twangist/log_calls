@@ -1,5 +1,15 @@
 VERSIONS
 --------
+0.2.4.post2
+      - Renamed the `settings_path` parameter to `settings`
+        as it can now be a dict or a pathname.
+        "settings_path" is still supported but deprecated,
+         to be removed in 0.2.6)
+        If you use both `settings_path` and `settings`
+        then `settings_path` is ignored.
+      - doctest for settings as a dict, & for settings_path :)
+      - Doc fixes (vestigial `settings_loc` at end!) & improvements.
+
 0.2.4.post1
       - Allow for sys.stderr in settings files,
         under IPython too.
@@ -15,7 +25,7 @@ VERSIONS
       - Loggers can indent too. Why shouldn't they? It just looks weird. So?
         "We're all adults here."
         It looks weird because only the message is indented, and every logged
-        output message typically begins with a left-aligned clunky header,
+        output message typically begins with a clunky left-aligned header,
         which sometimes you don't need. So:
 
       - example: create handlers with formatters that have format strings

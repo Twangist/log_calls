@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4.post1'
+__version__ = '0.2.4.post2'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -526,7 +526,7 @@ class _deco_base():
     # __init__, __call__
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
-                 settings_path='',          # 0.2.4 new parameter, but NOT a "setting"
+                 settings=None,             # 0.2.4.post2 was `settings_path` now it can also a dict
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
@@ -550,11 +550,16 @@ class _deco_base():
         od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
         d = {k: od[k].default for k in od}
         d['enabled'] = True
-        # ... read default settings from file if one was given,
-        # return a dict of them ({} if settings_path empty or nonexistent)
-        d.update(
-            self._read_settings_file(settings_path=settings_path)
-        )
+        # ... get default settings from dict | read default settings from file
+        #     if one was given,
+        # get a dict of them
+        #     ({} if dict None or empty, or if settings_path empty or nonexistent)
+        settings_dict = {}
+        if isinstance(settings, dict):
+            settings_dict = settings
+        elif isinstance(settings, str):
+            settings_dict = self._read_settings_file(settings_path=settings)
+        d.update(settings_dict)
         # ... and update d with settings *explicitly* passed to caller
         # of subclass's __init__
         d.update(_used_keywords_dict)
@@ -1136,7 +1141,8 @@ class log_calls(_deco_base):
 
     @used_unused_keywords()
     def __init__(self,
-                 settings_path='',      # 0.2.4. (new parameter, but NOT a "setting")
+                 settings_path='',      # (0.2.4 new parameter, but NOT a "setting". deprecated in favor of:)
+                 settings=None,         # 0.2.4.post2. A dict or a pathname
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
@@ -1156,11 +1162,17 @@ class log_calls(_deco_base):
         # 0.2.4 settings_path stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
+        if 'settings' in used_keywords_dict:
+            del used_keywords_dict['settings']
+
+        # TODO 0.2.6 delete BEGIN
         if 'settings_path' in used_keywords_dict:
             del used_keywords_dict['settings_path']
+        settings = settings or settings_path
+        # TODO 0.2.6 delete END.
 
         super().__init__(
-                         settings_path=settings_path,
+                         settings=settings,
                          _used_keywords_dict=used_keywords_dict,
                          enabled=enabled,
                          args_sep=args_sep,
