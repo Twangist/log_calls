@@ -2360,7 +2360,7 @@ Keyword parameter | Default value | Description
        `enabled`    | `True`          | An `int`. If true, then `log_calls` will output (or "log") messages.
        `args_sep`   | `', '`          | `str` used to separate arguments. The default is  `', '`, which lists all args on the same line. If `args_sep='\n'` is used, or more generally if the `args_sep` string ends in `\n`, then additional spaces are appended to the separator for a neater display. Other separators in which `'\n'` occurs are left unchanged, and are untested – experiment/use at your own risk.
        `log_args`   | `True`          | If true, arguments passed to the decorated function, and default values used by the function, will be logged.
-       `log_retval` | `False`         | If true, log what the decorated function returns. At most 60 chars are printed, with a trailing ellipsis if the value is truncated.
+       `log_retval` | `False`         | If true, log what the decorated function returns. At most 77 chars are printed, with a trailing ellipsis if the value is truncated.
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
        `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds.
