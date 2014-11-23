@@ -41,7 +41,7 @@ This document describes version `0.2.4.post1` of `log_calls`.
 
 ## [What's New](id:What's-new)
 * *0.2.4.post1*
-    * *Allow `file=sys.stderr` in settings files; neater internals of settings file parsing*
+    * *`settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing*
 * **0.2.4**
     * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings_path-parameter) for details, discussion and examples.
     * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.

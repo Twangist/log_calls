@@ -145,6 +145,9 @@ class DecoSetting():
         0.2.4.post1"""
         raise ValueError()
 
+    def has_acceptable_type(self, value):
+        return isinstance(value, self.final_type)
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # DecoSetting subclasses
@@ -384,7 +387,7 @@ class DecoSettingsMapping():
         if not isinstance(value, str) or not value:
             indirect = False
             # value not a str, or == '', so use value as-is if valid, else default
-            if (not value and not allow_falsy) or not isinstance(value, final_type):
+            if (not value and not allow_falsy) or not info.has_acceptable_type(value):  # isinstance(value, final_type)
                 value = default
         else:                           # val is a nonempty str
             if final_type != str and \
