@@ -3,7 +3,7 @@
 # Ill-formed lines, nonexistent settings, bad values.
 # When log_calls parses a settings file, it creates a dictionary
 # of the settings names and values. The dictionary resulting
-# from this file will contain only 'logger': None.
+# from this file will be empty
 ##################################################################
 # int('hardly') raises ValueError
 enabled='hardly'
@@ -13,10 +13,12 @@ log_args=
 no_such_setting=True
 log_elapsed
 indent
-# ='TruE' or ="fAlSe" etc would work for bool settings
-#   (without or with quotes; case-insensitive)
+# =TruE or =fAlSe etc would also work for bool settings
 log_exit='not an option'
 # int('7.3') raises ValueError
 max_history=7.3
-# logger will be set to a created logging.Logger (with no handlers) and then to None
+# logger can only be an indirect value
+#   or a quoted string that's treated as a logger name (or None)
 logger=<logging.Logger object at 0x1b48d8c0>
+# file can only be sys.stderr or sys.stdout [*** NO QUOTES! ***] (or None)
+file=<io.TextIOBase object at 0x2349b85a>

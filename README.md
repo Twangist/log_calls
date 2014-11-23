@@ -37,9 +37,11 @@ and which received their default values.
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.4` of `log_calls`.
+This document describes version `0.2.4.post1` of `log_calls`.
 
 ## [What's New](id:What's-new)
+* *0.2.4.post1*
+    * *`settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing*
 * **0.2.4**
     * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings_path-parameter) for details, discussion and examples.
     * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
@@ -119,7 +121,7 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 57 tests in 0.832s
+    Ran 58 tests in 0.832s
     
     OK
 

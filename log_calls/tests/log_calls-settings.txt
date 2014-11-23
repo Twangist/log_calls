@@ -3,3 +3,6 @@ log_args=False
 log_retval=True
 log_elapsed='elapsed_='
 logger='star3_logger'
+# file: this is just for testing, as logger takes precedence.
+#    Note: NO QUOTES around the value sys.stderr
+file=sys.stderr

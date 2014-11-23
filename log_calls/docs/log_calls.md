@@ -154,7 +154,7 @@ section of README.
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.4` of `log_calls`.
+This document describes version `0.2.4.post1` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
@@ -1805,8 +1805,8 @@ and `stats` tallies are reset:
 
 The `settings_path` parameter lets you specify a pathname to a *settings file*
 that contains `log_calls` settings and values to use as defaults. If the pathname 
-is a directory, `log_calls` will look there for a file named `.log_calls` and use 
-that as a settings file; if the pathname is a file, `log_calls` will use that. 
+is a directory, `log_calls` looks there for a file named `.log_calls` and uses 
+that as a settings file; if the pathname is a file, `log_calls` uses that. 
 The values of settings specified in the settings file override `log_calls`'s default
 values for those settings, and any of the resulting settings are in turn overridden 
 by corresponding keywords passed directly to the decorator.
@@ -1821,10 +1821,25 @@ key or attribute.
 
 ###[Format of a settings file](id:format-of-a-settings-file)
 A *settings file* is a text file containing zero or more lines of the form</br>
-&nbsp;&nbsp;&nbsp;&nbsp; *setting_name*=*value*</br>
+&nbsp;&nbsp;&nbsp;&nbsp; *setting_name*`=`*value*</br>
 Whitespace is permitted around *setting_name* and *value*, and is stripped.
 Blank lines are ignored, as are lines whose first non-whitespace character is `#`
 and which therefore you can use as comments. 
+
+####Special cases
+The *value* of a setting will be treated as an indirect value provided it ends with '=' and is then enclosed in (single or double) quotes, *e.g.*:</br>
+&nbsp;&nbsp;&nbsp;&nbsp; ```file='file_='```</br>
+
+Here are the allowed "direct" values for settings:
+ 
+Setting | Allowed "direct" value
+----------------: | :------------------ 
+`log_args`, `log_retval`, `log_elapsed`, `log_exit`, `indent`, `log_call_numbers`, `record_history` | boolean (case-insensitive – `True`, `False`, `tRuE`, `FALSE`, etc.)
+`enabled` | int, or boolean as above
+`args_sep`, `prefix` | string enclosed in quotes
+`loglevel`, `max_history` | int
+`file` | `sys.stderr`, NOT enclosed in quotes (or None)
+`logger` | name of a logger, enclosed in quotes (or None)
 
 **NOTE**: *Ill-formed lines, bad values, and nonexistent settings are all 
 ignored, **silently**.*
@@ -1842,13 +1857,16 @@ For this example we'll need a logger named `'star3_logger'`:
     >>> another_logger.addHandler(ch)
     >>> another_logger.setLevel(logging.DEBUG)
 
-We'll use the settings file `tests/log_calls-settings.txt`, which contains these settings:
+We'll use the settings file `tests/log_calls-settings.txt`, which contains:
 
     args_sep=' | '
     log_args=False
     log_retval=True
     log_elapsed='elapsed_='
     logger='star3_logger'
+    # file: this is just for testing, as logger takes precedence.
+    #    Note: NO QUOTES around the value sys.stderr
+    file=sys.stderr
 
 Notice that `log_elapsed` has an [indirect value](#Indirect-values), and that 
 the value of the `logger` setting is the *name* of the logger defined above.
@@ -1876,15 +1894,15 @@ Examine the settings:
      'indent': False,
      'log_call_numbers': True,
      'prefix': '',
-     'file': None,
+     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
      'logger': 'star3_logger',
      'loglevel': 10,
      'record_history': False,
      'max_history': 0}
 
-The settings `args_sep`, `log_retval`, `log_elapsed` and `logger` have values 
-from the settings file. `log_args` is set to `False` in the settings file, but
-that is overridden by the `True` value supplied to the decorator. The default
+The settings `args_sep`, `log_retval`, `log_elapsed`, `file` and `logger` have 
+values from the settings file. `log_args` is set to `False` in the settings file, 
+but that's overridden by the `True` value supplied to the decorator. The default
 value `False` of `log_call_numbers` is unchanged by the settings file, but 
 the value of `True` is supplied to the decorator. The other settings all have
 their `log_calls` default values.

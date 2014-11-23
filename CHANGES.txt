@@ -1,8 +1,11 @@
 VERSIONS
 --------
-
+0.2.4.post1
+      - Allow for sys.stderr in settings files,
+        under IPython too.
+      - Internals: cleaner parsing of settings files.
 0.2.4
-      - The `settings_path=''` parameter to log_calls
+      - The `settings_path` parameter to log_calls
 
       - The `used_unused_keywords` decorator
 
