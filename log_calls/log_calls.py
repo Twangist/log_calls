@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4.post4'
+__version__ = '0.2.4.post5'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -27,6 +27,7 @@ from .deco_settings import (DecoSetting,
                             DecoSetting_bool, DecoSetting_int, DecoSetting_str,
                             DecoSettingsMapping)
 from .helpers import (get_args_pos, get_args_kwargs_param_names,
+                      difference_update,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str,
                       is_quoted_str)
@@ -35,6 +36,29 @@ from .used_unused_kwds import used_unused_keywords
 
 __all__ = ['log_calls', '__version__', '__author__']
 
+#------------------------------------------------------------------------------
+##~ PROFILE
+#------------------------------------------------------------------------------
+# from collections import OrderedDict
+#
+# class time_block():
+#     def __init__(self, label):
+#         self.label = label
+#         self.elapsed_list1 = [0.0]  # self.elapsed_list1[0] replaced with elapsed time
+#
+#     def __enter__(self):
+#         self.start = time.perf_counter()
+#         # self.elapsed_list1 becomes the value of foo in
+#         #       with time_block(lbl) as foo: ...
+#         # (see __exit__).
+#         # Caller/user accesses elapsed time via foo[0]
+#         return self.elapsed_list1
+#
+#     def __exit__(self, exc_ty, exc_val, exc_tb):
+#         end = time.perf_counter()
+#         self.elapsed_list1[0] = end - self.start
+#         # print('{}: {}'.format(self.label, end - self.start))
+# END PROFILE
 
 #------------------------------------------------------------------------------
 # log_calls
@@ -504,10 +528,11 @@ class _deco_base():
         timestamp = datetime.datetime.fromtimestamp(timestamp_secs).\
             strftime('%x %X.%f')    # or '%Y-%m-%d %I:%M:%S.%f %p'
 
-        # argnames can contain keyword args (e.g. defaulted), so guard against that
-        n = min(len(argnames), len(argvals))
-        argnames = argnames[:n]
-        argvals = argvals[:n]
+        ## 0.2.3+ len(argnames) == len(argvals)
+        ## assert len(argnames) == len(argvals)
+        # n = min(len(argnames), len(argvals))
+        # argnames = argnames[:n]
+        # argvals = argvals[:n]
 
         self._call_history.append(
                 CallRecord(
@@ -736,13 +761,48 @@ class _deco_base():
         only once, and it can take only a single argument: the function
         to decorate. The return value of __call__ is called subsequently.
         So, this method *returns* the decorator proper.
-        (~ Bruce Eckel in a book, ___) TODO ref"""
+        (~ Bruce Eckel in a book, ___) TODO ref.
+
+        # 0.2.4.post5+ profiling (of record_history)
+
+            setup_stackframe_hack         7.5 %
+            up_to__not_enabled_call       3.3 %
+            setup_context_init            1.2 %
+            setup_context_inspect_bind   23.4 %
+            setup_context_post_bind       8.8 %
+            setup_context_kwargs_dicts   32.2 %
+            pre_call_handlers             1.3 %
+            post_call_handlers           22.3 %
+        """
         # First, save prefix + function name for function f
         prefixed_fname = self.prefix + f.__name__
         # Might as well save f too
         self.f = f
         # in addition to its parameters
-        self.f_params = inspect.signature(f).parameters
+        self.f_signature = inspect.signature(f)
+        self.f_params = self.f_signature.parameters
+
+        # 0.2.4.post5 hoisted things
+        #
+        # 0.2.4.post5 Use perf_counter if available (Py3.3+)
+        try:
+            from time import perf_counter
+            timing_fn = perf_counter
+        except ImportError:
+            timing_fn = time.time()
+
+        ##~ PROFILE
+        # self.profile__ = OrderedDict((
+        #     ('setup_stackframe_hack', []),
+        #     ('up_to__not_enabled_call', []),
+        #     ('setup_context_init', []),
+        #     ('setup_context_inspect_bind', []),
+        #     ('setup_context_post_bind', []),
+        #     ('setup_context_kwargs_dicts', []),
+        #     ('pre_call_handlers', []),
+        #     ('post_call_handlers', []),
+        # ))
+        # END PROFILE
 
         @wraps(f)
         def f_log_calls_wrapper_(*args, **kwargs):
@@ -761,6 +821,8 @@ class _deco_base():
                 return self._settings_mapping.get_final_value(
                     setting_name, kwargs, fparams=self.f_params)
 
+            ##~ PROFILE
+            #~ with time_block('setup_stackframe_hack') as profile__setup_stackframe_hack:
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # if nothing to do, hurry up & don't do it.
             # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
@@ -769,6 +831,10 @@ class _deco_base():
             # must be set before calling f.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             _do_it = _get_final_value('enabled')
+            # 0.2.4.post5 "true bypass": if 'enabled' < 0 then scram
+            if _do_it < 0:
+                return f(*args, **kwargs)
+
             # Bump call counters, before calling fn.
             # Note: elapsed_secs not reflected yet of course
             self._add_call(logged=_do_it)
@@ -797,7 +863,10 @@ class _deco_base():
                 '_active_call_number': _active_call_number,
                 '_extra_indent_level': _extra_indent_level
             }
+            # END profile__setup_stackframe_hack
 
+            ##~ PROFILE
+            #~ with time_block('up_to__not_enabled_call') as profile__up_to__not_enabled_call:
             # Get logging function IF ANY.
             # For the benefit of callees further down the call chain,
             # if this f is not enabled (not _do_it).
@@ -819,6 +888,7 @@ class _deco_base():
             # There are parallel stacks of these,
             # used by self._log_message(), maintained in this wrapper.
             self._logging_state_push(logging_fn, global_indent_len, output_fname)
+            # END profile__up_to__not_enabled_call
 
             # (_xxx variables set, ok to call f)
             if not _do_it:
@@ -826,9 +896,12 @@ class _deco_base():
                 self._logging_state_pop()
                 return ret
 
+            ##~ PROFILE
+            #~ with time_block('setup_context') as profile__setup_context_init:
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Set up context, for pre-call handlers
             # (after calling f, add to it for post-call handlers)
+            # THIS is the time sink - 23x slower than other 'blocks'
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Key/values of "context" whose values we know so far:
             context = {
@@ -843,11 +916,21 @@ class _deco_base():
                 'indent': " " * self.INDENT,              # our unit of indentation
                 'output_fname': output_fname,
             }
+            # END profile__setup_context_init
 
+            ##~ PROFILE
+            #~ with time_block('setup_context') as profile__setup_context_inspect_bind:
             # Gather all the things we need (for log output, & for history)
             # Use inspect module's Signature.bind method.
             # bound_args.arguments -- contains only explicitly bound arguments
-            bound_args = inspect.signature(f).bind(*args, **kwargs)
+            # 0.2.4.post5 - using
+            #     inspect.signature(f).bind(*args, **kwargs)
+            # took 45% of execution time of entire wrapper; this takes 23%:
+            bound_args = self.f_signature.bind(*args, **kwargs)
+            # END profile__setup_context_inspect_bind
+
+            ##~ PROFILE
+            #~ with time_block('setup_context') as profile__setup_context_post_bind:
             varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
             argcount = varargs_pos if varargs_pos >= 0 else len(args)
             context['argcount'] = argcount
@@ -858,12 +941,23 @@ class _deco_base():
             context['varargs'] = args[argcount:]
             (context['varargs_name'],
              context['kwargs_name']) = get_args_kwargs_param_names(self.f_params)
+            # END profile__setup_context_post_bind
 
+            ##~ PROFILE
+            #~ with time_block('setup_context') as profile__setup_context_kwargs_dicts:
+            # These 3 statements = 31% of execution time of wrapper
             context['defaulted_kwargs'] = get_defaulted_kwargs_OD(self.f_params, bound_args)
             context['explicit_kwargs'] = get_explicit_kwargs_OD(self.f_params, bound_args, kwargs)
-            context['implicit_kwargs'] = {
-                k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
-            }
+            # context['implicit_kwargs'] = {
+            #     k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
+            # }
+            # At least 2x as fast:
+            context['implicit_kwargs'] = \
+                difference_update(kwargs.copy(), context['explicit_kwargs'])
+            # END profile__setup_context_kwargs_dicts
+
+            ##~ PROFILE
+            #~ with time_block('pre_call_handlers') as profile__pre_call_handlers:
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call pre-call handlers, collect nonempty return values
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -879,20 +973,23 @@ class _deco_base():
             if logging_fn:
                 for msg in pre_msgs:
                     self._log_message(msg, extra_indent_level=0)
+            # END profile__pre_call_handlers
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call f(*args, **kwargs) and get its retval; time it.
             # Add timestamp, elapsed time and retval to context.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # No dictionary overhead between timer start & stop.
-            t0 = time.time()
+            t0 = timing_fn()
             retval = f(*args, **kwargs)
-            context['elapsed_secs'] = (time.time() - t0)
+            context['elapsed_secs'] = (timing_fn() - t0)
             context['retval'] = retval
             context['timestamp'] = t0
 
             self._add_to_elapsed(context['elapsed_secs'])
 
+            ##~ PROFILE
+            #~ with time_block('post_call_handlers') as profile__post_call_handlers:
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call post-call handlers, collect nonempty return values
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -910,6 +1007,18 @@ class _deco_base():
                     self._log_message(msg, extra_indent_level=0)
 
             self._logging_state_pop()
+            # END profile__post_call_handlers
+
+            ##~ PROFILE
+            # self.profile__['setup_stackframe_hack'].extend(profile__setup_stackframe_hack)
+            # self.profile__['up_to__not_enabled_call'].extend(profile__up_to__not_enabled_call)
+            # self.profile__['setup_context_init'].extend(profile__setup_context_init)
+            # self.profile__['setup_context_inspect_bind'].extend(profile__setup_context_inspect_bind)
+            # self.profile__['setup_context_post_bind'].extend(profile__setup_context_post_bind)
+            # self.profile__['setup_context_kwargs_dicts'].extend(profile__setup_context_kwargs_dicts)
+            # self.profile__['pre_call_handlers'].extend(profile__pre_call_handlers)
+            # self.profile__['post_call_handlers'].extend(profile__post_call_handlers)
+            #~ END PROFILE
 
             return retval
 
@@ -937,6 +1046,13 @@ class _deco_base():
             'stats',
             self._stats
         )
+        ##~ PROFILE
+        # setattr(
+        #     f_log_calls_wrapper_,
+        #     'profile__',
+        #     self.profile__
+        # )
+        # END PROFILE
 
         setattr(
             f_log_calls_wrapper_,
@@ -1168,7 +1284,15 @@ class log_calls(_deco_base):
         # TODO 0.2.6 delete BEGIN
         if 'settings_path' in used_keywords_dict:
             del used_keywords_dict['settings_path']
-        settings = settings or settings_path
+        settings = settings or settings_path    # only one, & settings takes precedence
+        # Issue a warning.
+        # In Py3.2+ "DeprecationWarning is now ignored by default"
+        # (https://docs.python.org/3/library/warnings.html)
+        # so to see it, you'll probably have to run the Python interpreter
+        # with the -W switch, e.g. `python -W default run_tests.py`
+        import warnings
+        warnings.warn("Warning: 'settings_path' parameter is deprecated, use 'settings' instead.",
+                      DeprecationWarning)
         # TODO 0.2.6 delete END.
 
         super().__init__(
