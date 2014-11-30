@@ -1,7 +1,11 @@
 include README.md
 include log_calls/docs/*
 include log_calls/tests/*
-
-# include LICENSE.txt
-# include CHANGES.txt
 include *.txt
+
+exclude Untitled*.ipynb
+exclude log_calls/docs/Untitled*.ipynb
+
+prune log_calls/._HIDE
+prune ./.ipynb_checkpoints*
+prune ./build

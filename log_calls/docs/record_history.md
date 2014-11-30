@@ -74,25 +74,25 @@ The tallies:
     >>> record_me.stats.elapsed_secs_logged          # doctest: +SKIP
     2.2172927856445312e-05
 
-Call history in CSV format, with ellipses for 'elapsed_secs' and 'timestamp' columns:
+Call history in CSV format, with ellipses for 'elapsed_secs', 'CPU_secs' and 'timestamp' columns:
 
     >>> print(record_me.stats.history_as_csv)         # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|3|5|0|5|...|...|'record_me'|['<module>']
-    2|3|5|1|8|...|...|'record_me'|['<module>']
-    3|3|5|2|11|...|...|'record_me'|['<module>']
-    4|3|5|3|14|...|...|'record_me'|['<module>']
-    5|3|5|4|17|...|...|'record_me'|['<module>']
-    6|3|5|5|20|...|...|'record_me'|['<module>']
-    7|3|5|6|23|...|...|'record_me'|['<module>']
-    8|3|5|7|26|...|...|'record_me'|['<module>']
-    9|3|5|8|29|...|...|'record_me'|['<module>']
-    10|3|5|9|32|...|...|'record_me'|['<module>']
-    11|3|5|10|35|...|...|'record_me'|['<module>']
-    12|3|5|11|38|...|...|'record_me'|['<module>']
-    13|3|5|12|41|...|...|'record_me'|['<module>']
-    14|3|5|13|44|...|...|'record_me'|['<module>']
-    15|3|5|14|47|...|...|'record_me'|['<module>']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|3|5|0|5|...|...|...|'record_me'|['<module>']
+    2|3|5|1|8|...|...|...|'record_me'|['<module>']
+    3|3|5|2|11|...|...|...|'record_me'|['<module>']
+    4|3|5|3|14|...|...|...|'record_me'|['<module>']
+    5|3|5|4|17|...|...|...|'record_me'|['<module>']
+    6|3|5|5|20|...|...|...|'record_me'|['<module>']
+    7|3|5|6|23|...|...|...|'record_me'|['<module>']
+    8|3|5|7|26|...|...|...|'record_me'|['<module>']
+    9|3|5|8|29|...|...|...|'record_me'|['<module>']
+    10|3|5|9|32|...|...|...|'record_me'|['<module>']
+    11|3|5|10|35|...|...|...|'record_me'|['<module>']
+    12|3|5|11|38|...|...|...|'record_me'|['<module>']
+    13|3|5|12|41|...|...|...|'record_me'|['<module>']
+    14|3|5|13|44|...|...|...|'record_me'|['<module>']
+    15|3|5|14|47|...|...|...|'record_me'|['<module>']
     <BLANKLINE>
 
 Disable recording, call the function again:
@@ -124,9 +124,9 @@ Here are the last 3 lines of the CSV call history:
     >>> #  because doctest doesn't split it at all: len(lines) == 1
     >>> for line in lines[-3:]:                   # doctest: +ELLIPSIS, +SKIP
     ...     print(line)
-    14|3|5|13|44|...|...|'record_me'|['<module>']
-    15|3|5|14|47|...|...|'record_me'|['<module>']
-    16|1900|2000|20|40000|...|...|'record_me'|['<module>']
+    14|3|5|13|44|...|...|...|'record_me'|['<module>']
+    15|3|5|14|47|...|...|...|'record_me'|['<module>']
+    16|1900|2000|20|40000|...|...|...|'record_me'|['<module>']
 
 and here are the call updated counters:
 
@@ -142,10 +142,10 @@ and examine the call history again:
     >>> for x in range(15):
     ...     _ = record_me(3, 5, x)
     >>> print(record_me.stats.history_as_csv)      # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    13|3|5|12|41|...|...|'record_me'|['<module>']
-    14|3|5|13|44|...|...|'record_me'|['<module>']
-    15|3|5|14|47|...|...|'record_me'|['<module>']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    13|3|5|12|41|...|...|...|'record_me'|['<module>']
+    14|3|5|13|44|...|...|...|'record_me'|['<module>']
+    15|3|5|14|47|...|...|...|'record_me'|['<module>']
     <BLANKLINE>
 
 ## [Call history and call chains](id:Call-history-and-call-chains)
@@ -178,25 +178,25 @@ caller appearing in the call chain:
     7
 
     >>> print(even.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|<__main__.Even object at ...>|0|None|...|...|'Even.call_it'|['<module>']
-    2|<__main__.Even object at ...>|2|None|...|...|'Even.call_it'|['<module>']
+    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|<__main__.Even object at ...>|0|None|...|...|...|'Even.call_it'|['<module>']
+    2|<__main__.Even object at ...>|2|None|...|...|...|'Even.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(odd.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|<__main__.Odd object at ...>|1|None|...|...|'Odd.call_it'|['<module>']
+    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|<__main__.Odd object at ...>|1|None|...|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(record_me.stats.history_as_csv)     # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|1|1|1|2|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
-    2|6|8|2|20|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
-    3|6|8|3|26|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
-    4|5|7|4|27|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    5|5|7|5|32|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    6|5|7|6|37|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    7|5|7|7|42|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|1|1|1|2|...|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
+    2|6|8|2|20|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    3|6|8|3|26|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    4|5|7|4|27|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    5|5|7|5|32|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    6|5|7|6|37|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    7|5|7|7|42|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
     <BLANKLINE>
 
 ##[*stats.elapsed_secs_logged* == sum of *elapsed_secs* column of call history](id:elapsed_secs_logged-equal-sum-etc)
@@ -215,12 +215,19 @@ numerical inaccuracy:
     >>> abs(sum(elapsed_col) - slow.stats.elapsed_secs_logged) < 1.0e-15
     True
 
+Similarly,
+## [*stats.CPU_secs_logged* == sum of *CPU_secs* column of call history](id:CPU_secs_logged-equal-sum-etc)
+    >>> CPU_col = list(map(lambda rec: getattr(rec, 'CPU_secs'),
+    ...                    slow.stats.history))
+    >>> abs(sum(CPU_col) - slow.stats.CPU_secs_logged) < 1.0e-15
+    True
+
 ##[Example of the *history_as_DataFrame* attribute](id:stats.history_as_DataFrame)
 The `stats.history_as_DataFrame` attribute returns the history of a decorated
 function as a [Pandas](http://pandas.pydata.org) [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe), 
 if the Pandas library is installed. 
 
-Here's an example of its use, though not a doctest, as we don't require `Pandas` or `numpy`. Some setup code:
+Here's an example of its use, though not a doctest as we don't require `Pandas` or `numpy`. Some setup code:
 
     from log_calls import record_history
 
@@ -246,15 +253,15 @@ Now call `f`, and examine its call history as a `DataFrame`:
     df = f.stats.history_as_DataFrame
     df[:5]
 
-You should see something like this (though probably in two chunks):
+You should see something like this (though probably in two chunks, split at some column):
 
-              freq         t    retval  elapsed_secs                 timestamp prefixed_fname  caller_chain     
-    call_num                                                                                                 
-    1            7  0.000000  0.000000      0.000023  11/07/14 16:22:06.778364            'f'  ['<module>']  
-    2            7  0.000023  0.000997      0.000009  11/07/14 16:22:06.778650            'f'  ['<module>']  
-    3            7  0.000045  0.001995      0.000008  11/07/14 16:22:06.778873            'f'  ['<module>']  
-    4            7  0.000068  0.002992      0.000007  11/07/14 16:22:06.779092            'f'  ['<module>']  
-    5            7  0.000091  0.003989      0.000012  11/07/14 16:22:06.779306            'f'  ['<module>']  
+              freq         t    retval  elapsed_secs     CPU_secs                 timestamp prefixed_fname  caller_chain     
+    call_num                                                                                                              
+    1            7  0.000000  0.000000      0.000023     0.000022  11/07/14 16:22:06.778364            'f'  ['<module>']  
+    2            7  0.000023  0.000997      0.000009     0.000008  11/07/14 16:22:06.778650            'f'  ['<module>']  
+    3            7  0.000045  0.001995      0.000008     0.000008  11/07/14 16:22:06.778873            'f'  ['<module>']  
+    4            7  0.000068  0.002992      0.000007     0.000006  11/07/14 16:22:06.779092            'f'  ['<module>']  
+    5            7  0.000091  0.003989      0.000012     0.000011  11/07/14 16:22:06.779306            'f'  ['<module>']  
 
 or, in an IPython notebook:
 
@@ -268,12 +275,14 @@ or, in an IPython notebook:
       <th>t</th>
       <th>retval</th>
       <th>elapsed_secs</th>
+      <th>CPU_secs</th>
       <th>timestamp</th>
       <th>prefixed_fname</th>
       <th>caller_chain</th>
     </tr>
     <tr>
       <th>call_num</th>
+      <th></th>
       <th></th>
       <th></th>
       <th></th>
@@ -290,6 +299,7 @@ or, in an IPython notebook:
       <td> 0.000000</td>
       <td> 0.000000</td>
       <td> 0.000041</td>
+      <td> 0.000040</td>
       <td> 11/07/14 20:01:55.301521</td>
       <td> 'f'</td>
       <td> ['&lt;module&gt;']</td>
@@ -300,6 +310,7 @@ or, in an IPython notebook:
       <td> 0.000023</td>
       <td> 0.000997</td>
       <td> 0.000016</td>
+      <td> 0.000015</td>
       <td> 11/07/14 20:01:55.301794</td>
       <td> 'f'</td>
       <td> ['&lt;module&gt;']</td>
@@ -310,6 +321,7 @@ or, in an IPython notebook:
       <td> 0.000045</td>
       <td> 0.001995</td>
       <td> 0.000014</td>
+      <td> 0.000013</td>
       <td> 11/07/14 20:01:55.302004</td>
       <td> 'f'</td>
       <td> ['&lt;module&gt;']</td>
@@ -320,6 +332,7 @@ or, in an IPython notebook:
       <td> 0.000068</td>
       <td> 0.002992</td>
       <td> 0.000014</td>
+      <td> 0.000013</td>
       <td> 11/07/14 20:01:55.302211</td>
       <td> 'f'</td>
       <td> ['&lt;module&gt;']</td>
@@ -330,6 +343,7 @@ or, in an IPython notebook:
       <td> 0.000091</td>
       <td> 0.003989</td>
       <td> 0.000014</td>
+      <td> 0.000013</td>
       <td> 11/07/14 20:01:55.302416</td>
       <td> 'f'</td>
       <td> ['&lt;module&gt;']</td>
@@ -680,4 +694,4 @@ with argnames = ('freq', 't'), argvals = (7, ran_t), and retval = Hz_7.
     array([ 0.        ,  0.00242209,  0.00484416, ..., 
            -0.0072662 , -0.00484416, -0.00242209])
  
-[^1]: How much faster is the vectorized call? Without using any decorator, it's 2 orders of magnitude faster (about 150 times faster). Using `record_history`, the vectorized call is 3 orders of magnitude faster (2000+ times faster) with the decorator disabled, and 4 orders of magnitude faster (8000+ times faster) with the decorator enabled. No additional time is spent inside the function `f` when it's decorated. But these numbers show that `log_calls` and `record_history` have significant overhead, and they may not be your best bets for acquiring large amounts of data – tens of thousands of calls, say, or more. The performance numbers are from the IPython notebook `./history_to_pandas.ipynb` which you can browse as [`./history_to_pandas.html`](./history_to_pandas.html). 
+[^1]: How much faster is the vectorized call? Without using any decorator, it's 2.8 orders of magnitude faster (~600x). Using `record_history`, the vectorized call is about 3.6 orders of magnitude faster (~4000x) with the decorator disabled, and 4.1 orders of magnitude faster (~13000x) with the decorator enabled. (In `log_calls` version 0.1.14 it was 15000x.) These numbers show that `log_calls` and `record_history` have significant overhead, and they may not be your best bets for acquiring large amounts of data – tens of thousands of calls, say, or more. The performance numbers are from the IPython notebook `./history_to_pandas-and-profiling.ipynb` which you can browse as [`./history_to_pandas-and-profiling.html`](./history_to_pandas-and-profiling.html). 

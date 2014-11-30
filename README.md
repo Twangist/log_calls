@@ -37,13 +37,26 @@ and which received their default values.
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.4.post4` of `log_calls`.
+This document describes version `0.2.5` of `log_calls`.
 
 ## [What's New](id:What's-new)
+* **0.2.5**</br>
+Performance timing/profiling enhancements & additions.</br>
+    * Both elapsed (wall) and CPU (process) time are now both reported.</br>
+    Python 3.3+ enhances the `time` module (*see [PEP 418](https://www.python.org/dev/peps/pep-0418/); also see the Python 3 docs for the new functions [`perf_counter`](https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter) and [`process_time`](https://docs.python.org/3/library/time.html?highlight=time#time.process_time)*), and we take advantage of the new functionaility when it's available.</br> (*Under Py < 3.3 `log_calls` reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.*)</br>
+        * Use `time.perf_counter`, `time.process_time` if available (Python 3.3+), otherwise use `time.time` as in earlier versions.</br>
+        * Added `stats.CPU_secs_logged` attribute.
+        * Added `CPU_secs` column to call history (new field for `CallRecord`s).
+        * `log_elapsed` reports both elapsed and CPU times.
+    * Optimized the decorator wrapper, ~15% speedup</br> (still trivial with ~big data, see the IPython notebook [history_to_pandas-and-profiling](http://www.pythonhosted.org/log_calls/history_to_pandas-and-profiling.html)).
+    * Added a "true bypass" feature: when `enabled` < 0, adjourn to the decorated function immedately, with no further processing. Again, not a speed speed demon – see the IPython notebook referenced above.
+    * Deprecation warning issued if `settings_path` parameter used.</br> (You'll see this only if you run the Python interpreter with the `-W <action>` option, where `<action>` is any [valid action string](https://docs.python.org/3/using/cmdline.html#cmdoption-W) other than `ignore`, e.g. `default`.)
+    * Updated tests and docs to reflect these changes.
+</br></br>
 * *0.2.4.post4*
-    * *(docs & description changes only, no code changes)*
+    * *(docs & description changes only, no code changes)*    
 * *0.2.4.post3*
-    * *(never existed)*
+    * *(never existed)*    
 * **0.2.4.post2**
     * The `settings` parameter (formerly `settings_path`) lets you specify default values for multiple settings either as a dictionary, or as a file. The `settings_path` parameter is deprecated, as `settings` is a superset. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
 
@@ -1176,13 +1189,13 @@ The `log_calls` decorator takes various keyword arguments, all with hopefully se
 
 Keyword parameter | Default value | Description
 ----------------: | :------------ | :------------------
-       `enabled`    | `True`          | An `int`. If true, then `log_calls` will output (or "log") messages.
+       `enabled`    | `True`          | An `int`. If positive (or `True`), then `log_calls` will output (or "log") messages. If false ("disabled" – `0` or `False`), `log_calls` won't output messages or record history but will continue to increment the `stats.num_calls_total` call counter. If negative ("bypassed"), `log_calls` won't do anything.
        `args_sep`   | `', '`          | `str` used to separate arguments. The default is  `', '`, which lists all args on the same line. If `args_sep='\n'` is used, or more generally if the `args_sep` string ends in `\n`, then additional spaces are appended to the separator for a neater display. Other separators in which `'\n'` occurs are left unchanged, and are untested – experiment/use at your own risk.
        `log_args`   | `True`          | If true, arguments passed to the decorated function, and default values used by the function, will be logged.
        `log_retval` | `False`         | If true, log what the decorated function returns. At most 77 chars are printed, with a trailing ellipsis if the value is truncated.
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
-       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds.
+       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported.
        `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
        `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
        `file`     | `sys.stdout`      | If `logger` is `None`, a stream (an instance of type `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function.

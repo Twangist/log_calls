@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4.post5'
+__version__ = '0.2.5'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -34,7 +34,7 @@ from .helpers import (get_args_pos, get_args_kwargs_param_names,
 from .proxy_descriptors import ClassInstanceAttrProxy
 from .used_unused_kwds import used_unused_keywords
 
-__all__ = ['log_calls', '__version__', '__author__']
+__all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 
 #------------------------------------------------------------------------------
 ##~ PROFILE
@@ -71,7 +71,7 @@ CallRecord = namedtuple(
         'varargs',
         'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
         'retval',
-        'elapsed_secs',
+        'elapsed_secs', 'CPU_secs',
         'timestamp',
         'prefixed_func_name',
         # caller_chain: list of fn names, the last possibly a "prefixed name".
@@ -85,22 +85,34 @@ CallRecord = namedtuple(
 # DecoSetting subclasses with pre-call handlers.
 # The `context` arg for pre_call_handler methods has these keys:
 #     decorator
-#     settings      # of decorator
+#     settings              # self._deco_settings     (of decorator)
+#     stats                 # self._stats             ("      "    )
 #     indent
 #     prefixed_fname
-#     output_fname
+#     output_fname          # prefixed_fname + possibly num_calls_logged (if log_call_numbers true)
 #     fparams
 #     argcount
-#     argnames      # argcount-long
-#     argvals       # argcount-long
+#     argnames              # argcount-long
+#     argvals               # argcount-long
 #     varargs
 #     explicit_kwargs
-#     implicit_kwargs
 #     defaulted_kwargs
+#     implicit_kwargs
 #     call_list
 #     args
 #     kwargs
 #-----------------------------------------------------------------------------
+
+# TODO, looking ahead to `context` setting:  - - - - - - - - - - - - - - - - -
+# todo  context key/vals that would be of interest to wrapped functions:
+#     settings
+#     stats
+#     explicit_kwargs
+#     defaulted_kwargs
+#     implicit_kwargs   # ??? maybe
+#     call_list
+# Note: The stats attributes are all r/o, so wrapped function can't trash 'em.
+#end TODO. - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class DecoSettingEnabled(DecoSetting_int):
     def __init__(self, name, **kwargs):
@@ -185,6 +197,7 @@ class DecoSettingArgs(DecoSetting_bool):
 # DecoSetting subclasses with post-call handlers.
 # The `context` for post_call_handler methods has these additional keys:
 #     elapsed_secs
+#     CPU_secs
 #     timestamp
 #     retval
 #-----------------------------------------------------------------------------
@@ -209,7 +222,8 @@ class DecoSettingElapsed(DecoSetting_bool):
 
     def post_call_handler(self, context: dict):
         return (context['indent'] +
-                "elapsed time: %f [secs]" % context['elapsed_secs'])
+                "elapsed time: %f [secs], CPU time: %f [secs]"
+                % (context['elapsed_secs'], context['CPU_secs']))
 
 
 class DecoSettingExit(DecoSetting_bool):
@@ -236,6 +250,7 @@ class DecoSettingHistory(DecoSetting_bool):
             context['implicit_kwargs'],
             context['retval'],
             elapsed_secs=context['elapsed_secs'],
+            CPU_secs=context['CPU_secs'],
             timestamp_secs=context['timestamp'],
             prefixed_func_name=context['prefixed_fname'],
             caller_chain=context['call_list']
@@ -280,6 +295,7 @@ class DecoSettingLogger(DecoSetting):
         if is_quoted_str(s):
             return s[1:-1]
         return super().value_from_str(s)
+
 
 #-----------------------------------------------------------------------------
 # Fat base class for log_calls and record_history decorators
@@ -372,6 +388,7 @@ class _deco_base():
         'num_calls_logged',
         'num_calls_total',
         'elapsed_secs_logged',
+        'CPU_secs_logged',
         'history',
         'history_as_csv',
         'history_as_DataFrame',
@@ -411,9 +428,15 @@ class _deco_base():
 
     @property
     def elapsed_secs_logged(self):
-        # REDONE: This value is accumulated for logged calls
+        # This value is accumulated for logged calls
         # whether or not history is being recorded.
         return self._elapsed_secs_logged
+
+    @property
+    def CPU_secs_logged(self):
+        # This value is accumulated for logged calls
+        # whether or not history is being recorded.
+        return self._CPU_secs_logged
 
     @property
     def history(self):
@@ -428,7 +451,8 @@ class _deco_base():
             varargs (str)
             implicit_kwargs (str)
             retval          (repr?)
-            elapsed_secs    (double? float?)
+            elapsed_secs
+            CPU_secs
             timestamp       (format somehow? what is it anyway)
             function (it's a name/str)
         """
@@ -441,7 +465,7 @@ class _deco_base():
         # Write column headings line (append to csv str)
         fields = ['call_num']
         fields.extend(all_args)
-        fields.extend(['retval', 'elapsed_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
+        fields.extend(['retval', 'elapsed_secs', 'CPU_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
         # 0.2.1 - use str not repr, get rid of quotes around column names
         csv = csv_sep.join(map(str, fields))
         csv += '\n'
@@ -468,6 +492,7 @@ class _deco_base():
             # and now the remaining fields
             fields.append(repr(rec.retval))
             fields.append(str(rec.elapsed_secs))
+            fields.append(str(rec.CPU_secs))
             fields.append(rec.timestamp)        # it already IS a formatted str
             fields.append(repr(rec.prefixed_func_name))
             fields.append(repr(rec.caller_chain))
@@ -499,6 +524,7 @@ class _deco_base():
         self._num_calls_total = 0
 
         self._elapsed_secs_logged = 0.0
+        self._CPU_secs_logged = 0.0
 
         self.max_history = int(max_history)  # set before calling _make_call_history
         self._call_history = self._make_call_history()
@@ -509,15 +535,16 @@ class _deco_base():
         if logged:
             self._num_calls_logged += 1
 
-    def _add_to_elapsed(self, elapsed_secs):
+    def _add_to_elapsed(self, elapsed_secs, CPU_secs):
         self._elapsed_secs_logged += elapsed_secs
+        self._CPU_secs_logged += CPU_secs
 
     def _add_to_history(self,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval,
-                        elapsed_secs,
+                        elapsed_secs, CPU_secs,
                         timestamp_secs,
                         prefixed_func_name,
                         caller_chain
@@ -541,7 +568,7 @@ class _deco_base():
                     varargs,
                     explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                     retval,
-                    elapsed_secs,
+                    elapsed_secs, CPU_secs,
                     timestamp,
                     prefixed_func_name=prefixed_func_name,
                     caller_chain=caller_chain)
@@ -616,6 +643,7 @@ class _deco_base():
         # Accumulate this (for logged calls only)
         # even when record_history is false:
         self._elapsed_secs_logged = 0.0
+        self._CPU_secs_logged = 0.0
 
         self.f_params = None    # set properly by __call__
         self.f = None           # set properly by __call__
@@ -786,10 +814,12 @@ class _deco_base():
         #
         # 0.2.4.post5 Use perf_counter if available (Py3.3+)
         try:
-            from time import perf_counter
-            timing_fn = perf_counter
+            from time import perf_counter, process_time
+            wall_time_fn = perf_counter
+            CPU_time_fn = process_time
         except ImportError:
-            timing_fn = time.time()
+            wall_time_fn = \
+            CPU_time_fn = time.time
 
         ##~ PROFILE
         # self.profile__ = OrderedDict((
@@ -836,7 +866,7 @@ class _deco_base():
                 return f(*args, **kwargs)
 
             # Bump call counters, before calling fn.
-            # Note: elapsed_secs not reflected yet of course
+            # Note: elapsed_secs, CPU_secs not reflected yet of course
             self._add_call(logged=_do_it)
 
             _log_call_numbers = _get_final_value('log_call_numbers')
@@ -915,6 +945,7 @@ class _deco_base():
                 'kwargs': kwargs,
                 'indent': " " * self.INDENT,              # our unit of indentation
                 'output_fname': output_fname,
+                'stats': self._stats,
             }
             # END profile__setup_context_init
 
@@ -977,16 +1008,21 @@ class _deco_base():
 
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             # Call f(*args, **kwargs) and get its retval; time it.
-            # Add timestamp, elapsed time and retval to context.
+            # Add timestamp, elapsed time(s) and retval to context.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # No dictionary overhead between timer start & stop.
-            t0 = timing_fn()
+            # No dictionary overhead between timer(s) start & stop.
+            t0 = time.time()                # for timestamp
+            t0_wall = wall_time_fn()
+            t0_CPU = CPU_time_fn()
             retval = f(*args, **kwargs)
-            context['elapsed_secs'] = (timing_fn() - t0)
-            context['retval'] = retval
+            t_end_wall = wall_time_fn()
+            t_end_CPU = CPU_time_fn()
+            context['elapsed_secs'] = (t_end_wall - t0_wall)
+            context['CPU_secs'] = (t_end_CPU - t0_CPU)
             context['timestamp'] = t0
+            context['retval'] = retval
 
-            self._add_to_elapsed(context['elapsed_secs'])
+            self._add_to_elapsed(context['elapsed_secs'], context['CPU_secs'])
 
             ##~ PROFILE
             #~ with time_block('post_call_handlers') as profile__post_call_handlers:

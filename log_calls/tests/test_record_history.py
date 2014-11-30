@@ -87,25 +87,25 @@ The tallies:
     >>> record_me.stats.elapsed_secs_logged          # doctest: +SKIP
     2.2172927856445312e-05
 
-Call history in CSV format, with ellipses for 'elapsed_secs' and 'timestamp' columns:
+Call history in CSV format (ellipses for 'elapsed_secs', `CPU_secs` and 'timestamp' columns):
 
     >>> print(record_me.stats.history_as_csv)         # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|3|5|0|5|...|...|'record_me'|['<module>']
-    2|3|5|1|8|...|...|'record_me'|['<module>']
-    3|3|5|2|11|...|...|'record_me'|['<module>']
-    4|3|5|3|14|...|...|'record_me'|['<module>']
-    5|3|5|4|17|...|...|'record_me'|['<module>']
-    6|3|5|5|20|...|...|'record_me'|['<module>']
-    7|3|5|6|23|...|...|'record_me'|['<module>']
-    8|3|5|7|26|...|...|'record_me'|['<module>']
-    9|3|5|8|29|...|...|'record_me'|['<module>']
-    10|3|5|9|32|...|...|'record_me'|['<module>']
-    11|3|5|10|35|...|...|'record_me'|['<module>']
-    12|3|5|11|38|...|...|'record_me'|['<module>']
-    13|3|5|12|41|...|...|'record_me'|['<module>']
-    14|3|5|13|44|...|...|'record_me'|['<module>']
-    15|3|5|14|47|...|...|'record_me'|['<module>']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|3|5|0|5|...|...|...|'record_me'|['<module>']
+    2|3|5|1|8|...|...|...|'record_me'|['<module>']
+    3|3|5|2|11|...|...|...|'record_me'|['<module>']
+    4|3|5|3|14|...|...|...|'record_me'|['<module>']
+    5|3|5|4|17|...|...|...|'record_me'|['<module>']
+    6|3|5|5|20|...|...|...|'record_me'|['<module>']
+    7|3|5|6|23|...|...|...|'record_me'|['<module>']
+    8|3|5|7|26|...|...|...|'record_me'|['<module>']
+    9|3|5|8|29|...|...|...|'record_me'|['<module>']
+    10|3|5|9|32|...|...|...|'record_me'|['<module>']
+    11|3|5|10|35|...|...|...|'record_me'|['<module>']
+    12|3|5|11|38|...|...|...|'record_me'|['<module>']
+    13|3|5|12|41|...|...|...|'record_me'|['<module>']
+    14|3|5|13|44|...|...|...|'record_me'|['<module>']
+    15|3|5|14|47|...|...|...|'record_me'|['<module>']
     <BLANKLINE>
 
 Disable recording, call the function again:
@@ -150,10 +150,10 @@ and examine the call history again:
     >>> for x in range(15):
     ...     _ = record_me(3, 5, x)
     >>> print(record_me.stats.history_as_csv)      # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    13|3|5|12|41|...|...|'record_me'|['<module>']
-    14|3|5|13|44|...|...|'record_me'|['<module>']
-    15|3|5|14|47|...|...|'record_me'|['<module>']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    13|3|5|12|41|...|...|...|'record_me'|['<module>']
+    14|3|5|13|44|...|...|...|'record_me'|['<module>']
+    15|3|5|14|47|...|...|...|'record_me'|['<module>']
     <BLANKLINE>
 
 ## [Call history and call chains](id:Call-history-and-call-chains)
@@ -186,25 +186,25 @@ caller appearing in the call chain:
     7
 
     >>> print(even.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|<__main__.Even object at ...>|0|None|...|...|'Even.call_it'|['<module>']
-    2|<__main__.Even object at ...>|2|None|...|...|'Even.call_it'|['<module>']
+    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|<__main__.Even object at ...>|0|None|...|...|...|'Even.call_it'|['<module>']
+    2|<__main__.Even object at ...>|2|None|...|...|...|'Even.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(odd.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|<__main__.Odd object at ...>|1|None|...|...|'Odd.call_it'|['<module>']
+    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|<__main__.Odd object at ...>|1|None|...|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(record_me.stats.history_as_csv)     # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|1|1|1|2|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
-    2|6|8|2|20|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
-    3|6|8|3|26|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
-    4|5|7|4|27|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    5|5|7|5|32|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    6|5|7|6|37|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
-    7|5|7|7|42|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|1|1|1|2|...|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
+    2|6|8|2|20|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    3|6|8|3|26|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
+    4|5|7|4|27|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    5|5|7|5|32|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    6|5|7|6|37|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
+    7|5|7|7|42|...|...|...|'record_me'|['call_record_me', 'Even.call_it [2]']
     <BLANKLINE>
 
 ##[*stats.elapsed_secs_logged* == sum of *elapsed_secs* column of call history](id:elapsed_secs_logged-equal-sum-etc)
@@ -221,6 +221,13 @@ numerical inaccuracy:
     >>> elapsed_col = list(map(lambda rec: getattr(rec, 'elapsed_secs'),
     ...                        slow.stats.history))
     >>> abs(sum(elapsed_col) - slow.stats.elapsed_secs_logged) < 1.0e-15
+    True
+
+Similarly,
+### [*stats.CPU_secs_logged* == sum of *CPU_secs* column of call history](id:CPU_secs_logged-equal-sum-etc)
+    >>> CPU_col = list(map(lambda rec: getattr(rec, 'CPU_secs'),
+    ...                    slow.stats.history))
+    >>> abs(sum(CPU_col) - slow.stats.CPU_secs_logged) < 1.0e-15
     True
 
     """
