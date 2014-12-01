@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.5'
+__version__ = '0.2.5.post1'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -1324,15 +1324,15 @@ class log_calls(_deco_base):
         # TODO 0.2.6 delete BEGIN
         if 'settings_path' in used_keywords_dict:
             del used_keywords_dict['settings_path']
+            # Issue a warning. (0.2.5.post1: don't do it ALL the time, doh.)
+            # In Py3.2+ "DeprecationWarning is now ignored by default"
+            # (https://docs.python.org/3/library/warnings.html)
+            # so to see it, you'll probably have to run the Python interpreter
+            # with the -W switch, e.g. `python -W default run_tests.py`
+            import warnings
+            warnings.warn("Warning: 'settings_path' parameter is deprecated, use 'settings' instead.",
+                          DeprecationWarning)
         settings = settings or settings_path    # only one, & settings takes precedence
-        # Issue a warning.
-        # In Py3.2+ "DeprecationWarning is now ignored by default"
-        # (https://docs.python.org/3/library/warnings.html)
-        # so to see it, you'll probably have to run the Python interpreter
-        # with the -W switch, e.g. `python -W default run_tests.py`
-        import warnings
-        warnings.warn("Warning: 'settings_path' parameter is deprecated, use 'settings' instead.",
-                      DeprecationWarning)
         # TODO 0.2.6 delete END.
 
         super().__init__(
