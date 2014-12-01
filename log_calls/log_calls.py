@@ -103,7 +103,7 @@ CallRecord = namedtuple(
 #     kwargs
 #-----------------------------------------------------------------------------
 
-# TODO, looking ahead to `context` setting:  - - - - - - - - - - - - - - - - -
+# TODO 0.2.6, possible `context` setting:  - - - - - - - - - - - - - - - - - -
 # todo  context key/vals that would be of interest to wrapped functions:
 #     settings
 #     stats
@@ -111,7 +111,13 @@ CallRecord = namedtuple(
 #     defaulted_kwargs
 #     implicit_kwargs   # ??? maybe
 #     call_list
-# Note: The stats attributes are all r/o, so wrapped function can't trash 'em.
+# Note: stats (data) attributes are all r/o (but method clear_history isn't!),
+#         so wrapped function can't trash 'em;
+#       settings - could pass settings.as_dict();
+#       the rest (*_kwargs, call_list) could be mucked with,
+#         so we'd have to deepcopy() to prevent that.
+#       OR just document that wrapped functions shouldn't write to these values,
+#          as they're "live" and altering them could cause confusion/chaos/weirdness/crashes.
 #end TODO. - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class DecoSettingEnabled(DecoSetting_int):
@@ -1335,22 +1341,22 @@ class log_calls(_deco_base):
         # TODO 0.2.6 delete END.
 
         super().__init__(
-                         settings=settings,
-                         _used_keywords_dict=used_keywords_dict,
-                         enabled=enabled,
-                         args_sep=args_sep,
-                         log_args=log_args,
-                         log_retval=log_retval,
-                         log_elapsed=log_elapsed,
-                         log_exit=log_exit,
-                         indent=indent,
-                         log_call_numbers=log_call_numbers,
-                         prefix=prefix,
-                         file=file,
-                         logger=logger,
-                         loglevel=loglevel,
-                         record_history=record_history,
-                         max_history=max_history,
+            settings=settings,
+            _used_keywords_dict=used_keywords_dict,
+            enabled=enabled,
+            args_sep=args_sep,
+            log_args=log_args,
+            log_retval=log_retval,
+            log_elapsed=log_elapsed,
+            log_exit=log_exit,
+            indent=indent,
+            log_call_numbers=log_call_numbers,
+            prefix=prefix,
+            file=file,
+            logger=logger,
+            loglevel=loglevel,
+            record_history=record_history,
+            max_history=max_history,
         )
 
     @classmethod

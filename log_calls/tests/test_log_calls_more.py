@@ -359,6 +359,29 @@ or as the name of the Logger:
     pass
 
 
+def main__log_message_gcd():
+    """
+Here's one more brief, realistic example:
+
+    >>> @log_calls(log_retval=True)
+    ... def gcd(a, b):
+    ...     while b:
+    ...         a, b = b, (a % b)
+    ...         gcd.log_message("At end of loop: a=%d, b=%d" % (a, b))
+    ...     return a
+    >>> gcd(48, 246)
+    gcd <== called by <module>
+        arguments: a=48, b=246
+        At end of loop: a=246, b=48
+        At end of loop: a=48, b=6
+        At end of loop: a=6, b=0
+        gcd return value: 6
+    gcd ==> returning to <module>
+    6
+    """
+    pass
+
+
 def main__settings():
     """
 The `.log_calls` settings file in the `log_calls/tests/` directory

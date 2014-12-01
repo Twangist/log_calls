@@ -61,6 +61,9 @@ section of README.
 <ul>
 <li><a href="#No-parameters">Using no parameters</a></li>
 <li><a href="#enabled-parameter">The <em>enabled</em> parameter</a></li>
+<ul>
+<li><a href="#bypass"><em>True bypass</em></a></li>
+</ul>
 <li><a href="#args_sep-parameter">The <em>args_sep</em> parameter</a></li>
 <li><a href="#log_args-parameter">The <em>log_args</em> parameter</a></li>
 <li><a href="#log_retval-parameter">The <em>log_retval</em> parameter</a></li>
@@ -160,7 +163,7 @@ This document describes version `0.2.5` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-Th log_calls package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2 or higher (Python 3.3+ recommended).
+Th log_calls package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2 or higher (Python 3.4+ recommended).
 
 NOTE: This package does require the CPython implementation, as it makes assumptions about stack frame internals which may not be valid in other interpreters. 
 
@@ -215,7 +218,7 @@ You can run the tests for `log_calls` after installing it, by using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 57 tests in 0.832s
+    Ran 59 tests in 0.774s
     
     OK
 
@@ -341,8 +344,11 @@ The next most basic example:
 
 The `enabled` setting is in fact an `int`. (Later, for example in 
 [Using *enabled* as a level of verbosity](#enabling-with-ints), 
-we show how this can be used advantageously.) If you supply a negative integer,
-this is interpreted as *true bypass*: `log_calls` immediately calls
+we show how this can be used advantageously.) 
+
+#### [True bypass](id:bypass)
+If you supply a negative integer,
+that is interpreted as *true bypass*: `log_calls` immediately calls
 the decorated function and returns its value. When the value of `enabled`
 is false (`False` or `0`), the decorator performs a little more processing
 before delegating to the decorated function, though of course less than when
@@ -1053,6 +1059,24 @@ of methods requires its own approach (a little more syntax) to obtaining the
 `log_calls` wrapper which hosts the attributes. See the section 
 [Functions and methods accessing their own *log_calls* attributes](#accessing-own-attrs) for details.*
 
+Here's one more brief, realistic example:
+
+    >>> @log_calls(log_retval=True)
+    ... def gcd(a, b):
+    ...     while b:
+    ...         a, b = b, (a % b)
+    ...         gcd.log_message("At end of loop: a=%d, b=%d" % (a, b))
+    ...     return a
+    >>> gcd(48, 246)
+    gcd <== called by <module>
+        arguments: a=48, b=246
+        At end of loop: a=246, b=48
+        At end of loop: a=48, b=6
+        At end of loop: a=6, b=0
+        gcd return value: 6
+    gcd ==> returning to <module>
+    6
+
 ##[Dynamic control of settings using the *log_calls_settings* attribute](id:Dynamic-control-log_calls_settings)
 
 The values given for the parameters of `log_calls`, e.g. `enabled=True`, 
@@ -1254,7 +1278,7 @@ use the new settings for `f`:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f [4] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
@@ -1516,15 +1540,18 @@ this can be difficult to guarantee, to put it mildly.
 Certainly this is a clear if stern approach to cooperation, one consistent with the behavior of certain "final calls in the chain" that land in core Python; for example, `object.__init__` and `type.__init__` raise an exception if they receive any `**kwargs`. But the "promiscuous" paradigm of cooperation is also valid and useful, and causes no harm as long as it's clear what all cooperating parties are agreeing *to*.
 
 ##[Call history and statistics – the *stats* attribute and the *\*_history* parameters](id:call-history-and-statistics)
-`log_calls` always collects a few basic statistics about calls to a decorated
-function. It can collect the entire history of calls to a function if asked
+Unless it's [bypassed](#bypass),`log_calls` always collects at least 
+a few basic statistics about calls to a decorated function. 
+It can collect the entire history of calls to a function if asked
 to (using the [`record_history` parameter](#record_history-parameter)).
 The statistics and history are accessible via the `stats` attribute
 which `log_calls` adds to a decorated function.
 
 ###[The *stats* attribute and *its* attributes](id:stats-attribute)
-The class of the `stats` attribute has its own test suite,
-so here we only have to test and illustrate its use by `log_calls`.
+The `stats` attribute is a collection of read-only performance and profiling 
+data attributes, plus one method.
+The class of the `stats` has its own test suite,
+so here we only illustrate and discuss its use by `log_calls`.
 
 Define a decorated function with call number logging turned on,
 but with exit logging turned off for brevity:
@@ -1622,7 +1649,7 @@ Similarly, we'll just exhibit its value for the 3 logged calls to `f` above:
     >>> f.stats.CPU_secs_logged   # doctest: +SKIP
     1.1000000000038757e-05
 
-**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.elapsed_secs_logged` 
+**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.CPU_secs_logged` 
 will be the same number.*
 
 ###[The *record_history* parameter (default – *False*)](id:record_history-parameter)
@@ -2431,7 +2458,7 @@ Keyword parameter | Default value | Description
        `log_retval` | `False`         | If true, log what the decorated function returns. At most 77 chars are printed, with a trailing ellipsis if the value is truncated.
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
-       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported.
+       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported (but under Python < 3.3, they're the same number: wall time).
        `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
        `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
        `file`     | `sys.stdout`      | If `logger` is `None`, a stream (an instance of type `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function.
@@ -2442,4 +2469,4 @@ Keyword parameter | Default value | Description
        `settings` | `None`            | A dictionary containing settings and values, or a string giving the pathname to a *settings file* containing settings and values. If the pathname is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override their values.
 
 
-####— Brian O'Neill, October-November 2014, NYC
+####— Brian O'Neill, October-December 2014, NYC

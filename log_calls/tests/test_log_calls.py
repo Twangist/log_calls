@@ -1,4 +1,4 @@
-d__author__ = "Brian O'Neill"
+__author__ = "Brian O'Neill"
 __version__ = '0.2.5'
 
 from log_calls import log_calls
@@ -75,12 +75,15 @@ The next most basic example:
 
 The `enabled` setting is in fact an `int`. (Later, for example in
 [Using *enabled* as a level of verbosity](#enabling-with-ints),
-we show how this can be used advantageously.) If you supply a negative integer,
-this is interpreted as *true bypass*: `log_calls` immediately calls
+we show how this can be used advantageously.)
+
+#### [True bypass](id:bypass)
+If you supply a negative integer,
+that is interpreted as *true bypass*: `log_calls` immediately calls
 the decorated function and returns its value. When the value of `enabled`
 is false (`False` or `0`), the decorator performs a little more processing
-before delegating to the decorated function, though of course less than when
-`enabled` is positive (or `True`).
+before deferring to the decorated function, though of course less than when
+`enabled` is positive (e.g. `True`).
 
 ###[The *args_sep* parameter (default – `', '`)](id:args_sep-parameter)
 
@@ -1043,7 +1046,7 @@ use the new settings for `f`:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f [4] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
@@ -1300,15 +1303,18 @@ is perfectly legitimate:
 def main_call_history_and_statistics():
     """
 ##[Call history and statistics – the *stats* attribute and the *\*_history* parameters](id:call-history-and-statistics)
-`log_calls` always collects a few basic statistics about calls to a decorated
-function. It can collect the entire history of calls to a function if asked
-to (using the [`record_history` parameter](#stats.record_history-parameter)).
+Unless it's [bypassed](#bypass),`log_calls` always collects at least
+a few basic statistics about calls to a decorated function.
+It can collect the entire history of calls to a function if asked
+to (using the [`record_history` parameter](#record_history-parameter)).
 The statistics and history are accessible via the `stats` attribute
 which `log_calls` adds to a decorated function.
 
 ###The *stats* attribute
-The class of the `stats` attribute has its own test suite,
-so here we only have to test and illustrate its use by `log_calls`.
+The `stats` attribute is a collection of read-only performance and profiling
+data attributes, plus one method.
+The class of the `stats` has its own test suite,
+so here we only illustrate and discuss its use by `log_calls`.
 
 Define a decorated function with call number logging turned on,
 but with exit logging turned off for brevity:
@@ -1406,6 +1412,9 @@ Similarly, we'll just exhibit its value for the 3 logged calls to `f` above:
 
     >>> f.stats.CPU_secs_logged   # doctest: +SKIP
     1.1000000000038757e-05
+
+**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.CPU_secs_logged`
+will be the same number.*
 
 ###[The *record_history* parameter (default – *False*)](id:record_history-parameter)
 When the `record_history` setting is true for a decorated function `f`, `log_calls` will
@@ -1656,6 +1665,50 @@ and `stats` tallies are reset:
     0.0
     >>> f.stats.CPU_secs_logged
     0.0
+
+### Data descriptors of *stats* are read-only
+The data descriptor stats attributes are all read-only:
+
+    >>> f.stats.num_calls_logged = 57    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.num_calls_total = 58    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.elapsed_secs_logged = 0.1    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.CPU_secs_logged = 0.1    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.history = tuple()    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.history_as_csv = ''    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> f.stats.history_as_DataFrame = ''    # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+You **can** replace the non-data descriptor `clear_history`:
+
+    >>> f.stats.clear_history = lambda: None
+
+but it's hard to imagine why one would :)
 
     """
     pass

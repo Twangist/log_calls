@@ -73,7 +73,7 @@ Performance timing/profiling enhancements & additions.</br>
 ##[Preliminaries](id:Preliminaries)
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-The *log_calls* package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2+.
+The *log_calls* package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2 or higher (Python 3.4+ recommended).
 
 NOTE: This package does require the CPython implementation, as it uses internals
 of stack frames which may well differ in other interpreters.
@@ -125,7 +125,7 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 58 tests in 0.832s
+    Ran 59 tests in 0.774s
     
     OK
 
@@ -185,10 +185,14 @@ The next most basic example:
     ...     pass
     >>> f(1, 2, 3)                # no output
 
+
 The `enabled` setting is in fact an `int`. (This can be used advantageously: 
 see the section 
-[Using *enabled* as a level of verbosity](http://www.pythonhosted.org/log_calls/index.html#enabling-with-ints) in the full documentation.) If you supply a negative integer,
-this is interpreted as *true bypass*: `log_calls` immediately calls
+[Using *enabled* as a level of verbosity](http://www.pythonhosted.org/log_calls/index.html#enabling-with-ints) in the full documentation.) 
+
+#### [True bypass](id:bypass)
+If you supply a negative integer,
+that is interpreted as *true bypass*: `log_calls` immediately calls
 the decorated function and returns its value. When the value of `enabled`
 is false (`False` or `0`), the decorator performs a little more processing
 before delegating to the decorated function, though of course less than when
@@ -320,7 +324,11 @@ See the [recursion example](#recursion-example) later, where the feature
 is used to good effect.
 
 ###[The *log_elapsed* parameter (default – *False*)](id:log_elapsed-parameter)
-For performance profiling, you can measure the time it took a function to execute by using the `log_elapsed` keyword. When true, `log_calls` reports the time the decorated function took to complete, in seconds:
+(id:log_elapsed-parameter)
+For performance profiling, you can measure the time it took a function to execute
+by using the `log_elapsed` keyword. When true, `log_calls` reports the time the
+decorated function took to complete, in seconds. Both "wall time" (elapsed time)
+and CPU time (process time, i.e. kernel + user time, sleep time excluded) are reported:
 
     >>> @log_calls(log_elapsed=True)
     ... def f(n):
@@ -330,8 +338,10 @@ For performance profiling, you can measure the time it took a function to execut
     >>> f(5000)                 # doctest: +ELLIPSIS
     f <== called by <module>
         arguments: n=5000
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f ==> returning to <module>
+
+**NOTE**: *Under Python < 3.3, both elapsed time and CPU time will be the same number.*
 
 ###[The *indent* parameter (default - *False*)](id:indent-parameter)
 The `indent` parameter, when true, indents each new level of logged messages by 4 spaces, providing a visualization of the call hierarchy.
@@ -811,7 +821,7 @@ equivalent:
     f [1] <== called by <module>
         arguments: <none>
         f [1] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [1] ==> returning to <module>
 
     >>> f.log_calls_settings.log_args = False
@@ -862,7 +872,7 @@ use the new settings for `f`:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f [4] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
@@ -939,9 +949,12 @@ whereas neither of the following two statements will trigger logging:
 See the section in the full documentation on [indirect values](http://www.pythonhosted.org/log_calls#Indirect-values) for several more examples and useful techniques involving indirect values. The test suite `log_calls/tests/test_log_calls_more.py` also contains further doctests/examples. 
 
 ### [Call history and statistics](id:call-history-and-statistics)
-`log_calls` always collects a few basic statistics about calls to a decorated
-function. It can collect the entire history of calls to a function if asked
-to, or just the most recent `n` calls; the \*_history parameters, discussed next, determine these settings. The statistics and history are accessible via the `stats` attribute which `log_calls` adds to a decorated function.
+Unless it's [bypassed](#bypass),`log_calls` always collects at least
+a few basic statistics about calls to a decorated function.
+It can collect the entire history of calls to a function if asked
+to (using the [`record_history` parameter](#record_history-parameter)).
+The statistics and history are accessible via the `stats` attribute
+which `log_calls` adds to a decorated function.
 
 #### [The *record_history* and *max_history* parameters](id:_history-parameters)
 The two settings parameters we haven't yet discussed govern the recording of a decorated function's call history.
@@ -965,11 +978,12 @@ You cannot change `max_history` using the mapping interface or the attribute
 of the same name; attempts to do so raise `ValueError`. The only way to change its value is with the [`stats.clear_history()`](#stats.clear_history) method, discussed below.
 
 ####[The *stats* attribute and *its* attributes](id:stats-attribute)
-The `stats` attribute of a decorated function is an object that provides statistics and data about calls to a decorated function:
+The `stats` attribute of a decorated function is an object that provides read-only statistics and data about calls to a decorated function:
 
 * [`stats.num_calls_logged`](#stats.num_calls_logged)
 * [`stats.num_calls_total`](#stats.num_calls_total)
 * [`stats.elapsed_secs_logged`](#elapsed_secs_logged)
+* [`stats.CPU_secs_logged`](#CPU_secs_logged)
 * [`stats.history`](#stats.history)
 * [`stats.history_as_csv`](#stats.history_as_csv)
 * [`stats.history_as_DataFrame`](#stats.history_as_DataFrame)
@@ -1036,11 +1050,22 @@ value as `f.stats.num_calls_logged` after the call:
 **ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So,* **comment it out in production code!** 
 
 #####[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
-The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
+The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times ("wall time") of
 all logged calls to a decorated function, in seconds. Here's its value for the 3 logged calls to `f` above:
 
     >>> f.stats.elapsed_secs_logged   # doctest: +SKIP
     6.67572021484375e-06
+
+#####[The *stats.CPU_secs_logged* attribute](id:CPU_secs_logged)
+The `stats.CPU_secs_logged` attribute holds the sum of the CPU times
+("process time") of all logged calls to a decorated function, in seconds.
+Similarly, we'll just exhibit its value for the 3 logged calls to `f` above:
+
+    >>> f.stats.CPU_secs_logged   # doctest: +SKIP
+    1.1000000000038757e-05
+
+**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.CPU_secs_logged` 
+will be the same number.*
 
 #####[The *history* attribute](id:stats.history)
 The `stats.history` attribute of a decorated function provides the call history
@@ -1051,19 +1076,25 @@ in (almost) human-readable form:
     CallRecord(call_num=1, argnames=['a'], argvals=(0,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
-                           retval=None, elapsed_secs=2.1457672119140625e-06,
+                           retval=None, 
+                           elapsed_secs=3.0049995984882116e-06, 
+                           CPU_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.733763',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=2, argnames=['a'], argvals=(1,), varargs=(100, 101),
                            explicit_kwargs=OrderedDict([('x', 1000)]),
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={'y': 1001},
-                           retval=None, elapsed_secs=1.9073486328125e-06,
+                           retval=None, 
+                           elapsed_secs=3.274002665420994e-06, 
+                           CPU_secs=3.0000000000030003e-06,
                            timestamp='10/28/14 15:56:13.734102',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=3, argnames=['a'], argvals=(10,), varargs=(20,),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={'z': 5000},
-                           retval=None, elapsed_secs=2.1457672119140625e-06,
+                           retval=None, 
+                           elapsed_secs=2.8769973141606897e-06, 
+                           CPU_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.734412',
                            prefixed_func_name='f', caller_chain=['<module>'])
 
@@ -1106,13 +1137,13 @@ and `caller_chain` – use commas intrinsically. Let's examine one more
 Here's the call history in CSV format:
 
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|0|()|1|{}|None|...|...|'f'|['g', 'h']
-    2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']
-    3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|'f'|['g', 'h']
+    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|0|()|1|{}|None|...|...|...|'f'|['g', 'h']
+    2|10|(17, 19)|1|{'z': 100}|None|...|...|...|'f'|['g', 'h']
+    3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|...|'f'|['g', 'h']
     <BLANKLINE>
 
-Ellipses are for the `elapsed_secs` and `timestamp` fields. As usual, `log_calls` will use whatever names you use for *varargs* parameters
+Ellipses are for the `elapsed_secs`, `CPU_secs` and `timestamp` fields. As usual, `log_calls` will use whatever names you use for *varargs* parameters
 (here, `extra_args` and `kw_args`). Whatever the name of the `kwargs` parameter,
 items within that field are guaranteed to be in sorted order.
 
@@ -1149,6 +1180,8 @@ and `stats` tallies are reset:
     >>> f.stats.num_calls_total
     0
     >>> f.stats.elapsed_secs_logged
+    0.0
+    >>> f.stats.CPU_secs_logged
     0.0
 
 ##[The *record_history* decorator](id:record_history-decorator)
@@ -1188,7 +1221,7 @@ Keyword parameter | Default value | Description
        `log_retval` | `False`         | If true, log what the decorated function returns. At most 77 chars are printed, with a trailing ellipsis if the value is truncated.
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
-       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported.
+       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported (but under Python < 3.3, they're the same number: wall time).
        `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
        `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
        `file`     | `sys.stdout`      | If `logger` is `None`, a stream (an instance of type `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function.
@@ -1199,4 +1232,4 @@ Keyword parameter | Default value | Description
        `settings` | `None`            | A dictionary containing settings and values, or a string giving the pathname to a *settings file* containing settings and values. If the pathname is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override their values.
 
 
-####— Brian O'Neill, October-November 2014, NYC
+####— Brian O'Neill, October-December 2014, NYC
