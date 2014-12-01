@@ -171,11 +171,17 @@ def get_defaulted_kwargs_OD(f_params, bound_args) -> OrderedDict:
 
     TODO (doc)tests?
     """
+    arguments = bound_args.arguments
+    empty = inspect._empty
     return OrderedDict(
-        [(param.name, param.default)
-         for param in f_params.values()
-         if param.name not in bound_args.arguments
-            and param.default != inspect._empty]
+        # ((param.name, param.default)
+        #  for param in f_params.values()
+        #  if param.name not in arguments
+        #     and param.default != empty)
+        ((key, f_params[key].default)
+        for key in f_params
+        if key not in arguments
+            and f_params[key].default != empty)
     )
 
 
@@ -191,10 +197,11 @@ def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
 
     TODO (doc)tests?
     """
+    arguments = bound_args.arguments
     return OrderedDict(
-        [(k, kwargs[k])
+        ((k, kwargs[k])
          for k in f_params
-         if k in bound_args.arguments and k in kwargs]
+         if k in arguments and k in kwargs)
     )
 
 

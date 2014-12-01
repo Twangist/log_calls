@@ -1,0 +1,280 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<style>
+/* Customized "Clearness.css" (.TOC)
+   This file goes in ~/Library/Application Support/Mou/CSS/
+ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote {
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans GB", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+    color: black;
+    background-color: white;
+    margin: 10px 13px 10px 13px;
+}
+table {
+	margin: 10px 0 15px 0;
+	border-collapse: collapse;
+}
+td,th {	
+	border: 1px solid #ddd;
+	padding: 3px 10px;
+}
+th {
+	padding: 5px 10px;	
+}
+
+a {
+    color: #0069d6;
+}
+a:hover {
+    color: #0050a3;
+    text-decoration: none;
+}
+a img {
+    border: none;
+}
+p {
+    margin-bottom: 9px;
+    color: black;
+    font-size: 13px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #404040;
+    line-height: 36px;
+}
+h1 {
+    margin-bottom: 18px;
+    font-size: 30px;
+}
+h2 {
+    font-size: 24px;
+}
+h3 {
+    font-size: 18px;
+}
+h4 {
+    font-size: 16px;
+}
+h5 {
+    font-size: 14px;
+}
+h6 {
+    font-size: 13px;
+}
+hr {
+    margin: 0 0 19px;
+    border: 0;
+    border-bottom: 1px solid #ccc;
+}
+
+div.TOC {
+    background-color: rgba(232, 232, 232, 0.81);    /*#fee9cc;*/
+}
+div.TOC h5 {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+div.TOC > ul, div.TOC > ul + li {
+    margin-top: 0px;
+}
+
+blockquote {
+    padding: 13px 13px 21px 15px;
+    /* margin-bottom: 18px; */
+    font-family:georgia,serif;
+    font-style: italic;
+}
+blockquote:before {
+    content:"\201C";
+    font-size:40px;
+    margin-left:-10px;
+    font-family:georgia,serif;
+    color:#eee;
+}
+blockquote p {
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 18px;
+    margin-bottom: 0;
+    font-style: italic;
+}
+code, pre {
+    font-family: Monaco, Andale Mono, Courier New, monospace;
+}
+code {
+    background-color: rgba(232, 232, 232, 0.81);    // #fee9cc;
+    color: rgba(0, 0, 0, 0.95);
+    padding: 1px 3px;
+    font-size: 12px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+}
+pre {
+    background-color: #e8e8e8;
+
+    display: block;
+    padding: 14px;
+    margin: 0 0 18px;
+    line-height: 16px;
+    font-size: 11px;
+    border: 1px solid #d9d9d9;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+pre code {
+    background-color: #e8e8e8;  // #fff;
+    color:#101010;              // #737373
+    font-size: 11px;
+    padding: 0;
+}
+sup {
+    font-size: 0.83em;
+    vertical-align: super;
+    line-height: 0;
+}
+* {
+	-webkit-print-color-adjust: exact;
+}
+@media screen and (min-width: 914px) {
+    body {
+        width: 854px;
+        margin:10px auto;
+    }
+}
+@media print {
+	body,code,pre code,h1,h2,h3,h4,h5,h6 {
+		color: black;
+	}
+	table, pre {
+		page-break-inside: avoid;
+	}
+}
+
+</style>
+<title>*log_calls* — What Has Been New</title>
+
+</head>
+<body>
+<h1><em>log_calls</em> — What Has Been New</h1>
+
+<p>This document collects the full <strong>What's New</strong> sections of all <code>log_calls</code> releases.</p>
+
+<hr />
+
+<ul>
+<li><strong>0.2.5</strong></br>
+Performance timing/profiling enhancements &amp; additions.</br>
+
+<ul>
+<li>Both elapsed (wall) and CPU (process) time are now both reported.</br>
+Python 3.3+ enhances the <code>time</code> module (<em>see <a href="https://www.python.org/dev/peps/pep-0418/">PEP 418</a>; also see the Python 3 docs for the new functions <a href="https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter"><code>perf_counter</code></a> and <a href="https://docs.python.org/3/library/time.html?highlight=time#time.process_time"><code>process_time</code></a></em>), and we take advantage of the new functionaility when it's available.</br> (<em>Under Py &lt; 3.3 <code>log_calls</code> reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.</em>)</br>
+
+<ul>
+<li>Use <code>time.perf_counter</code>, <code>time.process_time</code> if available (Python 3.3+), otherwise use <code>time.time</code> as in earlier versions.</br></li>
+<li>Added <code>stats.CPU_secs_logged</code> attribute.</li>
+<li>Added <code>CPU_secs</code> column to call history (new field for <code>CallRecord</code>s).</li>
+<li><code>log_elapsed</code> reports both elapsed and CPU times.</li>
+</ul>
+</li>
+<li>Optimized the decorator wrapper, ~15% speedup</br> (still trivial with ~big data, see the IPython notebook <a href="http://www.pythonhosted.org/log_calls/history_to_pandas-and-profiling.html">history_to_pandas-and-profiling</a>).</li>
+<li>Added a "true bypass" feature: when <code>enabled</code> &lt; 0, adjourn to the decorated function immedately, with no further processing. Again, not a speed speed demon – see the IPython notebook referenced above.</li>
+<li>Deprecation warning issued if <code>settings_path</code> parameter used.</br> (You'll see this only if you run the Python interpreter with the <code>-W &lt;action&gt;</code> option, where <code>&lt;action&gt;</code> is any <a href="https://docs.python.org/3/using/cmdline.html#cmdoption-W">valid action string</a> other than <code>ignore</code>, e.g. <code>default</code>.)</li>
+<li>Updated tests and docs to reflect these changes.
+</br></br></li>
+</ul>
+</li>
+<li><em>0.2.4.post4</em>
+
+<ul>
+<li><em>(docs &amp; description changes only, no code changes)</em></li>
+</ul>
+</li>
+<li><em>0.2.4.post3</em>
+
+<ul>
+<li><em>(never existed)</em></li>
+</ul>
+</li>
+<li><p><strong>0.2.4.post2</strong></p>
+
+<ul>
+<li>The <code>settings</code> parameter (formerly <code>settings_path</code>) lets you specify default values for multiple settings either as a dictionary, or as a file. The <code>settings_path</code> parameter is deprecated, as <code>settings</code> is a superset. See the documentation <a href="http://www.pythonhosted.org/log_calls#settings-parameter">here</a> for details, discussion and examples.</li>
+</ul>
+</li>
+<li><p><strong>0.2.4.post1</strong></p>
+
+<ul>
+<li><code>settings_path</code> feature: allow <code>file=sys.stderr</code> in settings files, under IPython too; neater internals of settings file parsing.</li>
+</ul>
+</li>
+<li><p><strong>0.2.4</strong></p>
+
+<ul>
+<li>The new <code>settings_path</code> parameter lets you specify a file containing default values for multiple settings. See the documentation <a href="http://www.pythonhosted.org/log_calls#settings-parameter">here</a> for details, discussion and examples.</li>
+<li>You can now use a logger name (something you'd pass to <code>logging.getLogger()</code>) as the value of the <code>logger</code> setting.</li>
+<li>The <code>indent</code> setting now works with loggers too. See examples:
+
+<ul>
+<li>using <code>log_message</code> as a general output function that works as expected, whatever the destination – <code>stdout</code>, another stream, a file, or a logger [in <code>tests/test_log_calls_more.py</code>, docstring of <code>main__log_message__all_possible_output_destinations()</code>];</li>
+<li>setting up a logger with a minimal formatter that looks just like the output of <code>print</code> [in <code>tests/test_log_calls_more.py</code>, docstring of  <code>main__logging_with_indent__minimal_formatters()</code>].</li>
+</ul>
+</li>
+<li>Added the decorator <code>used_unused_keywords</code> to support the <code>settings_path</code> feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values. For examples, see the docstring of <code>main()</code> in <code>used_unused_kwds.py</code>.</li>
+<li>When displaying returned values (<code>log_retval</code> setting is true), the maximum displayed length of values is now 77, up from 60, not counting trailing ellipsis.</li>
+<li>The deprecated <code>indent_extra</code> parameter to <code>log_message</code> is gone.</li>
+<li>Little bug fixes, improvements.</li>
+</ul>
+</li>
+<li><p><strong>0.2.3</strong> and <strong>0.2.3.post</strong> <em>N</em></p>
+
+<ul>
+<li>A better signature for <a href="#log_message">the indent-aware writing method <code>log_message()</code></a>, and more, better examples of it — full docs <a href="http://www.pythonhosted.org/log_calls#log_message">here</a>.</li>
+</ul>
+</li>
+<li><p><strong>0.2.2</strong></p>
+
+<ul>
+<li><a href="#log_message">The indent-aware writing method <code>log_message()</code></a>, which decorated functions and methods can use to write extra debugging messages that align nicely with <code>log_calls</code> messages.</li>
+<li><a href="http://www.pythonhosted.org/log_calls#log_message">Documentation</a> for <code>log_message()</code>.</li>
+<li><a href="http://www.pythonhosted.org/log_calls#accessing-own-attrs">Documentation</a> for how functions and methods can access the attributes that <code>log_calls</code> adds for them, within their own bodies.</li>
+</ul>
+</li>
+<li><strong>0.2.1</strong>
+
+<ul>
+<li>The <a href="http://www.pythonhosted.org/log_calls/record_history.html#stats.history_as_DataFrame"><code>stats.history_as_DataFrame</code> attribute</a>, whose value is the call history of a decorated function as a <a href="http://pandas.pydata.org">Pandas</a> <a href="http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe">DataFrame</a> (if Pandas is installed; else <code>None</code>).</li>
+<li>An IPython notebook (<code>log_calls/docs/history_to_pandas.ipynb</code>, browsable as HTML <a href="http://www.pythonhosted.org/log_calls/history_to_pandas.html">here</a>) which compares the performance of using <code>record_history</code> <em>vs</em> a vectorized approach using <a href="http://www.numpy.org/">numpy</a> to amass medium to large datasets, and which concludes that if you can vectorize, by all means do so.</li>
+</ul>
+</li>
+<li><strong>0.2.0</strong>
+
+<ul>
+<li>Initial public release.</li>
+</ul>
+</li>
+</ul>
+
+</body>
+</html>

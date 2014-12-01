@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.4.post1'
+__version__ = '0.2.5'
 
 from log_calls import log_calls
 
@@ -359,6 +359,29 @@ or as the name of the Logger:
     pass
 
 
+def main__log_message_gcd():
+    """
+Here's one more brief, realistic example:
+
+    >>> @log_calls(log_retval=True)
+    ... def gcd(a, b):
+    ...     while b:
+    ...         a, b = b, (a % b)
+    ...         gcd.log_message("At end of loop: a=%d, b=%d" % (a, b))
+    ...     return a
+    >>> gcd(48, 246)
+    gcd <== called by <module>
+        arguments: a=48, b=246
+        At end of loop: a=246, b=48
+        At end of loop: a=48, b=6
+        At end of loop: a=6, b=0
+        gcd return value: 6
+    gcd ==> returning to <module>
+    6
+    """
+    pass
+
+
 def main__settings():
     """
 The `.log_calls` settings file in the `log_calls/tests/` directory
@@ -435,9 +458,9 @@ in one order or the other.
     ***     arguments: n=1 / [**]kwargs={...}
     ***     f [2] <== called by f [1]
     ***         arguments: n=0 / [**]kwargs={...}
-    ***         elapsed time: 0.0... [secs]
+    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -495,7 +518,7 @@ Now call the function, supplying a final value for `log_elapsed`:
     *** g [1] <== called by <module>
     ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
     ***     g [1] return value: 70
-    ***     elapsed time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     *** g [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -532,7 +555,7 @@ and call the function, as before:
     *** g_path [1] <== called by <module>
     ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
     ***     g_path [1] return value: 70
-    ***     elapsed time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     *** g_path [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -645,9 +668,9 @@ in one of the two possible orders.
     ***     arguments: n=1 / [**]kwargs={...}
     ***     f [2] <== called by f [1]
     ***         arguments: n=0 / [**]kwargs={...}
-    ***         elapsed time: 0.0... [secs]
+    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
     """
@@ -756,7 +779,7 @@ Call these methods:
         arguments: x=1 + y=2
         f <== called by g <== Klass.statikmethod
         f ==> returning to g ==> Klass.statikmethod
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: 0.0... [secs]
     Klass.statikmethod ==> returning to <module>
 
 Similarly, the stats attribute can be accessed via the class or an instance:
@@ -768,7 +791,10 @@ Similarly, the stats attribute can be accessed via the class or an instance:
     >>> # about 0.0001738
     >>> elapsed > 0.0
     True
-
+    >>> cpu =  Klass.statikmethod.stats.CPU_secs_logged    # doctest: +ELLIPSIS
+    >>> # about 0.0001670
+    >>> cpu > 0.0
+    True
     """
     pass
 

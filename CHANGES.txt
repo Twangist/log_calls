@@ -1,5 +1,46 @@
 VERSIONS
 --------
+0.2.5
+      - Timing/profiling enhancements & additions:
+        to take advantage of the Python 3.3+ improvements to the time
+        module, as described in PEP 418 https://www.python.org/dev/peps/pep-0418/
+        and the Python docs https://docs.python.org/3/library/time.html
+
+        For "elapsed" time i.e. wall time, use the highest-resolution timer,
+        time.perf_counter(), if it's available (Python 3.3+);
+        o/w use time.time().
+        We now also report CPU time (process time: sum of kernel and user CPU time),
+        but in Py < 3.3 it's the same as elapsed time.
+        In Py3.3+, time.process_time() is available, and we use it.
+
+        * stats.CPU_secs_logged attribute added
+        * Added column CPU_secs to CallRecord
+        * `log_elapsed` reports both elapsed and CPU times
+          (they're the same number under Py < 3.3)
+
+      - profiling of wrapper, some speedups & streamlining,
+        see docs/profile_wrapper.ipynb or .html;
+        about 15% faster, comparing docs/history_to_pandas-and-profiling.*
+        and docs/history_to_pandas-and-profiling-0.1.14.*.
+        Not enough to matter in bigger-data situations,
+        e.g. see docs/history_to_pandas-and-profiling.*
+
+      - "true bypass" feature:
+        if `enabled` setting is < 0 then leave wrapper ~immediately;
+        a slight performance gain but insignificant in terms
+        of docs/history_to_pandas-and-profiling.ipynb
+
+      - issue deprecation warning if `settings_path` parameter is used;
+        visible when interpreter is run with e.g. the "-W default" flag
+
+      - 0.2.4 "* keeping a stack of logging functions was silly, who needs it..."
+        We do: there are edge cases where it's needed.
+        Restored that behavior.
+
+      - made `prefix` setting immutable - it should have been all along.
+
+      - Updated tests & docs to reflect the above
+
 0.2.4.post4
       - edited redundant "long description" in setup.py
 0.2.4.post3

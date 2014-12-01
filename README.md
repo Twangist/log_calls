@@ -6,7 +6,7 @@
 about calls to a decorated function. It can write to `stdout`, to another
 stream or file, or to a logger. It can save you from writing, rewriting, copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it can keep your codebase free of that clutter.
 
-For each call of a decorated function, `log_calls` can show you:
+For each call to a decorated function, `log_calls` can show you:
 
 * the caller,
 * the arguments passed to the function, and any default values used,
@@ -37,46 +37,43 @@ and which received their default values.
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.4.post4` of `log_calls`.
+This document describes version `0.2.5` of `log_calls`.
 
 ## [What's New](id:What's-new)
-* *0.2.4.post4*
-    * *(docs & description changes only, no code changes)*
-* *0.2.4.post3*
-    * *(never existed)*
-* **0.2.4.post2**
-    * The `settings` parameter (formerly `settings_path`) lets you specify default values for multiple settings either as a dictionary, or as a file. The `settings_path` parameter is deprecated, as `settings` is a superset. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
+* **0.2.5**</br>
+Performance timing/profiling enhancements & additions.</br>
+    * Both elapsed (wall) and CPU (process) time are now both reported.</br>
+    Python 3.3+ enhances the `time` module (*see [PEP 418](https://www.python.org/dev/peps/pep-0418/); also see the Python 3 docs for the new functions [`perf_counter`](https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter) and [`process_time`](https://docs.python.org/3/library/time.html?highlight=time#time.process_time)*), and we take advantage of the new functionaility when it's available.</br> (*Under Py < 3.3 `log_calls` reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.*)</br>
+        * Use `time.perf_counter`, `time.process_time` if available (Python 3.3+), otherwise use `time.time` as in earlier versions.</br>
+        * Added `stats.CPU_secs_logged` attribute.
+        * Added `CPU_secs` column to call history (new field for `CallRecord`s).
+        * `log_elapsed` reports both elapsed and CPU times.
+    * Optimized the decorator wrapper, ~15% speedup</br> (still trivial with ~big data, see the IPython notebook [history_to_pandas-and-profiling](http://www.pythonhosted.org/log_calls/history_to_pandas-and-profiling.html)).
+    * Added a "true bypass" feature: when `enabled` < 0, adjourn to the decorated function immedately, with no further processing. Again, not a speed speed demon – see the IPython notebook referenced above.
+    * Deprecation warning issued if `settings_path` parameter used.</br> (You'll see this only if you run the Python interpreter with the `-W <action>` option, where `<action>` is any [valid action string](https://docs.python.org/3/using/cmdline.html#cmdoption-W) other than `ignore`, e.g. `default`.)
+    * Updated tests and docs to reflect these changes.
+</br>
 
-* **0.2.4.post1**
-    * `settings_path` feature: allow `file=sys.stderr` in settings files, under IPython too; neater internals of settings file parsing.
-* **0.2.4**
-    * The new `settings_path` parameter lets you specify a file containing default values for multiple settings. See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
-    * You can now use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
-    * The `indent` setting now works with loggers too. See examples:
-        * using `log_message` as a general output function that works as expected, whatever the destination – `stdout`, another stream, a file, or a logger [in `tests/test_log_calls_more.py`, docstring of `main__log_message__all_possible_output_destinations()`];
-        * setting up a logger with a minimal formatter that looks just like the output of `print` [in `tests/test_log_calls_more.py`, docstring of  `main__logging_with_indent__minimal_formatters()`].
-    * Added the decorator `used_unused_keywords` to support the `settings_path` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values. For examples, see the docstring of `main()` in `used_unused_kwds.py`.
-    * When displaying returned values (`log_retval` setting is true), the maximum displayed length of values is now 77, up from 60, not counting trailing ellipsis.
-    * The deprecated `indent_extra` parameter to `log_message` is gone.
-    * Little bug fixes, improvements.
+### What Has Been New — Highlights
+(See the complete collection [here](http://www.pythonhosted.org/log_calls/what-has-been-new.html).)
+
+* **0.2.4 – 0.2.4.post2** *N*
+    * The `settings` parameter lets you specify default values for multiple settings with either a dictionary or a file. . See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
+    * You can use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
+    * The `indent` setting now works with loggers too. 
+    * Added the decorator `used_unused_keywords` to support the `settings` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values.
     
-* **0.2.3** and **0.2.3.post** *N*
-    * A better signature for [the indent-aware writing method `log_message()`](#log_message), and more, better examples of it — full docs [here](http://www.pythonhosted.org/log_calls#log_message).
-
-* **0.2.2** 
-    * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages.
-    * [Documentation](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
-    * [Documentation](http://www.pythonhosted.org/log_calls#accessing-own-attrs) for how functions and methods can access the attributes that `log_calls` adds for them, within their own bodies.
+* **0.2.2 – 0.2.3.post** *N*
+    * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages. Full documentation [here](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
 * **0.2.1**
     * The [`stats.history_as_DataFrame` attribute](http://www.pythonhosted.org/log_calls/record_history.html#stats.history_as_DataFrame), whose value is the call history of a decorated function as a [Pandas](http://pandas.pydata.org) [DataFrame](http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe) (if Pandas is installed; else `None`).
-    * An IPython notebook (`log_calls/docs/history_to_pandas.ipynb`, browsable as HTML [here](http://www.pythonhosted.org/log_calls/history_to_pandas.html)) which compares the performance of using `record_history` *vs* a vectorized approach using [numpy](http://www.numpy.org/) to amass medium to large datasets, and which concludes that if you can vectorize, by all means do so.
 * **0.2.0**
     * Initial public release.
     
 ##[Preliminaries](id:Preliminaries)
 ###[Dependencies and requirements](id:Dependencies-requirements)
 
-The *log_calls* package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2+.
+The *log_calls* package has no dependencies - it requires no other packages. All it requires is a standard distribution of Python 3.2 or higher (Python 3.4+ recommended).
 
 NOTE: This package does require the CPython implementation, as it uses internals
 of stack frames which may well differ in other interpreters.
@@ -128,7 +125,7 @@ You can run the tests for `log_calls` after installing it, using the command:
 All the above commands run all tests in the `log_calls/tests/` directory. If you run any of them, the output you see should end like so:
 
     ----------------------------------------------------------------------
-    Ran 58 tests in 0.832s
+    Ran 59 tests in 0.774s
     
     OK
 
@@ -149,7 +146,7 @@ indicating that all went well. If any tests failed, it will tell you.
 * [`prefix`](#prefix-parameter)
 * [`file`](#file-parameter)
 
-The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics). The one parameter that is not a "setting", `settings_path`, lets you specify a file containing default settings; it's discussed in the section [The *settings_path* parameter](http://www.pythonhosted.org/log_calls/index.html#settings_path-parameter) of the main documentation.
+The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics). The one parameter that is not a "setting", `settings`, lets you specify a file containing default settings; it's discussed in the section [The *settings* parameter](http://www.pythonhosted.org/log_calls/index.html#settings-parameter) of the main documentation.
 
 Every example in this document uses `log_calls`, so without further ado:
 
@@ -187,6 +184,19 @@ The next most basic example:
     ... def f(a, b, c):
     ...     pass
     >>> f(1, 2, 3)                # no output
+
+
+The `enabled` setting is in fact an `int`. (This can be used advantageously: 
+see the section 
+[Using *enabled* as a level of verbosity](http://www.pythonhosted.org/log_calls/index.html#enabling-with-ints) in the full documentation.) 
+
+#### [True bypass](id:bypass)
+If you supply a negative integer,
+that is interpreted as *true bypass*: `log_calls` immediately calls
+the decorated function and returns its value. When the value of `enabled`
+is false (`False` or `0`), the decorator performs a little more processing
+before delegating to the decorated function, though of course less than when
+`enabled` is positive (e.g. `True`).
 
 ###[The *args_sep* parameter (default – `', '`)](id:args_sep-parameter)
 
@@ -314,7 +324,11 @@ See the [recursion example](#recursion-example) later, where the feature
 is used to good effect.
 
 ###[The *log_elapsed* parameter (default – *False*)](id:log_elapsed-parameter)
-For performance profiling, you can measure the time it took a function to execute by using the `log_elapsed` keyword. When true, `log_calls` reports the time the decorated function took to complete, in seconds:
+(id:log_elapsed-parameter)
+For performance profiling, you can measure the time it took a function to execute
+by using the `log_elapsed` keyword. When true, `log_calls` reports the time the
+decorated function took to complete, in seconds. Both "wall time" (elapsed time)
+and CPU time (process time, i.e. kernel + user time, sleep time excluded) are reported:
 
     >>> @log_calls(log_elapsed=True)
     ... def f(n):
@@ -324,8 +338,10 @@ For performance profiling, you can measure the time it took a function to execut
     >>> f(5000)                 # doctest: +ELLIPSIS
     f <== called by <module>
         arguments: n=5000
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f ==> returning to <module>
+
+**NOTE**: *Under Python < 3.3, both elapsed time and CPU time will be the same number.*
 
 ###[The *indent* parameter (default - *False*)](id:indent-parameter)
 The `indent` parameter, when true, indents each new level of logged messages by 4 spaces, providing a visualization of the call hierarchy.
@@ -805,7 +821,7 @@ equivalent:
     f [1] <== called by <module>
         arguments: <none>
         f [1] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [1] ==> returning to <module>
 
     >>> f.log_calls_settings.log_args = False
@@ -856,7 +872,7 @@ use the new settings for `f`:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f [4] return value: 91
-        elapsed time: ... [secs]
+        elapsed time: ... [secs], CPU time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
@@ -865,6 +881,13 @@ dictionary rather than keywords (we *could* pass `**od`, but that's unnecessary 
     >>> f.log_calls_settings.update(od)
     >>> od == f.log_calls_settings.as_OrderedDict()
     True
+
+**NOTE**: *The [`prefix`](#prefix-parameter) and [`max_history`](#max_history-parameter)
+settings are "immutable" (no other settings are), and attempts to change them
+directly (e.g.* `f.log_calls_settings.max_history = anything`) *raise* `ValueError`.
+*Nevertheless, they* are *items in the retrieved settings dictionaries. To allow for
+the use-case just illustrated, `update()` is considerate enough to skip over
+immutable settings.*
 
 #### [Indirect values](id:Indirect-values)
 `log_calls` provides a second way to access and change settings on the fly. The decorator lets you specify any parameter 
@@ -933,9 +956,12 @@ whereas neither of the following two statements will trigger logging:
 See the section in the full documentation on [indirect values](http://www.pythonhosted.org/log_calls#Indirect-values) for several more examples and useful techniques involving indirect values. The test suite `log_calls/tests/test_log_calls_more.py` also contains further doctests/examples. 
 
 ### [Call history and statistics](id:call-history-and-statistics)
-`log_calls` always collects a few basic statistics about calls to a decorated
-function. It can collect the entire history of calls to a function if asked
-to, or just the most recent `n` calls; the \*_history parameters, discussed next, determine these settings. The statistics and history are accessible via the `stats` attribute which `log_calls` adds to a decorated function.
+Unless it's [bypassed](#bypass),`log_calls` always collects at least
+a few basic statistics about calls to a decorated function.
+It can collect the entire history of calls to a function if asked
+to (using the [`record_history` parameter](#record_history-parameter)).
+The statistics and history are accessible via the `stats` attribute
+which `log_calls` adds to a decorated function.
 
 #### [The *record_history* and *max_history* parameters](id:_history-parameters)
 The two settings parameters we haven't yet discussed govern the recording of a decorated function's call history.
@@ -959,11 +985,12 @@ You cannot change `max_history` using the mapping interface or the attribute
 of the same name; attempts to do so raise `ValueError`. The only way to change its value is with the [`stats.clear_history()`](#stats.clear_history) method, discussed below.
 
 ####[The *stats* attribute and *its* attributes](id:stats-attribute)
-The `stats` attribute of a decorated function is an object that provides statistics and data about calls to a decorated function:
+The `stats` attribute of a decorated function is an object that provides read-only statistics and data about calls to a decorated function:
 
 * [`stats.num_calls_logged`](#stats.num_calls_logged)
 * [`stats.num_calls_total`](#stats.num_calls_total)
 * [`stats.elapsed_secs_logged`](#elapsed_secs_logged)
+* [`stats.CPU_secs_logged`](#CPU_secs_logged)
 * [`stats.history`](#stats.history)
 * [`stats.history_as_csv`](#stats.history_as_csv)
 * [`stats.history_as_DataFrame`](#stats.history_as_DataFrame)
@@ -1030,11 +1057,22 @@ value as `f.stats.num_calls_logged` after the call:
 **ATTENTION**: *Thus,* `log_calls` *has some overhead even when it's disabled, and somewhat more when it's enabled. So,* **comment it out in production code!** 
 
 #####[The *elapsed_secs_logged* attribute](id:elapsed_secs_logged)
-The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times of
+The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times ("wall time") of
 all logged calls to a decorated function, in seconds. Here's its value for the 3 logged calls to `f` above:
 
     >>> f.stats.elapsed_secs_logged   # doctest: +SKIP
     6.67572021484375e-06
+
+#####[The *stats.CPU_secs_logged* attribute](id:CPU_secs_logged)
+The `stats.CPU_secs_logged` attribute holds the sum of the CPU times
+("process time") of all logged calls to a decorated function, in seconds.
+Similarly, we'll just exhibit its value for the 3 logged calls to `f` above:
+
+    >>> f.stats.CPU_secs_logged   # doctest: +SKIP
+    1.1000000000038757e-05
+
+**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.CPU_secs_logged` 
+will be the same number.*
 
 #####[The *history* attribute](id:stats.history)
 The `stats.history` attribute of a decorated function provides the call history
@@ -1045,19 +1083,25 @@ in (almost) human-readable form:
     CallRecord(call_num=1, argnames=['a'], argvals=(0,), varargs=(),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
-                           retval=None, elapsed_secs=2.1457672119140625e-06,
+                           retval=None, 
+                           elapsed_secs=3.0049995984882116e-06, 
+                           CPU_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.733763',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=2, argnames=['a'], argvals=(1,), varargs=(100, 101),
                            explicit_kwargs=OrderedDict([('x', 1000)]),
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={'y': 1001},
-                           retval=None, elapsed_secs=1.9073486328125e-06,
+                           retval=None, 
+                           elapsed_secs=3.274002665420994e-06, 
+                           CPU_secs=3.0000000000030003e-06,
                            timestamp='10/28/14 15:56:13.734102',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=3, argnames=['a'], argvals=(10,), varargs=(20,),
                            explicit_kwargs=OrderedDict(),
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={'z': 5000},
-                           retval=None, elapsed_secs=2.1457672119140625e-06,
+                           retval=None, 
+                           elapsed_secs=2.8769973141606897e-06, 
+                           CPU_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.734412',
                            prefixed_func_name='f', caller_chain=['<module>'])
 
@@ -1100,13 +1144,13 @@ and `caller_chain` – use commas intrinsically. Let's examine one more
 Here's the call history in CSV format:
 
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|timestamp|prefixed_fname|caller_chain
-    1|0|()|1|{}|None|...|...|'f'|['g', 'h']
-    2|10|(17, 19)|1|{'z': 100}|None|...|...|'f'|['g', 'h']
-    3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|'f'|['g', 'h']
+    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    1|0|()|1|{}|None|...|...|...|'f'|['g', 'h']
+    2|10|(17, 19)|1|{'z': 100}|None|...|...|...|'f'|['g', 'h']
+    3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|...|'f'|['g', 'h']
     <BLANKLINE>
 
-Ellipses are for the `elapsed_secs` and `timestamp` fields. As usual, `log_calls` will use whatever names you use for *varargs* parameters
+Ellipses are for the `elapsed_secs`, `CPU_secs` and `timestamp` fields. As usual, `log_calls` will use whatever names you use for *varargs* parameters
 (here, `extra_args` and `kw_args`). Whatever the name of the `kwargs` parameter,
 items within that field are guaranteed to be in sorted order.
 
@@ -1119,7 +1163,7 @@ having to know or care what those are).
 
 If Pandas is not installed, the value of this attribute is `None`.
 
-The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](./record_history.html#stats.history_as_DataFrame) 
+The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](http://www.pythonhosted.org/log_calls/record_history.html#stats.history_as_DataFrame) 
 which also illustrates its use in an IPython notebook.
 
 #####[The *clear_history(max_history=0)* method](id:stats.clear_history)
@@ -1143,6 +1187,8 @@ and `stats` tallies are reset:
     >>> f.stats.num_calls_total
     0
     >>> f.stats.elapsed_secs_logged
+    0.0
+    >>> f.stats.CPU_secs_logged
     0.0
 
 ##[The *record_history* decorator](id:record_history-decorator)
@@ -1176,13 +1222,13 @@ The `log_calls` decorator takes various keyword arguments, all with hopefully se
 
 Keyword parameter | Default value | Description
 ----------------: | :------------ | :------------------
-       `enabled`    | `True`          | An `int`. If true, then `log_calls` will output (or "log") messages.
+       `enabled`    | `True`          | An `int`. If positive (or `True`), then `log_calls` will output (or "log") messages. If false ("disabled" – `0` or `False`), `log_calls` won't output messages or record history but will continue to increment the `stats.num_calls_total` call counter. If negative ("bypassed"), `log_calls` won't do anything.
        `args_sep`   | `', '`          | `str` used to separate arguments. The default is  `', '`, which lists all args on the same line. If `args_sep='\n'` is used, or more generally if the `args_sep` string ends in `\n`, then additional spaces are appended to the separator for a neater display. Other separators in which `'\n'` occurs are left unchanged, and are untested – experiment/use at your own risk.
        `log_args`   | `True`          | If true, arguments passed to the decorated function, and default values used by the function, will be logged.
        `log_retval` | `False`         | If true, log what the decorated function returns. At most 77 chars are printed, with a trailing ellipsis if the value is truncated.
        `log_exit`   | `True`          | If true, the decorator will log an exiting message after calling the function of the form `f returning to ==> caller`, and before returning what the function returned.
        `log_call_number` | `False`    | If true, display the (1-based) number of the function call, e.g. `f [3] called by <== <module>` and `f [3] returning to ==> <module>` for the 3rd logged call. This would correspond to the 3rd record in the function's call history, if `record_history` is true.
-       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds.
+       `log_elapsed` | `False`        | If true, display how long it took the function to execute, in seconds. Both wall time ("elapsed") and process time ("CPU") are reported (but under Python < 3.3, they're the same number: wall time).
        `indent`     | `False`         | The `indent` parameter indents each new level  of logged messages by 4 spaces, giving a visualization of the call hierarchy.
        `prefix`     | `''`            | A `str` to prefix the function name with in logged messages: on entry, in reporting return value (if `log_retval` is true) and on exit (if `log_exit` is true).
        `file`     | `sys.stdout`      | If `logger` is `None`, a stream (an instance of type `io.TextIOBase`) to which `log_calls` will print its messages. This value is supplied to the `file` keyword parameter of the `print` function.
@@ -1193,4 +1239,4 @@ Keyword parameter | Default value | Description
        `settings` | `None`            | A dictionary containing settings and values, or a string giving the pathname to a *settings file* containing settings and values. If the pathname is a directory and not a file, `log_calls` looks for a file `.log_calls` in that directory; otherwise, it looks for the named file. The format of a settings file is: zero or more lines of the form *setting* = *value*; lines whose first non-whitespace character is '#' are comments. These settings are defaults: other settings passed to `log_calls` override their values.
 
 
-####— Brian O'Neill, October-November 2014, NYC
+####— Brian O'Neill, October-December 2014, NYC
