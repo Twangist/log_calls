@@ -346,7 +346,7 @@ this is interpreted as *true bypass*: `log_calls` immediately calls
 the decorated function and returns its value. When the value of `enabled`
 is false (`False` or `0`), the decorator performs a little more processing
 before delegating to the decorated function, though of course less than when
-`enabled` is positive (or `True`).
+`enabled` is positive (e.g. `True`).
 
 ###[The *args_sep* parameter (default – `', '`)](id:args_sep-parameter)
 

@@ -531,6 +531,33 @@ intermediate decorated function that has logging disabled:
     f ==> returning to not_decorated_call_f ==> g ==> h
     h ==> returning to <module>
 
+Finally, a test with decorated functions in the call chain for which
+logging is "bypassed":
+
+    >>> @log_calls()
+    ... def h1():
+    ...     pass
+    >>> @log_calls(enabled=-1)
+    ... def h2():
+    ...     h1()
+    >>> @log_calls()
+    ... def h3():
+    ...     h2()
+    >>> @log_calls(enabled=-1)
+    ... def h4():
+    ...     h3()
+    >>> @log_calls()
+    ... def h5():
+    ...     h4()
+    >>> h5()
+    h5 <== called by <module>
+    h3 <== called by h4 <== h5
+    h1 <== called by h2 <== h3
+    h1 ==> returning to h2 ==> h3
+    h3 ==> returning to h4 ==> h5
+    h5 ==> returning to <module>
+
+
 ###[Another *indent* example](id:indent-parameter-another)
 In the next example, `g3` has logging disabled, so calls to it are not logged.
 `log_calls` chases back to the nearest *enabled* decorated function, so that there

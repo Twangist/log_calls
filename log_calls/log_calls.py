@@ -860,14 +860,14 @@ class _deco_base():
             # It and its values (the following _XXX variables)
             # must be set before calling f.
             # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            _do_it = _get_final_value('enabled')
+            _enabled = _get_final_value('enabled')
             # 0.2.4.post5 "true bypass": if 'enabled' < 0 then scram
-            if _do_it < 0:
+            if _enabled < 0:
                 return f(*args, **kwargs)
 
             # Bump call counters, before calling fn.
             # Note: elapsed_secs, CPU_secs not reflected yet of course
-            self._add_call(logged=_do_it)
+            self._add_call(logged=_enabled)
 
             _log_call_numbers = _get_final_value('log_call_numbers')
             # counters just got bumped
@@ -883,11 +883,11 @@ class _deco_base():
             # _extra_indent_level: prev_indent_level, or prev_indent_level + 1
             do_indent = _get_final_value('indent')
             _extra_indent_level = (prev_indent_level +
-                                   int(not not do_indent and not not _do_it))
+                                   int(not not do_indent and not not _enabled))
 
             # Stackframe hack:
             _log_calls__active_call_items__ = {
-                '_do_it': _do_it,
+                '_enabled': _enabled,
                 '_log_call_numbers': _log_call_numbers,
                 '_prefixed_fname': prefixed_fname,          # Hack alert (Pt 1)
                 '_active_call_number': _active_call_number,
@@ -899,9 +899,8 @@ class _deco_base():
             #~ with time_block('up_to__not_enabled_call') as profile__up_to__not_enabled_call:
             # Get logging function IF ANY.
             # For the benefit of callees further down the call chain,
-            # if this f is not enabled (not _do_it).
+            # if this f is not enabled (_enabled <= 0).
             # Subclass can return None to suppress printed/logged output.
-            # "can_indent" - in log_calls, True iff logging_fn does NOT use a Logger.
             logging_fn = self.get_logging_fn(_get_final_value)
 
             # Only do global indentation for print, not for loggers
@@ -921,7 +920,7 @@ class _deco_base():
             # END profile__up_to__not_enabled_call
 
             # (_xxx variables set, ok to call f)
-            if not _do_it:
+            if not _enabled:
                 ret = f(*args, **kwargs)
                 self._logging_state_pop()
                 return ret
@@ -1177,20 +1176,24 @@ class _deco_base():
             if found:
                 # Look in stack frame (!) for (0.2.4) _log_calls__active_call_items__
                 # and use its values
-                #   _do_it, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed_fname
-                active_call_items = wrapper_frame.f_locals['_log_calls__active_call_items__']
-                enabled = active_call_items['_do_it']
-                log_call_numbers = active_call_items['_log_call_numbers']
-                active_call_number = active_call_items['_active_call_number']
-                call_list[-1] = active_call_items['_prefixed_fname']   # Hack alert (Pt 3)
+                #   _enabled, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed_fname
+                if wrapper_frame.f_locals.get('_log_calls__active_call_items__'):
+                    active_call_items = wrapper_frame.f_locals['_log_calls__active_call_items__']
+                    enabled = active_call_items['_enabled']     # it's >= 0
+                    log_call_numbers = active_call_items['_log_call_numbers']
+                    active_call_number = active_call_items['_active_call_number']
+                    call_list[-1] = active_call_items['_prefixed_fname']   # Hack alert (Pt 3)
 
-                # only change prev_indent_level once, for nearest deco'd fn
-                if prev_indent_level < 0:
-                    prev_indent_level = active_call_items['_extra_indent_level']
+                    # only change prev_indent_level once, for nearest deco'd fn
+                    if prev_indent_level < 0:
+                        prev_indent_level = active_call_items['_extra_indent_level']
 
-                if enabled and log_call_numbers:
-                    call_list[-1] += " [" + str(active_call_number) + "]"
-                found_enabled = enabled     # done with outer loop too if enabled
+                    if enabled and log_call_numbers:
+                        call_list[-1] += " [" + str(active_call_number) + "]"
+                    found_enabled = enabled     # done with outer loop too if enabled
+                else:   # bypassed
+                    enabled = False
+
                 if not enabled:
                     curr_frame = curr_frame.f_back
             else:   # not found
