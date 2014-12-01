@@ -159,7 +159,7 @@ section of README.
 
 ##[Preliminaries](id:Preliminaries)
 ###[Version](id:Version)
-This document describes version `0.2.5.post1` of `log_calls`.
+This document describes version `0.2.5.post2` of `log_calls`.
 
 ###[Dependencies and requirements](id:Dependencies-requirements)
 

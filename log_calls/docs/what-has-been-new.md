@@ -4,7 +4,7 @@ This document collects the full **What's New** sections of all `log_calls` relea
 
 ---
 
-* **0.2.5**</br>
+* **0.2.5** through 0.2.5.post2</br>
 Performance timing/profiling enhancements & additions.</br>
     * Both elapsed (wall) and CPU (process) time are now both reported.</br>
     Python 3.3+ enhances the `time` module (*see [PEP 418](https://www.python.org/dev/peps/pep-0418/); also see the Python 3 docs for the new functions [`perf_counter`](https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter) and [`process_time`](https://docs.python.org/3/library/time.html?highlight=time#time.process_time)*), and we take advantage of the new functionaility when it's available.</br> (*Under Py < 3.3 `log_calls` reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.*)</br>
