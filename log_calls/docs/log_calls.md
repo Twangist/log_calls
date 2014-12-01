@@ -1720,7 +1720,7 @@ For the record, the records that comprise a decorated function's history are
 `namedtuple`s of type `CallRecord`, whose fields are:
 
     >>> from log_calls import CallRecord
-    >>> print('\\n'.join(CallRecord._fields))
+    >>> print('\n'.join(CallRecord._fields))
     call_num
     argnames
     argvals
