@@ -74,7 +74,7 @@ CallRecord = namedtuple(
         'elapsed_secs', 'CPU_secs',
         'timestamp',
         'prefixed_func_name',
-        # caller_chain: list of fn names, the last possibly a "prefixed name".
+        # caller_chain: list of fn names, possibly "prefixed".
         # From most-recent (immediate caller) to least-recent if len > 1.
         'caller_chain',
     )
@@ -598,7 +598,7 @@ class _deco_base():
             and not ones that the user did not pass and which have default values.
             (It's default value is mutable, but we don't change it.)
         """
-        # 0.2.4 settings_path stuff
+        # 0.2.4 `settings` stuff
         # Set up dict d with log_calls's defaults - the default defaults:
         #   self.__class__.__name__ is name *of subclass*, clsname,
         #   which we trust has already called
@@ -662,18 +662,13 @@ class _deco_base():
         self._output_fname = []     # stack
 
     def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
-        # self._logging_fn "stack" will have at one element
-        if not self._logging_fn:
-            self._logging_fn.append(logging_fn)
+        self._logging_fn.append(logging_fn)
         self._indent_len.append(global_indent_len)
         self._output_fname.append(output_fname)
 
     def _logging_state_pop(self):
-        # self._logging_fn "stack" will have at one element
-        # Pop _indent_len or _output_fname first, test for emptiness
+        self._logging_fn.pop()
         self._indent_len.pop()
-        if not self._indent_len:      # stack is becoming empty
-            self._logging_fn.pop()
         self._output_fname.pop()
 
     def _log_message(self, msg, *msgs, sep=' ',
@@ -1286,8 +1281,8 @@ class log_calls(_deco_base):
         DecoSettingExit('log_exit'),
         DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
         DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
-        DecoSetting_str( 'prefix',           str,            '',            allow_falsy=True,
-                         allow_indirect=False),
+        DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
+                        allow_indirect=False, mutable=False),
 
         DecoSettingFile('file',              io.TextIOBase,  None,          allow_falsy=True),
         DecoSettingLogger('logger',          (logging.Logger,

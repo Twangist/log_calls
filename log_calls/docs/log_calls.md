@@ -109,7 +109,7 @@ section of README.
 </ul>
 <h5><a href="#call-history-and-statistics">Call history and statistics – the <em>stats</em> attribute and the <em>*_history</em> parameters</a></h5>
 <ul>
-<li><a href="#stats-attribute">The <em>stats</em> attribute and <em>its</em> attributes</a></li>
+<li><a href="#stats-attribute">The <em>stats</em> attribute and its attributes</a></li>
 <li><a href="#stats.num_calls_logged">The <em>num_calls_logged</em> attribute</a></li>
 <li><a href="#stats.num_calls_total">The <em>num_calls_total</em> attribute</a></li>
 <li><a href="#elapsed_secs_logged">The <em>elapsed_secs_logged</em> attribute</a></li>
@@ -139,7 +139,7 @@ section of README.
 <li><a href="#A-metaclass-example">A metaclass example</a></li>
 </ul>
 
-<h5><a href="#accessing-own-attrs">Functions and methods accessing their own *log_calls* attributes</a></h5>
+<h5><a href="#accessing-own-attrs">Functions and methods accessing their own <em>log_calls</em> attributes</a></h5>
 <ul>
 <li><a href="#global-and-inner-functions-accessing-attrs">Global functions and inner functions accessing their attributes</a></li>
 <ul>
@@ -1184,8 +1184,8 @@ You can use `in` to test for key membership:
     >>> 'no_such_setting' in f.log_calls_settings
     False
 
-As with an ordinary dictionary, attempting to access a nonexistent setting 
-raises `KeyError`:
+As with an ordinary dictionary, attempting to access the value 
+of a nonexistent setting raises `KeyError`:
 
     >>> f.log_calls_settings['new_key']                 # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
@@ -1290,9 +1290,10 @@ dictionary rather than keywords (we *could* pass `**od`, but that's unnecessary 
 
 **NOTES**:
 
-1. *The [`max_history`](#max_history-parameter) setting is "immutable" (no other setting is), and attempts to change it
+1. *The [`prefix`](#prefix-parameter) and [`max_history`](#max_history-parameter) 
+settings are immutable (no other settings are), and attempts to change them
 directly (e.g.* `f.log_calls_settings.max_history = anything`) *raise* `ValueError`.
-*Nevertheless, it* is *an item in the retrieved settings dictionaries. To allow for
+*Nevertheless, they* are *items in the retrieved settings dictionaries. To allow for
 the use-case just illustrated, `update()` is considerate enough to skip over
 immutable settings.*
 
@@ -1547,7 +1548,7 @@ to (using the [`record_history` parameter](#record_history-parameter)).
 The statistics and history are accessible via the `stats` attribute
 which `log_calls` adds to a decorated function.
 
-###[The *stats* attribute and *its* attributes](id:stats-attribute)
+###[The *stats* attribute and its attributes](id:stats-attribute)
 The `stats` attribute is a collection of read-only performance and profiling 
 data attributes, plus one method.
 The class of the `stats` has its own test suite,
@@ -1720,7 +1721,7 @@ For the record, the records that comprise a decorated function's history are
 `namedtuple`s of type `CallRecord`, whose fields are:
 
     >>> from log_calls import CallRecord
-    >>> print('\\n'.join(CallRecord._fields))
+    >>> print('\n'.join(CallRecord._fields))
     call_num
     argnames
     argvals
