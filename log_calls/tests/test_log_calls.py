@@ -951,8 +951,8 @@ You can use `in` to test for key membership:
     >>> 'no_such_setting' in f.log_calls_settings
     False
 
-As with an ordinary dictionary, attempting to access a nonexistent setting
-raises `KeyError`:
+As with an ordinary dictionary, attempting to access the value
+of a nonexistent setting raises `KeyError`:
 
     >>> f.log_calls_settings['new_key']                 # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
@@ -1058,9 +1058,10 @@ dictionary rather than keywords:
 
 **NOTES**:
 
-1. *The [`max_history`](#max_history-parameter) setting is immutable (no other setting is), and attempts to change it
+1. *The [`prefix`](#prefix-parameter) and [`max_history`](#max_history-parameter)
+settings are "immutable" (no other settings are), and attempts to change them
 directly (e.g.* `f.log_calls_settings.max_history = anything`) *raise* `ValueError`.
-*Nevertheless, it* is *an item in the retrieved settings dictionaries. To allow for
+*Nevertheless, they* are *items in the retrieved settings dictionaries. To allow for
 the use-case just illustrated, `update()` is considerate enough to skip over
 immutable settings.*
 

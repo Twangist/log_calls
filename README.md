@@ -55,13 +55,13 @@ Performance timing/profiling enhancements & additions.</br>
 </br>
 
 ### What Has Been New — Highlights
-(See the complete collection [here](./what-has-been-new.html).)
+(See the complete collection [here](http://www.pythonhosted.org/log_calls/what-has-been-new.html).)
 
 * **0.2.4 – 0.2.4.post2** *N*
     * The `settings` parameter lets you specify default values for multiple settings with either a dictionary or a file. . See the documentation [here](http://www.pythonhosted.org/log_calls#settings-parameter) for details, discussion and examples.
     * You can use a logger name (something you'd pass to `logging.getLogger()`) as the value of the `logger` setting.
     * The `indent` setting now works with loggers too. 
-    * Added the decorator `used_unused_keywords` to support the `settings_path` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values.
+    * Added the decorator `used_unused_keywords` to support the `settings` feature, and made it visible (you can import it from the package) because it's more broadly useful. This decorator lets a function obtain, on a per-call basis, two dictionaries of its explicit keyword arguments and their values: those which were actually passed by the caller, and those which were not and received default values.
     
 * **0.2.2 – 0.2.3.post** *N*
     * [The indent-aware writing method `log_message()`](#log_message), which decorated functions and methods can use to write extra debugging messages that align nicely with `log_calls` messages. Full documentation [here](http://www.pythonhosted.org/log_calls#log_message) for `log_message()`.
@@ -146,7 +146,7 @@ indicating that all went well. If any tests failed, it will tell you.
 * [`prefix`](#prefix-parameter)
 * [`file`](#file-parameter)
 
-The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics). The one parameter that is not a "setting", `settings_path`, lets you specify a file containing default settings; it's discussed in the section [The *settings_path* parameter](http://www.pythonhosted.org/log_calls/index.html#settings_path-parameter) of the main documentation.
+The two parameters that let you output `log_calls` messages to a `Logger` ([`logger`](#logger-parameter) and [`loglevel`](#loglevel-parameter)) are discussed in [Using loggers](#Logging). The two that determine whether call history is retained ([record_history](#record_history-parameter)), and then how much of it ([max_history](#max_history-parameter)), are discussed in [Call history and statistics](#call-history-and-statistics). The one parameter that is not a "setting", `settings`, lets you specify a file containing default settings; it's discussed in the section [The *settings* parameter](http://www.pythonhosted.org/log_calls/index.html#settings-parameter) of the main documentation.
 
 Every example in this document uses `log_calls`, so without further ado:
 
@@ -882,6 +882,13 @@ dictionary rather than keywords (we *could* pass `**od`, but that's unnecessary 
     >>> od == f.log_calls_settings.as_OrderedDict()
     True
 
+**NOTE**: *The [`prefix`](#prefix-parameter) and [`max_history`](#max_history-parameter)
+settings are "immutable" (no other settings are), and attempts to change them
+directly (e.g.* `f.log_calls_settings.max_history = anything`) *raise* `ValueError`.
+*Nevertheless, they* are *items in the retrieved settings dictionaries. To allow for
+the use-case just illustrated, `update()` is considerate enough to skip over
+immutable settings.*
+
 #### [Indirect values](id:Indirect-values)
 `log_calls` provides a second way to access and change settings on the fly. The decorator lets you specify any parameter 
 except `prefix` or `max_history` with one level of indirection, by using 
@@ -1156,7 +1163,7 @@ having to know or care what those are).
 
 If Pandas is not installed, the value of this attribute is `None`.
 
-The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](./record_history.html#stats.history_as_DataFrame) 
+The documentation for the `record_history` decorator contains an [example of the `history_as_DataFrame` attribute](http://www.pythonhosted.org/log_calls/record_history.html#stats.history_as_DataFrame) 
 which also illustrates its use in an IPython notebook.
 
 #####[The *clear_history(max_history=0)* method](id:stats.clear_history)

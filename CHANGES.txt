@@ -33,6 +33,12 @@ VERSIONS
       - issue deprecation warning if `settings_path` parameter is used;
         visible when interpreter is run with e.g. the "-W default" flag
 
+      - 0.2.4 "* keeping a stack of logging functions was silly, who needs it..."
+        We do: there are edge cases where it's needed.
+        Restored that behavior.
+
+      - made `prefix` setting immutable - it should have been all along.
+
       - Updated tests & docs to reflect the above
 
 0.2.4.post4
