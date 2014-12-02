@@ -1,5 +1,12 @@
 VERSIONS
 --------
+0.2.5.post3
+      - later binding for `prefix`, necessary for a real-world test,
+        and perhaps on the way to making it mutable / allowing indirect values
+0.2.5.post2
+      - same as .post1, but for version string :|
+0.2.5.post1
+      - don't warn about deprecated `settings_path` ALL the time :|
 0.2.5
       - Timing/profiling enhancements & additions:
         to take advantage of the Python 3.3+ improvements to the time

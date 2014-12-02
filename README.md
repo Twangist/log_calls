@@ -37,10 +37,14 @@ and which received their default values.
 This document gives an overview of the decorator's features and their use. A thorough account, including many useful examples, can be found in the complete documentation for [`log_calls`](http://www.pythonhosted.org/log_calls) and [`record_history`](http://www.pythonhosted.org/log_calls/record_history.html).
 
 ##[Version](id:Version)
-This document describes version `0.2.5.post2` of `log_calls`.
+This document describes version `0.2.5.post3` of `log_calls`.
 
 ## [What's New](id:What's-new)
-* **0.2.5** through 0.2.5.post2</br>
+* 0.2.5.post3
+    * later binding for `prefix`, though it's still not dynamically changeable
+* *0.2.5.post1* & *0.2.5.post2*
+    * silly fixups
+* **0.2.5**</br>
 Performance timing/profiling enhancements & additions.</br>
     * Both elapsed (wall) and CPU (process) time are now both reported.</br>
     Python 3.3+ enhances the `time` module (*see [PEP 418](https://www.python.org/dev/peps/pep-0418/); also see the Python 3 docs for the new functions [`perf_counter`](https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter) and [`process_time`](https://docs.python.org/3/library/time.html?highlight=time#time.process_time)*), and we take advantage of the new functionaility when it's available.</br> (*Under Py < 3.3 `log_calls` reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.*)</br>
