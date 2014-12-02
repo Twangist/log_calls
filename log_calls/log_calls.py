@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.5.post2'
+__version__ = '0.2.5.post3'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -803,11 +803,7 @@ class _deco_base():
             pre_call_handlers             1.3 %
             post_call_handlers           22.3 %
         """
-        # First, save prefix + function name for function f
-        prefixed_fname = self.prefix + f.__name__
-        # Might as well save f too
-        self.f = f
-        # in addition to its parameters
+        # Save signature and parameters of f
         self.f_signature = inspect.signature(f)
         self.f_params = self.f_signature.parameters
 
@@ -886,6 +882,8 @@ class _deco_base():
             _extra_indent_level = (prev_indent_level +
                                    int(not not do_indent and not not _enabled))
 
+            # Needed 3x:
+            prefixed_fname = _get_final_value('prefix') + f.__name__
             # Stackframe hack:
             _log_calls__active_call_items__ = {
                 '_enabled': _enabled,
@@ -1069,7 +1067,7 @@ class _deco_base():
         setattr(
             f,      # revert to f, after trying f_log_calls_wrapper_
             self._sentinels['PREFIXED_NAME'],
-            prefixed_fname
+            self.prefix + f.__name__
         )
         # LATE ADDITION: A back-pointer
         setattr(

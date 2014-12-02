@@ -4,6 +4,10 @@ This document collects the full **What's New** sections of all `log_calls` relea
 
 ---
 
+* 0.2.5.post3
+    * later binding for `prefix`, though it's still not dynamically changeable
+* *0.2.5.post1* & *0.2.5.post2*
+    * silly fixups
 * **0.2.5** through 0.2.5.post2</br>
 Performance timing/profiling enhancements & additions.</br>
     * Both elapsed (wall) and CPU (process) time are now both reported.</br>
