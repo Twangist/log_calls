@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 
 from log_calls import log_calls
 
@@ -1815,8 +1815,11 @@ class A_meta(type):
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
-            # note use of .__func__ to get at decorated fn inside the classmethod
-            logging_fn = mcs.__prepare__.__func__.log_message
+            # TODO: Python 3.4.2 (on OS X 10.5.6 !) .__func__ not needed, in fact doesn't work SOMETIMES (?!) 
+            # todo  -- how about earlier versions?
+#           # note use of .__func__ to get at decorated fn inside the classmethod
+#            logging_fn = mcs.__prepare__.__func__.log_message
+            logging_fn = mcs.__prepare__.log_message
             logging_fn("    mro =", mcs.__mro__)
             logging_fn("    dict from super() = %r" % super_dict)
         super_dict = OrderedDict(super_dict)

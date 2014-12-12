@@ -1,8 +1,9 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.1.14'
+__version__ = '0.2.6'
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .log_calls import _deco_base, DecoSettingHistory
+from .used_unused_kwds import used_unused_keywords
 
 
 class record_history(_deco_base):
@@ -20,8 +21,13 @@ class record_history(_deco_base):
     DecoSettingsMapping.register_class_settings('record_history',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
 
+    # 0.2.6 Fix: use decorator:
+    @used_unused_keywords()
     def __init__(self, enabled=True, prefix='', max_history=0):
-        super().__init__(enabled=enabled,
+        # 0.2.6 get used_keywords_dict and pass to super().__init__
+        used_keywords_dict = record_history.__dict__['__init__'].get_used_keywords()
+        super().__init__(_used_keywords_dict=used_keywords_dict,
+                         enabled=enabled,
                          prefix=prefix,
                          max_history=max_history,
                          indent=False,              # p.i.t.a. that this is here :|
@@ -29,7 +35,7 @@ class record_history(_deco_base):
         )
 
     @classmethod
-    def get_logging_fn(cls, _get_final_value_fn) -> tuple:
+    def get_logging_fn(cls, _get_final_value_fn):
         """Return None: no output.
         cls: unused.."""
         return None

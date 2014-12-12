@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.5.post3'
+__version__ = '0.2.6'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -1102,14 +1102,14 @@ class _deco_base():
         return f_log_calls_wrapper_
 
     @classmethod
-    def get_logging_fn(cls, _get_final_value_fn) -> tuple:
+    def get_logging_fn(cls, _get_final_value_fn):
         return print
 
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
         """Return list of callers (names) on the call chain
         from caller of caller to first log_calls-deco'd function inclusive,
-        if any.  If there's no log_calls-deco'd function on the stack,
+        if any. If there's no log_calls-deco'd function on the stack,
         or anyway if none are discernible, return [caller_of_caller]."""
         curr_frame = sys._getframe(2)   # caller-of-caller's frame
 
@@ -1353,7 +1353,7 @@ class log_calls(_deco_base):
         )
 
     @classmethod
-    def get_logging_fn(cls, _get_final_value_fn) -> tuple:
+    def get_logging_fn(cls, _get_final_value_fn):
         """Return logging_fn or None.
         cls: unused. Present so this method can be overridden."""
         outfile = _get_final_value_fn('file')
