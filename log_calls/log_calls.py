@@ -370,7 +370,6 @@ class _deco_base():
 
     INDENT = 4      # number of spaces to __ by at a time
 
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # # *** DecoSettingsMapping "API" --
     # # (1) initialize: Subclasses must call register_class_settings
@@ -834,7 +833,8 @@ class _deco_base():
                 elif type(item) == classmethod:
                     new_func = classmethod(new_func)
                 # and replace in class dict
-                cls.__dict__[name] = new_func
+                #### cls.__dict__[name] = new_func
+                setattr(cls, name, new_func)
 
         return cls
 
@@ -1260,15 +1260,18 @@ class _deco_base():
             while 1:    # until found a deco'd fn or <module> reached
                 curr_funcname = curr_frame.f_code.co_name
                 if curr_funcname == 'f_log_calls_wrapper_':
-                    # Previous was decorated inner fn; don't add 'f_log_calls_wrapper_'
+                    # Previous was decorated inner fn; overwrite 'f_log_calls_wrapper_'
                     # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
-                    # Fixup: get prefixed named of wrapped function
+                    # Fixup: get name of wrapped function
                     inner_fn = curr_frame.f_locals['f']
-                    # (Hack alert (Pt 2)) This doesn't always work --
-                    # Hence the workaround (_prefixed_fname variable in stackframe;
-                    # see above & below)
-                    call_list[-1] = getattr(inner_fn,
-                                            cls._sentinels['PREFIXED_NAME'])
+                    ### 0.3.0  NOT:
+                    # call_list[-1] = getattr(inner_fn,
+                    #                         cls._sentinels['PREFIXED_NAME'])
+                    ### BUT RATHER (so we can get rid of cls._sentinels['PREFIXED_NAME']
+                    ### AND on the theory that this gets overwritten anyway,
+                    ###  after inner loop ("if found")
+                    call_list[-1] = inner_fn.__name__       # ~ placeholder
+
                     wrapper_frame = curr_frame
                     found = True
                     break   # inner loop
@@ -1417,7 +1420,7 @@ class log_calls(_deco_base):
         DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
         DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
-                        allow_indirect=False, mutable=False),
+                        allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False
 
         DecoSettingFile('file',              io.TextIOBase,  None,          allow_falsy=True),
         DecoSettingLogger('logger',          (logging.Logger,

@@ -1,6 +1,23 @@
 VERSIONS
 --------
 0.3.0
+      - log_calls can now decorate classes -- all methods in a class.
+        settings given for the class decorator (via settings= and/or
+        keyword parameters) apply to every method.
+        If a method of the class is already deco'd, the settings it
+        supplies override those given at the class level :)
+        TODO: keywords for class level:
+        todo    omit=(method, ...), only=(method, ...)
+
+        TODO document this
+        TODO test more/thoroughly
+
+      - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
+        to apply to already-deco'd methods :)
+        TODO document that / update docs to reflect
+        TODO test it -- dynamically change 'prefix' in various ways, test
+        todo    at both ends of call chains
+
       - record_history wasn't using @used_unused_keywords for
         __init__, and wasn't passing its used_keywords, so prefix was
         getting set to ''. Had to run tests on a weird machine to find
