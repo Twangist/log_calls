@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.6'
+__version__ = '0.3.0'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -17,7 +17,7 @@ import inspect
 from functools import wraps, partial
 import logging
 import sys
-import os  #.path.join(...)
+import os
 import io   # so we can refer to io.TextIOBase
 import time
 import datetime
@@ -177,10 +177,9 @@ class DecoSettingArgs(DecoSetting_bool):
         args_vals.extend( context['explicit_kwargs'].items() )
 
         if context['implicit_kwargs']:
-            args_vals.append( ("[**]%s" % context['kwargs_name'],  context['implicit_kwargs']) )
+            args_vals.append( ("[**]%s" % context['kwargs_name'], context['implicit_kwargs']) )
 
         if args_vals:
-            #msg += args_sep.join('%s=%r' % pair for pair in args_vals)
             msg += args_sep.join(
                         map_to_arg_eq_val_strs(args_vals))
         else:
@@ -584,7 +583,7 @@ class _deco_base():
     # __init__, __call__
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
-                 settings=None,             # 0.2.4.post2 was `settings_path` now it can also a dict
+                 settings=None,
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
@@ -598,41 +597,68 @@ class _deco_base():
             and not ones that the user did not pass and which have default values.
             (It's default value is mutable, but we don't change it.)
         """
+        #--------------------------------------------------------------------
         # 0.2.4 `settings` stuff
+        # Set d = dict of settings:
+        #     static defaults (for self.__class__.__name__)
+        #     updated with `settings` (param -- dict or file)
+        #     updated with actual keyword parameters supplied to deco call
+        #--------------------------------------------------------------------
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # Set up dict d with log_calls's defaults - the default defaults:
         #   self.__class__.__name__ is name *of subclass*, clsname,
         #   which we trust has already called
         #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
         #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
         #   has .default = False, for "technical" reasons
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
         d = {k: od[k].default for k in od}
         d['enabled'] = True
-        # ... get default settings from dict | read default settings from file
-        #     if one was given,
-        # get a dict of them
-        #     ({} if dict None or empty, or if settings_path empty or nonexistent)
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # get settings from dict | read settings from file
+        # if given, as a dict settings_dict
+        # and update d with those
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         settings_dict = {}
         if isinstance(settings, dict):
             settings_dict = settings
         elif isinstance(settings, str):
             settings_dict = self._read_settings_file(settings_path=settings)
         d.update(settings_dict)
-        # ... and update d with settings *explicitly* passed to caller
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # update d with settings *explicitly* passed to caller
         # of subclass's __init__
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         d.update(_used_keywords_dict)
 
-        # NOW set up pseudo-dict, using settings given by d.
+        #====================================================================
+        # TODO 0.3.0
+        # The following parts of __init__ are all for deco'd FUNCTIONS
+        # Can we move them to __call__?
+        # If SO, save d as a member --
+        #     self._effective_settings
+        # , say, for use in "continuation" in __call__
+        #====================================================================
+
+        #--------------------------------------------------------------------
+        # NOW set up pseudo-dict (DecoSettingsMapping),
+        # using settings given by d.
         #
         # *** DecoSettingsMapping "API" --
         # (2) construct DecoSettingsMapping object
         #     that will provide mapping & attribute access to settings, & more
+        #--------------------------------------------------------------------
         self._settings_mapping = DecoSettingsMapping(
             deco_class=self.__class__,
             # DecoSettingsMapping calls the rest ** values_dict
             ** d
         )
 
+        #--------------------------------------------------------------------
+        # Init more stuff
+        #--------------------------------------------------------------------
         if not self.__class__._sentinels:
             self.__class__._sentinels = self._set_class_sentinels()
 
@@ -656,7 +682,8 @@ class _deco_base():
         self.prefix = prefix    # special case
 
         # 0.2.2.post1
-        # stack(s), pushed & popped by decorator (in wrapper of deco'd function)
+        # stack(s), pushed & popped wrapper of deco'd function
+        # by _logging_state_push, _logging_state_pop
         self._logging_fn = []     # stack
         self._indent_len = []     # stack
         self._output_fname = []     # stack
@@ -1295,7 +1322,6 @@ class log_calls(_deco_base):
 
     @used_unused_keywords()
     def __init__(self,
-                 settings_path='',      # (0.2.4 new parameter, but NOT a "setting". deprecated in favor of:)
                  settings=None,         # 0.2.4.post2. A dict or a pathname
                  enabled=True,
                  args_sep=', ',
@@ -1313,25 +1339,11 @@ class log_calls(_deco_base):
                  max_history=0,
     ):
         """(See class docstring)"""
-        # 0.2.4 settings_path stuff:
+        # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
         if 'settings' in used_keywords_dict:
             del used_keywords_dict['settings']
-
-        # TODO 0.2.6 delete BEGIN
-        if 'settings_path' in used_keywords_dict:
-            del used_keywords_dict['settings_path']
-            # Issue a warning. (0.2.5.post1: don't do it ALL the time, doh.)
-            # In Py3.2+ "DeprecationWarning is now ignored by default"
-            # (https://docs.python.org/3/library/warnings.html)
-            # so to see it, you'll probably have to run the Python interpreter
-            # with the -W switch, e.g. `python -W default run_tests.py`
-            import warnings
-            warnings.warn("Warning: 'settings_path' parameter is deprecated, use 'settings' instead.",
-                          DeprecationWarning)
-        settings = settings or settings_path    # only one, & settings takes precedence
-        # TODO 0.2.6 delete END.
 
         super().__init__(
             settings=settings,

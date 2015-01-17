@@ -1,11 +1,13 @@
 VERSIONS
 --------
-0.2.6beta1
+0.2.6
       - record_history wasn't using @used_unused_keywords for
       __init__, and wasn't passing its used_keywords, so prefix was
       getting set to ''. Had to run tests on a weird machine to find
       this out (TODO why didn't these fail on normal dev machine???)
       Fixed.
+
+      - Removed deprecated 'settings_path' keyword parameter.
 
 0.2.5.post3
       - later binding for `prefix`, necessary for a real-world test,

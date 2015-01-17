@@ -123,7 +123,6 @@ class DecoSetting():
 
     def __repr__(self):
         if isinstance(self.final_type, tuple):      # it's a tuple of types
-#            final_type = str( tuple( map(lambda t: t.__name__, self.final_type)))
             final_type = '(' + ', '.join(map(lambda t: t.__name__, self.final_type)) + ')'
         else:                                       # it's a type
             final_type = self.final_type.__name__
@@ -204,15 +203,15 @@ class DecoSettingsMapping():
     @classmethod
     def register_class_settings(cls, deco_classname, settings_iter):
         """
-        Called before __init__, presently - by deco class.
-        Client class should call this *** from class level ***
+        Called before __init__, presently - by deco classes.
+        Client classes should call this *** from class level ***
         e.g.
             DecoSettingsMapping.register_class_settings('log_calls', _setting_info_list)
 
-        Add item (classname, od) to _classname2SettingsData_dict
+        Add item (deco_classname, od) to _classname2SettingsData_dict
         where od is an ordered dict built from items of settings_iter.
         cls: this class
-        clsname: key for dict produced from settings_iter
+        deco_classname: key for dict produced from settings_iter
         settings_iter: iterable of DecoSetting objs"""
         od = OrderedDict()
         pre_handlers = []
