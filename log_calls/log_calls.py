@@ -349,10 +349,11 @@ class _deco_base():
     # sentinels, for identifying functions on the calls stack
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     _sentinels_proto = {
-        'SENTINEL_ATTR': '$_%s_sentinel_',        # name of attr
+        'SENTINEL_ATTR': '$_%s_sentinel_',           # name of attr
         'SENTINEL_VAR': "$_%s-deco'd",
-        'PREFIXED_NAME': '$f_%s-prefixed-name',     # name of attr
-        'WRAPPER_FN_OBJ': '$f_%s_wrapper_-BACKPTR'  # LATE ADDITION
+        'PREFIXED_NAME': '$f_%s-prefixed-name',      # name of attr
+        'WRAPPER_FN_OBJ': '$f_%s_wrapper_-BACKPTR',  # LATE ADDITION
+        'WRAPPER_SELF': '$f_%s_wrapper_-SELF'        # value = self (0.3.0)
     }
 
     @classmethod
@@ -579,115 +580,6 @@ class _deco_base():
                     caller_chain=caller_chain)
         )
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    # __init__, __call__
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    def __init__(self,
-                 settings=None,
-                 _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
-                 enabled=True,
-                 log_call_numbers=False,
-                 indent=False,
-                 prefix='',
-                 ** other_values_dict):
-        """(See class docstring)
-        _used_keywords_dict: passed by subclass via super().__init__:
-            the *explicit* keyword args of subclass that the user actually passed,
-            not ones that are implicit keyword args,
-            and not ones that the user did not pass and which have default values.
-            (It's default value is mutable, but we don't change it.)
-        """
-        #--------------------------------------------------------------------
-        # 0.2.4 `settings` stuff
-        # Set d = dict of settings:
-        #     static defaults (for self.__class__.__name__)
-        #     updated with `settings` (param -- dict or file)
-        #     updated with actual keyword parameters supplied to deco call
-        #--------------------------------------------------------------------
-
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # Set up dict d with log_calls's defaults - the default defaults:
-        #   self.__class__.__name__ is name *of subclass*, clsname,
-        #   which we trust has already called
-        #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
-        #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
-        #   has .default = False, for "technical" reasons
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
-        d = {k: od[k].default for k in od}
-        d['enabled'] = True
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # get settings from dict | read settings from file
-        # if given, as a dict settings_dict
-        # and update d with those
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict = {}
-        if isinstance(settings, dict):
-            settings_dict = settings
-        elif isinstance(settings, str):
-            settings_dict = self._read_settings_file(settings_path=settings)
-        d.update(settings_dict)
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # update d with settings *explicitly* passed to caller
-        # of subclass's __init__
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        d.update(_used_keywords_dict)
-
-        #====================================================================
-        # TODO 0.3.0
-        # The following parts of __init__ are all for deco'd FUNCTIONS
-        # Can we move them to __call__?
-        # If SO, save d as a member --
-        #     self._effective_settings
-        # , say, for use in "continuation" in __call__
-        #====================================================================
-
-        #--------------------------------------------------------------------
-        # NOW set up pseudo-dict (DecoSettingsMapping),
-        # using settings given by d.
-        #
-        # *** DecoSettingsMapping "API" --
-        # (2) construct DecoSettingsMapping object
-        #     that will provide mapping & attribute access to settings, & more
-        #--------------------------------------------------------------------
-        self._settings_mapping = DecoSettingsMapping(
-            deco_class=self.__class__,
-            # DecoSettingsMapping calls the rest ** values_dict
-            ** d
-        )
-
-        #--------------------------------------------------------------------
-        # Init more stuff
-        #--------------------------------------------------------------------
-        if not self.__class__._sentinels:
-            self.__class__._sentinels = self._set_class_sentinels()
-
-        self._stats = ClassInstanceAttrProxy(class_instance=self)
-
-        # Accessed by descriptors on the stats obj
-        self._num_calls_total = 0
-        self._num_calls_logged = 0
-        # max_history > 0 --> size of self._call_history; <= 0 --> unbounded
-        # Set before calling _make_call_history
-        self.max_history = other_values_dict.get('max_history', 0)  # <-- Nota bene
-        self._call_history = self._make_call_history()
-
-        # Accumulate this (for logged calls only)
-        # even when record_history is false:
-        self._elapsed_secs_logged = 0.0
-        self._CPU_secs_logged = 0.0
-
-        self.f_params = None    # set properly by __call__
-        self.f = None           # set properly by __call__
-        self.prefix = prefix    # special case
-
-        # 0.2.2.post1
-        # stack(s), pushed & popped wrapper of deco'd function
-        # by _logging_state_push, _logging_state_pop
-        self._logging_fn = []     # stack
-        self._indent_len = []     # stack
-        self._output_fname = []     # stack
-
     def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
         self._logging_fn.append(logging_fn)
         self._indent_len.append(global_indent_len)
@@ -812,7 +704,141 @@ class _deco_base():
 
         return d
 
-    def __call__(self, f):
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # __init__, __call__
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    def __init__(self,
+                 settings=None,
+                 _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
+                 enabled=True,
+                 log_call_numbers=False,
+                 indent=False,
+                 prefix='',
+                 ** other_values_dict):
+        """(See class docstring)
+        _used_keywords_dict: passed by subclass via super().__init__:
+            the *explicit* keyword args of subclass that the user actually passed,
+            not ones that are implicit keyword args,
+            and not ones that the user did not pass and which have default values.
+            (It's default value is mutable, but we don't change it.)
+        """
+        #--------------------------------------------------------------------
+        # 0.2.4 `settings` stuff, rejiggered in 0.3.0
+        # Set/save self._changed_settings =
+        #     `settings` (param -- dict or file)
+        #     updated with actual keyword parameters supplied to deco call
+        # set/save self._effective_settings -
+        #     static defaults (for self.__class__.__name__)
+        #     updated with self._changed_settings
+        #--------------------------------------------------------------------
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Set up defaults_dict with log_calls's defaults - the static ones:
+        #   self.__class__.__name__ is name *of subclass*, clsname,
+        #   which we trust has already called
+        #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
+        #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
+        #   has .default = False, for "technical" reasons
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        defaults_dict = {k: od[k].default for k in od}
+        defaults_dict['enabled'] = True
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # get settings from dict | read settings from file
+        # if given, as a dict settings_dict
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        settings_dict = {}
+        if isinstance(settings, dict):
+            settings_dict = settings
+        elif isinstance(settings, str):
+            settings_dict = self._read_settings_file(settings_path=settings)
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # 0.3.0 Save settings_dict updated with _used_keywords_dict
+        # so that these can be reapplied by any outer class deco --
+        # (class deco's _effective_settings (copy of) updated with these --
+        # in class case of __call__
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        settings_dict.update(_used_keywords_dict)   # settings_dict is now no longer *that*
+        self._changed_settings = settings_dict
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # update defaults_dict with settings *explicitly* passed to caller
+        # of subclass's __init__, and save *that* (used in __call__)
+        # as self._effective_settings, which are the final settings used
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        defaults_dict.update(self._changed_settings)    # defaults_dict is now no longer *that*
+        self._effective_settings = defaults_dict
+
+        self.prefix = prefix    # special case
+        self._other_values_dict = other_values_dict     # 0.3.0
+        # 0.3.0 Factored out rest of __init__ to function case of __call__
+
+    def class__call__(self, cls):
+        """
+        :param cls: class to decorate ALL the methods of.
+        :return: decorated class (cls - modified/operated on)
+        Operate on each function in cls.
+        Use __getattribute__ to determine whether it is (/will be)
+        an instance function, a staticmethod or a classmethod;
+
+        if either of the latter, get wrapped actual function (.__func__);
+            if wrapped function is itself decorated by <this decorator>
+            that is, self.__class__.__name__
+            that is, self.__class__
+                (look for 'signature' attribute on function,
+                 hasattr 'SENTINEL_ATTR')
+            *** GET THE INSTANCE of this deco class *** for that function,
+                using sentinel deco_obj = getattr(func, 'WRAPPER_SELF')
+            get deco_obj._changed_settings of that instance,
+
+            THEN make its settings = self._effective_settings (for this cls)
+                updated with those deco_obj._changed_settings
+
+        otherwise, (a non-wrapped function that will be an instance method)
+
+        """
+        for name in cls.__dict__:
+            item = cls.__getattribute__(cls, name)
+            actual_item = getattr(cls, name)
+
+            func = None
+            if type(item) == staticmethod:
+                func = actual_item          # == item.__func__
+            elif type(item) == classmethod:
+                func = actual_item.__func__ # == item.__func__
+            elif inspect.isfunction(item):
+                func = actual_item          # == item
+            if not func:                    # nothing we're interested in
+                continue
+
+            # is func deco'd by this decorator?
+            if hasattr(func, self._sentinels['SENTINEL_ATTR']):
+                # Yes. Figure out settings for func.
+                # make copy of class decorator's _effective_settings
+                new_func_settings = self._effective_settings.copy()
+                # get deco object instance that wraps func, and its _changed_settings
+                deco_obj = getattr(func, self._sentinels['WRAPPER_SELF'])
+                func_changed_settings = deco_obj._changed_settings
+                # update classwide settings with func's changed settings
+                new_func_settings.update(func_changed_settings)
+                # update func's settings
+                deco_obj._settings_mapping.update(new_func_settings)
+            else:
+                # func is not deco'd.
+                # decorate it, using self._effective_settings
+                new_func = self.__class__(settings=self._effective_settings)(func)
+                # if necessary, rewrap with @classmethod or @staticmethod
+                if type(item) == staticmethod:
+                    new_func = staticmethod(new_func)
+                elif type(item) == classmethod:
+                    new_func = classmethod(new_func)
+                # and replace in class dict
+                cls.__dict__[name] = new_func
+
+        return cls
+
+    def __call__(self, f_or_cls):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
         to decorate. The return value of __call__ is called subsequently.
@@ -830,303 +856,387 @@ class _deco_base():
             pre_call_handlers             1.3 %
             post_call_handlers           22.3 %
         """
-        # Save signature and parameters of f
-        self.f_signature = inspect.signature(f)
-        self.f_params = self.f_signature.parameters
+        #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
+        # 0.3.0 -- handle decorating both functions and classes
+        #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
+        f = f_or_cls if inspect.isfunction(f_or_cls) else None
+        cls = f_or_cls if inspect.isclass(f_or_cls) else None
 
-        # 0.2.4.post5 hoisted things
-        #
-        # 0.2.4.post5 Use perf_counter if available (Py3.3+)
-        try:
-            from time import perf_counter, process_time
-            wall_time_fn = perf_counter
-            CPU_time_fn = process_time
-        except ImportError:
-            wall_time_fn = \
-            CPU_time_fn = time.time
+        self.f = f
+        self.cls = cls
 
-        ##~ PROFILE
-        # self.profile__ = OrderedDict((
-        #     ('setup_stackframe_hack', []),
-        #     ('up_to__not_enabled_call', []),
-        #     ('setup_context_init', []),
-        #     ('setup_context_inspect_bind', []),
-        #     ('setup_context_post_bind', []),
-        #     ('setup_context_kwargs_dicts', []),
-        #     ('pre_call_handlers', []),
-        #     ('post_call_handlers', []),
-        # ))
-        # END PROFILE
+        if not (f or cls):
+            raise TypeError("%s: expecting function or class, can't decorate %r"
+                            % (self.__class__.__name__, type(f_or_cls))
+            )
 
-        @wraps(f)
-        def f_log_calls_wrapper_(*args, **kwargs):
-            """Wrapper around the wrapped function f.
-            When this runs, f has been called, so we can now resolve
-            any indirect values for the settings/keyword-params
-            of log_calls, using info in kwargs and self.f_params."""
-            # *** Part of the DecoSettingsMapping "API" --
-            #     (4) using self._settings_mapping.get_final_value in wrapper
-            # [[[ This/these is/are 4th chronologically ]]]
+        # Whether class or function, initialize sentinels (0.3.0 formerly in __init__)
+        if not self.__class__._sentinels:
+            self.__class__._sentinels = self._set_class_sentinels()
 
-            # inner/local fn -- save a few cycles and character -
-            # we call this a lot (<= 9x).
-            def _get_final_value(setting_name):
-                "Use outer scope's kwargs and self.f_params"
-                return self._settings_mapping.get_final_value(
-                    setting_name, kwargs, fparams=self.f_params)
+        if cls:
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            return self.class__call__(cls)
 
-            ##~ PROFILE
-            #~ with time_block('setup_stackframe_hack') as profile__setup_stackframe_hack:
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # if nothing to do, hurry up & don't do it.
-            # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
-            # to find (0.2.4) _log_calls__active_call_items__ (really!)
-            # It and its values (the following _XXX variables)
-            # must be set before calling f.
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            _enabled = _get_final_value('enabled')
-            # 0.2.4.post5 "true bypass": if 'enabled' < 0 then scram
-            if _enabled < 0:
-                return f(*args, **kwargs)
+        else:   # f
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            # 0.3.0 -- case "f_or_cls is a function" -- namely, f
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            # Bump call counters, before calling fn.
-            # Note: elapsed_secs, CPU_secs not reflected yet of course
-            self._add_call(logged=_enabled)
+            #================================================================
+            # 0.3.0 -- from else to here, stuff migrated from __init__
+            #----------------------------------------------------------------
+            #----------------------------------------------------------------
+            # set up pseudo-dict (DecoSettingsMapping),
+            # using settings given by self._effective_settings.
+            #
+            # *** DecoSettingsMapping "API" --
+            # (2) construct DecoSettingsMapping object
+            #     that will provide mapping & attribute access to settings, & more
+            #----------------------------------------------------------------
+            self._settings_mapping = DecoSettingsMapping(
+                deco_class=self.__class__,
+                # DecoSettingsMapping calls the rest ** values_dict
+                ** self._effective_settings     # 0.3.0 set by __init__
+            )
 
-            _log_call_numbers = _get_final_value('log_call_numbers')
-            # counters just got bumped
-            _active_call_number = (self._stats.num_calls_logged
-                                   if _log_call_numbers else
-                                   0)
-            # Get list of callers up to & including first log_call's-deco'd fn
-            # (or just caller, if no such fn)
-            call_list, prev_indent_level = self.call_chain_to_next_log_calls_fn()
+            #----------------------------------------------------------------
+            # Init more stuff
+            #----------------------------------------------------------------
+            self._stats = ClassInstanceAttrProxy(class_instance=self)
 
-            # Bump _extra_indent_level if last fn on call_list is deco'd AND enabled,
-            # o/w it's the _extra_indent_level which that fn 'inherited'.
-            # _extra_indent_level: prev_indent_level, or prev_indent_level + 1
-            do_indent = _get_final_value('indent')
-            _extra_indent_level = (prev_indent_level +
-                                   int(not not do_indent and not not _enabled))
+            # Accessed by descriptors on the stats obj
+            self._num_calls_total = 0
+            self._num_calls_logged = 0
+            # max_history > 0 --> size of self._call_history; <= 0 --> unbounded
+            # Set before calling _make_call_history
 
-            # Needed 3x:
-            prefixed_fname = _get_final_value('prefix') + f.__name__
-            # Stackframe hack:
-            _log_calls__active_call_items__ = {
-                '_enabled': _enabled,
-                '_log_call_numbers': _log_call_numbers,
-                '_prefixed_fname': prefixed_fname,          # Hack alert (Pt 1)
-                '_active_call_number': _active_call_number,
-                '_extra_indent_level': _extra_indent_level
-            }
-            # END profile__setup_stackframe_hack
+            # 0.3.0 self._other_values_dict set by __init__
+            self.max_history = self._other_values_dict.get('max_history', 0)  # <-- Nota bene
+            self._call_history = self._make_call_history()
+
+            # Accumulate this (for logged calls only)
+            # even when record_history is false:
+            self._elapsed_secs_logged = 0.0
+            self._CPU_secs_logged = 0.0
+
+            # 0.2.2.post1
+            # stack(s), pushed & popped wrapper of deco'd function
+            # by _logging_state_push, _logging_state_pop
+            self._logging_fn = []     # stack
+            self._indent_len = []     # stack
+            self._output_fname = []   # stack
+            #----------------------------------------------------------------
+            # 0.3.0 -- from else to here, stuff migrated from __init__
+            #================================================================
+
+            # Save signature and parameters of f
+            self.f_signature = inspect.signature(f)
+            self.f_params = self.f_signature.parameters
+
+            # 0.2.4.post5 Use perf_counter if available (Py3.3+)
+            try:
+                from time import perf_counter, process_time
+                wall_time_fn = perf_counter
+                CPU_time_fn = process_time
+            except ImportError:
+                wall_time_fn = \
+                CPU_time_fn = time.time
 
             ##~ PROFILE
-            #~ with time_block('up_to__not_enabled_call') as profile__up_to__not_enabled_call:
-            # Get logging function IF ANY.
-            # For the benefit of callees further down the call chain,
-            # if this f is not enabled (_enabled <= 0).
-            # Subclass can return None to suppress printed/logged output.
-            logging_fn = self.get_logging_fn(_get_final_value)
+            # self.profile__ = OrderedDict((
+            #     ('setup_stackframe_hack', []),
+            #     ('up_to__not_enabled_call', []),
+            #     ('setup_context_init', []),
+            #     ('setup_context_inspect_bind', []),
+            #     ('setup_context_post_bind', []),
+            #     ('setup_context_kwargs_dicts', []),
+            #     ('pre_call_handlers', []),
+            #     ('post_call_handlers', []),
+            # ))
+            # END PROFILE
 
-            # Only do global indentation for print, not for loggers
-            global_indent_len = max(_extra_indent_level, 0) * self.INDENT
+            @wraps(f)
+            def f_log_calls_wrapper_(*args, **kwargs):
+                """Wrapper around the wrapped function f.
+                When this runs, f has been called, so we can now resolve
+                any indirect values for the settings/keyword-params
+                of log_calls, using info in kwargs and self.f_params."""
+                # *** Part of the DecoSettingsMapping "API" --
+                #     (4) using self._settings_mapping.get_final_value in wrapper
+                # [[[ This/these is/are 4th chronologically ]]]
 
-            # 0.2.2.post1 - save output_fname for log_message use
-            call_number_str = ((' [%d]' % _active_call_number)
-                               if _log_call_numbers else '')
-            output_fname = prefixed_fname + call_number_str
+                # inner/local fn -- save a few cycles and characters -
+                # we call this a lot (<= 9x).
+                def _get_final_value(setting_name):
+                    "Use outer scope's kwargs and self.f_params"
+                    return self._settings_mapping.get_final_value(
+                        setting_name, kwargs, fparams=self.f_params)
 
-            # 0.2.2 -- self._log_message() will use
-            # the logging_fn, indent_len and output_fname at top of these stacks;
-            # thus, verbose functions should use log_message to write their blather.
-            # There are parallel stacks of these,
-            # used by self._log_message(), maintained in this wrapper.
-            self._logging_state_push(logging_fn, global_indent_len, output_fname)
-            # END profile__up_to__not_enabled_call
+                ##~ PROFILE
+                #~ with time_block('setup_stackframe_hack') as profile__setup_stackframe_hack:
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # if nothing to do, hurry up & don't do it.
+                # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
+                # to find (0.2.4) _log_calls__active_call_items__ (really!)
+                # It and its values (the following _XXX variables)
+                # must be set before calling f.
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                _enabled = _get_final_value('enabled')
+                # 0.2.4.post5 "true bypass": if 'enabled' < 0 then scram
+                if _enabled < 0:
+                    return f(*args, **kwargs)
 
-            # (_xxx variables set, ok to call f)
-            if not _enabled:
-                ret = f(*args, **kwargs)
+                # Bump call counters, before calling fn.
+                # Note: elapsed_secs, CPU_secs not reflected yet of course
+                self._add_call(logged=_enabled)
+
+                _log_call_numbers = _get_final_value('log_call_numbers')
+                # counters just got bumped
+                _active_call_number = (self._stats.num_calls_logged
+                                       if _log_call_numbers else
+                                       0)
+                # Get list of callers up to & including first log_call's-deco'd fn
+                # (or just caller, if no such fn)
+                call_list, prev_indent_level = self.call_chain_to_next_log_calls_fn()
+
+                # Bump _extra_indent_level if last fn on call_list is deco'd AND enabled,
+                # o/w it's the _extra_indent_level which that fn 'inherited'.
+                # _extra_indent_level: prev_indent_level, or prev_indent_level + 1
+                do_indent = _get_final_value('indent')
+                _extra_indent_level = (prev_indent_level +
+                                       int(not not do_indent and not not _enabled))
+
+                # Needed 3x:
+                prefixed_fname = _get_final_value('prefix') + f.__name__
+                # Stackframe hack:
+                _log_calls__active_call_items__ = {
+                    '_enabled': _enabled,
+                    '_log_call_numbers': _log_call_numbers,
+                    '_prefixed_fname': prefixed_fname,          # Hack alert (Pt 1)
+                    '_active_call_number': _active_call_number,
+                    '_extra_indent_level': _extra_indent_level
+                }
+                # END profile__setup_stackframe_hack
+
+                ##~ PROFILE
+                #~ with time_block('up_to__not_enabled_call') as profile__up_to__not_enabled_call:
+                # Get logging function IF ANY.
+                # For the benefit of callees further down the call chain,
+                # if this f is not enabled (_enabled <= 0).
+                # Subclass can return None to suppress printed/logged output.
+                logging_fn = self.get_logging_fn(_get_final_value)
+
+                # Only do global indentation for print, not for loggers
+                global_indent_len = max(_extra_indent_level, 0) * self.INDENT
+
+                # 0.2.2.post1 - save output_fname for log_message use
+                call_number_str = ((' [%d]' % _active_call_number)
+                                   if _log_call_numbers else '')
+                output_fname = prefixed_fname + call_number_str
+
+                # 0.2.2 -- self._log_message() will use
+                # the logging_fn, indent_len and output_fname at top of these stacks;
+                # thus, verbose functions should use log_message to write their blather.
+                # There are parallel stacks of these,
+                # used by self._log_message(), maintained in this wrapper.
+                self._logging_state_push(logging_fn, global_indent_len, output_fname)
+                # END profile__up_to__not_enabled_call
+
+                # (_xxx variables set, ok to call f)
+                if not _enabled:
+                    ret = f(*args, **kwargs)
+                    self._logging_state_pop()
+                    return ret
+
+                ##~ PROFILE
+                #~ with time_block('setup_context') as profile__setup_context_init:
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # Set up context, for pre-call handlers
+                # (after calling f, add to it for post-call handlers)
+                # THIS is the time sink - 23x slower than other 'blocks'
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # Key/values of "context" whose values we know so far:
+                context = {
+                    'decorator': self,
+                    'settings': self._settings_mapping,
+                    'stats': self._stats,
+                    'prefixed_fname': prefixed_fname,
+                    'fparams': self.f_params,
+                    'call_list': call_list,
+                    'args': args,
+                    'kwargs': kwargs,
+                    'indent': " " * self.INDENT,              # our unit of indentation
+                    'output_fname': output_fname,
+                    'stats': self._stats,
+                }
+                # END profile__setup_context_init
+
+                ##~ PROFILE
+                #~ with time_block('setup_context') as profile__setup_context_inspect_bind:
+                # Gather all the things we need (for log output, & for history)
+                # Use inspect module's Signature.bind method.
+                # bound_args.arguments -- contains only explicitly bound arguments
+                # 0.2.4.post5 - using
+                #     inspect.signature(f).bind(*args, **kwargs)
+                # took 45% of execution time of entire wrapper; this takes 23%:
+                bound_args = self.f_signature.bind(*args, **kwargs)
+                # END profile__setup_context_inspect_bind
+
+                ##~ PROFILE
+                #~ with time_block('setup_context') as profile__setup_context_post_bind:
+                varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
+                argcount = varargs_pos if varargs_pos >= 0 else len(args)
+                context['argcount'] = argcount
+                # The first argcount-many things in bound_args
+                context['argnames'] = list(bound_args.arguments)[:argcount]
+                context['argvals'] = args[:argcount]
+
+                context['varargs'] = args[argcount:]
+                (context['varargs_name'],
+                 context['kwargs_name']) = get_args_kwargs_param_names(self.f_params)
+                # END profile__setup_context_post_bind
+
+                ##~ PROFILE
+                #~ with time_block('setup_context') as profile__setup_context_kwargs_dicts:
+                # These 3 statements = 31% of execution time of wrapper
+                context['defaulted_kwargs'] = get_defaulted_kwargs_OD(self.f_params, bound_args)
+                context['explicit_kwargs'] = get_explicit_kwargs_OD(self.f_params, bound_args, kwargs)
+                # context['implicit_kwargs'] = {
+                #     k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
+                # }
+                # At least 2x as fast:
+                context['implicit_kwargs'] = \
+                    difference_update(kwargs.copy(), context['explicit_kwargs'])
+                # END profile__setup_context_kwargs_dicts
+
+                ##~ PROFILE
+                #~ with time_block('pre_call_handlers') as profile__pre_call_handlers:
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # Call pre-call handlers, collect nonempty return values
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                pre_msgs = []
+                for setting_name in self._settings_mapping._pre_call_handlers:  # keys
+                    if _get_final_value(setting_name):
+                        info = self._settings_mapping._get_DecoSetting(setting_name)
+                        msg = info.pre_call_handler(context)
+                        if msg:
+                            pre_msgs.append(msg)
+
+                # Write pre-call messages
+                if logging_fn:
+                    for msg in pre_msgs:
+                        self._log_message(msg, extra_indent_level=0)
+                # END profile__pre_call_handlers
+
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # Call f(*args, **kwargs) and get its retval; time it.
+                # Add timestamp, elapsed time(s) and retval to context.
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # No dictionary overhead between timer(s) start & stop.
+                t0 = time.time()                # for timestamp
+                t0_wall = wall_time_fn()
+                t0_CPU = CPU_time_fn()
+                retval = f(*args, **kwargs)
+                t_end_wall = wall_time_fn()
+                t_end_CPU = CPU_time_fn()
+                context['elapsed_secs'] = (t_end_wall - t0_wall)
+                context['CPU_secs'] = (t_end_CPU - t0_CPU)
+                context['timestamp'] = t0
+                context['retval'] = retval
+
+                self._add_to_elapsed(context['elapsed_secs'], context['CPU_secs'])
+
+                ##~ PROFILE
+                #~ with time_block('post_call_handlers') as profile__post_call_handlers:
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                # Call post-call handlers, collect nonempty return values
+                # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                post_msgs = []
+                for setting_name in self._settings_mapping._post_call_handlers:  # keys
+                    if _get_final_value(setting_name):
+                        info = self._settings_mapping._get_DecoSetting(setting_name)
+                        msg = info.post_call_handler(context)
+                        if msg:
+                            post_msgs.append(msg)
+
+                # Write post-call messages
+                if logging_fn:
+                    for msg in post_msgs:
+                        self._log_message(msg, extra_indent_level=0)
+
                 self._logging_state_pop()
-                return ret
+                # END profile__post_call_handlers
 
+                ##~ PROFILE
+                # self.profile__['setup_stackframe_hack'].extend(profile__setup_stackframe_hack)
+                # self.profile__['up_to__not_enabled_call'].extend(profile__up_to__not_enabled_call)
+                # self.profile__['setup_context_init'].extend(profile__setup_context_init)
+                # self.profile__['setup_context_inspect_bind'].extend(profile__setup_context_inspect_bind)
+                # self.profile__['setup_context_post_bind'].extend(profile__setup_context_post_bind)
+                # self.profile__['setup_context_kwargs_dicts'].extend(profile__setup_context_kwargs_dicts)
+                # self.profile__['pre_call_handlers'].extend(profile__pre_call_handlers)
+                # self.profile__['post_call_handlers'].extend(profile__post_call_handlers)
+                #~ END PROFILE
+
+                return retval
+
+            # Add a sentinel as an attribute to f_log_calls_wrapper_
+            # so we can in theory chase back to any previous log_calls-decorated fn
+            setattr(
+                f_log_calls_wrapper_,
+                self._sentinels['SENTINEL_ATTR'],
+                self._sentinels['SENTINEL_VAR']
+            )
+            # Add prefixed name of f as an attribute
+            setattr(
+                f,      # revert to f, after trying f_log_calls_wrapper_
+                self._sentinels['PREFIXED_NAME'],
+                self.prefix + f.__name__
+            )
+            # A back-pointer
+            setattr(
+                f,
+                self._sentinels['WRAPPER_FN_OBJ'],
+                f_log_calls_wrapper_
+            )
+            # 0.3.0 -- pointer to self
+            setattr(
+                f_log_calls_wrapper_,
+                self._sentinels['WRAPPER_SELF'],
+                self
+            )
+            # stats objects (attr of wrapper)
+            setattr(
+                f_log_calls_wrapper_,
+                'stats',
+                self._stats
+            )
             ##~ PROFILE
-            #~ with time_block('setup_context') as profile__setup_context_init:
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # Set up context, for pre-call handlers
-            # (after calling f, add to it for post-call handlers)
-            # THIS is the time sink - 23x slower than other 'blocks'
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # Key/values of "context" whose values we know so far:
-            context = {
-                'decorator': self,
-                'settings': self._settings_mapping,
-                'stats': self._stats,
-                'prefixed_fname': prefixed_fname,
-                'fparams': self.f_params,
-                'call_list': call_list,
-                'args': args,
-                'kwargs': kwargs,
-                'indent': " " * self.INDENT,              # our unit of indentation
-                'output_fname': output_fname,
-                'stats': self._stats,
-            }
-            # END profile__setup_context_init
+            # setattr(
+            #     f_log_calls_wrapper_,
+            #     'profile__',
+            #     self.profile__
+            # )
+            # END PROFILE
 
-            ##~ PROFILE
-            #~ with time_block('setup_context') as profile__setup_context_inspect_bind:
-            # Gather all the things we need (for log output, & for history)
-            # Use inspect module's Signature.bind method.
-            # bound_args.arguments -- contains only explicitly bound arguments
-            # 0.2.4.post5 - using
-            #     inspect.signature(f).bind(*args, **kwargs)
-            # took 45% of execution time of entire wrapper; this takes 23%:
-            bound_args = self.f_signature.bind(*args, **kwargs)
-            # END profile__setup_context_inspect_bind
-
-            ##~ PROFILE
-            #~ with time_block('setup_context') as profile__setup_context_post_bind:
-            varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
-            argcount = varargs_pos if varargs_pos >= 0 else len(args)
-            context['argcount'] = argcount
-            # The first argcount-many things in bound_args
-            context['argnames'] = list(bound_args.arguments)[:argcount]
-            context['argvals'] = args[:argcount]
-
-            context['varargs'] = args[argcount:]
-            (context['varargs_name'],
-             context['kwargs_name']) = get_args_kwargs_param_names(self.f_params)
-            # END profile__setup_context_post_bind
-
-            ##~ PROFILE
-            #~ with time_block('setup_context') as profile__setup_context_kwargs_dicts:
-            # These 3 statements = 31% of execution time of wrapper
-            context['defaulted_kwargs'] = get_defaulted_kwargs_OD(self.f_params, bound_args)
-            context['explicit_kwargs'] = get_explicit_kwargs_OD(self.f_params, bound_args, kwargs)
-            # context['implicit_kwargs'] = {
-            #     k: kwargs[k] for k in kwargs if k not in context['explicit_kwargs']
-            # }
-            # At least 2x as fast:
-            context['implicit_kwargs'] = \
-                difference_update(kwargs.copy(), context['explicit_kwargs'])
-            # END profile__setup_context_kwargs_dicts
-
-            ##~ PROFILE
-            #~ with time_block('pre_call_handlers') as profile__pre_call_handlers:
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # Call pre-call handlers, collect nonempty return values
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            pre_msgs = []
-            for setting_name in self._settings_mapping._pre_call_handlers:  # keys
-                if _get_final_value(setting_name):
-                    info = self._settings_mapping._get_DecoSetting(setting_name)
-                    msg = info.pre_call_handler(context)
-                    if msg:
-                        pre_msgs.append(msg)
-
-            # Write pre-call messages
-            if logging_fn:
-                for msg in pre_msgs:
-                    self._log_message(msg, extra_indent_level=0)
-            # END profile__pre_call_handlers
-
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # Call f(*args, **kwargs) and get its retval; time it.
-            # Add timestamp, elapsed time(s) and retval to context.
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # No dictionary overhead between timer(s) start & stop.
-            t0 = time.time()                # for timestamp
-            t0_wall = wall_time_fn()
-            t0_CPU = CPU_time_fn()
-            retval = f(*args, **kwargs)
-            t_end_wall = wall_time_fn()
-            t_end_CPU = CPU_time_fn()
-            context['elapsed_secs'] = (t_end_wall - t0_wall)
-            context['CPU_secs'] = (t_end_CPU - t0_CPU)
-            context['timestamp'] = t0
-            context['retval'] = retval
-
-            self._add_to_elapsed(context['elapsed_secs'], context['CPU_secs'])
-
-            ##~ PROFILE
-            #~ with time_block('post_call_handlers') as profile__post_call_handlers:
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            # Call post-call handlers, collect nonempty return values
-            # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            post_msgs = []
-            for setting_name in self._settings_mapping._post_call_handlers:  # keys
-                if _get_final_value(setting_name):
-                    info = self._settings_mapping._get_DecoSetting(setting_name)
-                    msg = info.post_call_handler(context)
-                    if msg:
-                        post_msgs.append(msg)
-
-            # Write post-call messages
-            if logging_fn:
-                for msg in post_msgs:
-                    self._log_message(msg, extra_indent_level=0)
-
-            self._logging_state_pop()
-            # END profile__post_call_handlers
-
-            ##~ PROFILE
-            # self.profile__['setup_stackframe_hack'].extend(profile__setup_stackframe_hack)
-            # self.profile__['up_to__not_enabled_call'].extend(profile__up_to__not_enabled_call)
-            # self.profile__['setup_context_init'].extend(profile__setup_context_init)
-            # self.profile__['setup_context_inspect_bind'].extend(profile__setup_context_inspect_bind)
-            # self.profile__['setup_context_post_bind'].extend(profile__setup_context_post_bind)
-            # self.profile__['setup_context_kwargs_dicts'].extend(profile__setup_context_kwargs_dicts)
-            # self.profile__['pre_call_handlers'].extend(profile__pre_call_handlers)
-            # self.profile__['post_call_handlers'].extend(profile__post_call_handlers)
-            #~ END PROFILE
-
-            return retval
-
-        # Add a sentinel as an attribute to f_log_calls_wrapper_
-        # so we can in theory chase back to any previous log_calls-decorated fn
-        setattr(
-            f_log_calls_wrapper_,
-            self._sentinels['SENTINEL_ATTR'],
-            self._sentinels['SENTINEL_VAR']
-        )
-        # Add prefixed name of f as an attribute
-        setattr(
-            f,      # revert to f, after trying f_log_calls_wrapper_
-            self._sentinels['PREFIXED_NAME'],
-            self.prefix + f.__name__
-        )
-        # LATE ADDITION: A back-pointer
-        setattr(
-            f,
-            self._sentinels['WRAPPER_FN_OBJ'],
-            f_log_calls_wrapper_
-        )
-        setattr(
-            f_log_calls_wrapper_,
-            'stats',
-            self._stats
-        )
-        ##~ PROFILE
-        # setattr(
-        #     f_log_calls_wrapper_,
-        #     'profile__',
-        #     self.profile__
-        # )
-        # END PROFILE
-
-        setattr(
-            f_log_calls_wrapper_,
-            self.__class__.__name__ + '_settings',
-            self._settings_mapping
-        )
-        # 0.2.1a
-        setattr(
-            f_log_calls_wrapper_,
-            'log_message',
-            self._log_message,
-        )
-        return f_log_calls_wrapper_
+            setattr(
+                f_log_calls_wrapper_,
+                self.__class__.__name__ + '_settings',
+                self._settings_mapping
+            )
+            # 0.2.1a
+            setattr(
+                f_log_calls_wrapper_,
+                'log_message',
+                self._log_message,
+            )
+            return f_log_calls_wrapper_
+            #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            # end else (case "f_or_cls is a function")
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn):

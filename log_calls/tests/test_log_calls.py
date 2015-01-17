@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.6'
+__version__ = '0.3.0'
 
 from log_calls import log_calls
 
@@ -2100,6 +2100,7 @@ main__functions_and_methods_accessing_their_attrs.__doc__ = \
 ##############################################################################
 # end of tests.
 ##############################################################################
+
 
 # For unittest integration
 def load_tests(loader, tests, ignore):
