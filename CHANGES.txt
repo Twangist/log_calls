@@ -9,14 +9,23 @@ VERSIONS
         TODO: keywords for class level:
         todo    omit=(method, ...), only=(method, ...)
 
+        TODO test more/thoroughly -- test_log_calls__class_deco.py
         TODO document this
-        TODO test more/thoroughly
+
+        TODO Make `prefix` mutable in record_history deco
+
+        TODO Test record_history as a class deco
+
+      - Works for *** inner classes ***
 
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
         to apply to already-deco'd methods :)
+
         TODO document that / update docs to reflect
         TODO test it -- dynamically change 'prefix' in various ways, test
         todo    at both ends of call chains
+
+      - prefix works for inner classes too (Outer.Inner.foo)
 
       - record_history wasn't using @used_unused_keywords for
         __init__, and wasn't passing its used_keywords, so prefix was

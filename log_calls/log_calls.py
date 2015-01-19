@@ -349,11 +349,11 @@ class _deco_base():
     # sentinels, for identifying functions on the calls stack
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     _sentinels_proto = {
-        'SENTINEL_ATTR': '$_%s_sentinel_',           # name of attr
-        'SENTINEL_VAR': "$_%s-deco'd",
-        'PREFIXED_NAME': '$f_%s-prefixed-name',      # name of attr
-        'WRAPPER_FN_OBJ': '$f_%s_wrapper_-BACKPTR',  # LATE ADDITION
-        'WRAPPER_SELF': '$f_%s_wrapper_-SELF'        # value = self (0.3.0)
+        'SENTINEL_ATTR': '_$_%s_sentinel_',             # name of attr
+        'SENTINEL_VAR': "_$_%s-deco'd",
+        'PREFIXED_NAME': '_$_f_%s-prefixed-name',       # name of attr
+        'WRAPPER_FN_OBJ': '_$_f_%s_wrapper_-BACKPTR',   # LATE ADDITION
+        'DECO_OF': '_$_f_%s_wrapper_-or-cls-DECO'       # value = self (0.3.0)
     }
 
     @classmethod
@@ -769,6 +769,9 @@ class _deco_base():
         defaults_dict.update(self._changed_settings)    # defaults_dict is now no longer *that*
         self._effective_settings = defaults_dict
 
+        # 0.3.0
+        self.qualname_available = sys.version_info[0] >= 3 and sys.version_info[1] >= 3
+
         self.prefix = prefix    # special case
         self._other_values_dict = other_values_dict     # 0.3.0
         # 0.3.0 Factored out rest of __init__ to function case of __call__
@@ -786,9 +789,9 @@ class _deco_base():
             that is, self.__class__.__name__
             that is, self.__class__
                 (look for 'signature' attribute on function,
-                 hasattr 'SENTINEL_ATTR')
+                 hasattr 'DECO_OF')
             *** GET THE INSTANCE of this deco class *** for that function,
-                using sentinel deco_obj = getattr(func, 'WRAPPER_SELF')
+                using sentinel deco_obj = getattr(func, 'DECO_OF')
             get deco_obj._changed_settings of that instance,
 
             THEN make its settings = self._effective_settings (for this cls)
@@ -797,43 +800,79 @@ class _deco_base():
         otherwise, (a non-wrapped function that will be an instance method)
 
         """
-        for name in cls.__dict__:
-            item = cls.__getattribute__(cls, name)
+        # for name in cls.__dict__:
+        #     item = cls.__getattribute__(cls, name)
+        for name, item in vars(cls).items():
             actual_item = getattr(cls, name)
 
-            func = None
-            if type(item) == staticmethod:
-                func = actual_item          # == item.__func__
-            elif type(item) == classmethod:
-                func = actual_item.__func__ # == item.__func__
-            elif inspect.isfunction(item):
-                func = actual_item          # == item
-            if not func:                    # nothing we're interested in
+            # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
+            # so don't provide it, and then it will do the right thing
+            # even on inner classes
+            ## Can't say:
+            ##    self._settings_mapping.prefix += cls.__name__ + '.'
+            ## cuz TODO? self for class case doesn't have a _settings_mapping.... YET
+
+####            self._effective_settings['prefix'] += cls.__name__ + '.'  # TODO Does this have any effect??
+
+            #-------------------------------------------------------
+            # Handle inner classes
+            #-------------------------------------------------------
+            if inspect.isclass(item):
+                # item is an inner class
+                # decorate it, using self._changed_settings
+                # Use sentinel 'DECO_OF' attribute on cls to get those
+                deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
+                new_settings = self._changed_settings.copy()
+                if deco_obj:    # cls is already decorated
+                    # It IS already deco'd, so we want its settings to be
+                    #    (copy of) self._changed_settings updated with its _changed_settings
+                    new_settings.update(deco_obj._changed_settings)
+
+                new_class = self.__class__(settings=new_settings)(item)
+                # and replace in class dict
+                setattr(cls, name, new_class)
                 continue
 
+            #-------------------------------------------------------
+            # Handle instance, static, class methods
+            #-------------------------------------------------------
+            func = None
+            if type(item) == staticmethod:
+                func = actual_item              # == item.__func__
+            elif type(item) == classmethod:
+                func = actual_item.__func__     # == item.__func__
+            elif inspect.isfunction(item):
+                func = actual_item              # == item
+
+            if not func:                        # nothing we're interested in
+                continue
+
+            # It IS a method; func is the corresponding function
+            deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
+            new_settings = self._changed_settings.copy()    # updated below
+            # By default, don't log retval for __init__.
+            # If user insists on it with 'log_retval=True' in __init__ deco,
+            # that will override this.
+            if name == '__init__':
+                new_settings['log_retval'] = False
+
             # is func deco'd by this decorator?
-            if hasattr(func, self._sentinels['SENTINEL_ATTR']):
-                # Yes. Figure out settings for func.
-                # make copy of class decorator's _effective_settings
-                new_func_settings = self._effective_settings.copy()
-                # get deco object instance that wraps func, and its _changed_settings
-                deco_obj = getattr(func, self._sentinels['WRAPPER_SELF'])
-                func_changed_settings = deco_obj._changed_settings
-                # update classwide settings with func's changed settings
-                new_func_settings.update(func_changed_settings)
-                # update func's settings
-                deco_obj._settings_mapping.update(new_func_settings)
+            if deco_obj:
+                # Yes. Figure out settings for func,
+                new_settings.update(deco_obj._changed_settings)
+                # update func's settings (_force_mutable=True to handle `max_history` properly)
+                deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
             else:
                 # func is not deco'd.
-                # decorate it, using self._effective_settings
-                new_func = self.__class__(settings=self._effective_settings)(func)
+                # decorate it, using self._changed_settings
+                new_func = self.__class__(settings=new_settings)(func)
+
                 # if necessary, rewrap with @classmethod or @staticmethod
                 if type(item) == staticmethod:
                     new_func = staticmethod(new_func)
                 elif type(item) == classmethod:
                     new_func = classmethod(new_func)
                 # and replace in class dict
-                #### cls.__dict__[name] = new_func
                 setattr(cls, name, new_func)
 
         return cls
@@ -865,11 +904,6 @@ class _deco_base():
         self.f = f
         self.cls = cls
 
-        if not (f or cls):
-            raise TypeError("%s: expecting function or class, can't decorate %r"
-                            % (self.__class__.__name__, type(f_or_cls))
-            )
-
         # Whether class or function, initialize sentinels (0.3.0 formerly in __init__)
         if not self.__class__._sentinels:
             self.__class__._sentinels = self._set_class_sentinels()
@@ -878,7 +912,26 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            return self.class__call__(cls)
+
+            # # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
+            # # so don't provide it, and then it will do the right thing
+            # # even on inner classes
+            # TODO: Does this work properly on Py < 3.3 ?
+            if self.qualname_available:
+                self._changed_settings['prefix'] = cls.__qualname__ + '.'
+            else:
+                self._changed_settings['prefix'] = (
+                    self._changed_settings.get('prefix', '') + cls.__name__ + '.'  # TODO Py < 3.3, shouldn't it be clsname dot existing-prefix?
+                )
+
+            self.class__call__(cls)     # modifies cls
+            # add attribute to cls: key is useful as sentinel, value is this deco
+            setattr(
+                cls,
+                self._sentinels['DECO_OF'],
+                self
+            )
+            return cls
 
         else:   # f
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
@@ -1011,6 +1064,7 @@ class _deco_base():
 
                 # Needed 3x:
                 prefixed_fname = _get_final_value('prefix') + f.__name__
+
                 # Stackframe hack:
                 _log_calls__active_call_items__ = {
                     '_enabled': _enabled,
@@ -1205,7 +1259,7 @@ class _deco_base():
             # 0.3.0 -- pointer to self
             setattr(
                 f_log_calls_wrapper_,
-                self._sentinels['WRAPPER_SELF'],
+                self._sentinels['DECO_OF'],
                 self
             )
             # stats objects (attr of wrapper)
