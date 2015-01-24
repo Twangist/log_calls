@@ -1,5 +1,5 @@
 __doc__ = """
-log_calls is a Python 3 decorator that can print much useful information
+log_calls is a Python 3.3+ decorator that can print much useful information
 about calls to a decorated function. It can write to stdout, to another
 stream or file, or to a logger. It can save you from writing, rewriting,
 copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it

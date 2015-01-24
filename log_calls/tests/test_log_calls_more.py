@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.5'
+__version__ = '0.3.0'
 
 from log_calls import log_calls
 
@@ -522,43 +522,6 @@ Now call the function, supplying a final value for `log_elapsed`:
     *** g [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
-TODO 0.2.6 remove
-Test the deprecated `settings_path` just to make sure it works while it exists.
-Test copied from above.
-
-    >>> @log_calls(settings_path='./log_calls-settings.txt',
-    ...            log_args=True, log_call_numbers=True)
-    ... def g_path(m, n, **kwargs):
-    ...     return 2 * m * n
-
-Examine the settings:
-
-    >>> pprint.pprint(g_path.log_calls_settings.as_OrderedDict())
-    {'enabled': True,
-     'args_sep': ' | ',
-     'log_args': True,
-     'log_retval': True,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': False,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
-     'logger': 'star3_logger',
-     'loglevel': 10,
-     'record_history': False,
-     'max_history': 0}
-
-and call the function, as before:
-
-    >>> _ = g_path(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
-    *** g_path [1] <== called by <module>
-    ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
-    ***     g_path [1] return value: 70
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
-    *** g_path [1] ==> returning to <module>
-
-------------------------------------------------------------------------------
 
 Nothing happens if we provide a `settings` that *doesn't* exist –
 `log_calls` uses its usual defaults, overridden by whatever setting parameters
@@ -699,16 +662,16 @@ def main__inner_functions__more():
 Call it:
 
     >>> inn()
-    inner <== called by <module>
-    f <== called by g <== inner
-    f ==> returning to g ==> inner
-    inner ==> returning to <module>
+    outer.<locals>.inner <== called by <module>
+    f <== called by g <== outer.<locals>.inner
+    f ==> returning to g ==> outer.<locals>.inner
+    outer.<locals>.inner ==> returning to <module>
 
     """
     pass
 
 
-def main__methods__more():
+def main__methods__more():      # TODO use in docs?
     """
 ## instance methods, classmethods, staticmethods
 
@@ -717,21 +680,22 @@ def main__methods__more():
 
     >>> def g(): f()
 
-    >>> class Klass():
+    >>> @log_calls(indent=True, omit='__init__')
+    ... class Klass():
     ...     def __init__(self):
     ...         pass
     ...
-    ...     @log_calls(logger='lager=', prefix='Klass.', indent=True)
+    ...     @log_calls(logger='lager=')
     ...     def instance_method(self, **kwargs):
     ...         g()
     ...
     ...     @classmethod
-    ...     @log_calls(log_args=False, log_retval=True, prefix='Klass.', indent=True)
+    ...     @log_calls(log_args=False, log_retval=True)
     ...     def klassmethod(cls, **kwargs):
     ...         g()
     ...
     ...     @staticmethod
-    ...     @log_calls(args_sep=' + ', log_elapsed=True, prefix='Klass.', indent=True)
+    ...     @log_calls(args_sep=' + ', log_elapsed=True)
     ...     def statikmethod(x, y, **kwargs):
     ...         g()
 

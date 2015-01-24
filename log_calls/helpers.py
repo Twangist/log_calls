@@ -214,7 +214,7 @@ def dict_to_sorted_str(d):
     >>> print(dict_to_sorted_str(d2))
     {'X': 'alphanumeric', 'Y': 'yomomma', 'Z': 'zebulon'}
     """
-    lst = [(k, v) for (k, v) in d.items()]
+    lst = list(d.items())
     lst.sort(key=lambda p: p[0])
     ret = ('{' +
            ', '.join(["%s: %s" % (repr(k), repr(v)) for (k, v) in lst ]) +
@@ -243,8 +243,64 @@ def is_quoted_str(s):
     return isinstance(s, str) and len(s) >= 2 and s[0] == s[-1] and s[0] in QUOTES
 
 
+# match using match_fn(x, pattern).
+def any_match(match_fn, seq, patterns):
+    """match_fn(s, pat) -> bool
+    seq, patterns: iterables, generators.
+
+    Equality:
+    >>> any_match(lambda x, y: x == y, (1, 2, 3), (5, 6, 1))
+    True
+    >>> any_match(lambda x, y: x == y, (1, 2, 3), (5, 6))
+    False
+
+    fnmatch.fnmatchcase (fnmatch.fnmatchcase is case-sensitive)
+    >>> import fnmatch
+    >>> names = (s for s in ('pair', 'P.pair', 'pair.getter', 'P.pair.getter'))
+    >>> patterns = ('pair', )
+    >>> any_match(fnmatch.fnmatchcase, names, patterns)
+    True
+    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names is now 'spent', list(names) is empty
+    False
+
+    Regexp
+    >>> import re
+    >>> patterns = (r'a.*b', r'[0-9]{2,2}[a-z]')
+    >>> matcher = lambda s, pat: re.match(pat, s)
+    >>> any_match(matcher, ('aaaa', 'bbb', '0q'), patterns)
+    False
+    >>> any_match(matcher, ('aaaab',), patterns)
+    True
+    >>> any_match(matcher, ('aa', '23z'), patterns)
+    True
+    """
+    return any(
+        match_fn(s, pat)
+        for s in seq
+        for pat in patterns
+    )
+
 #############################################################################
 
 if __name__ == "__main__":
+
+    # import fnmatch
+    # matcher = fnmatch.fnmatchcase
+    # names = (s for s in ('pair', 'P.pair', 'pair.getter', 'P.pair.getter'))
+    # patterns = ('pair', )
+    # match = False
+    # x = any_match(matcher, names, patterns)
+    # for s in names:
+    #     for pat in patterns:
+    #         match = match or matcher(s, pat)
+    #
+    # gen = (
+    #     matcher(s, pat)
+    #     for s in names
+    #     for pat in patterns
+    # )
+    # ll = list(gen)
+
+
     import doctest
     doctest.testmod()

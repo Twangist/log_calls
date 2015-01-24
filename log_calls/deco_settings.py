@@ -457,7 +457,7 @@ class DecoSettingsMapping():
         """Return dict of visible settings only."""
         return dict(self.as_OrderedDict())
 
-    def update(self, *dicts, **d_settings):
+    def update(self, *dicts, _force_mutable=False, **d_settings):
         """Do __setitem__ for every key/value pair in every dictionary
         in dicts + (d_settings,).
         Allow but ignore attempts to write to immutable keys!
@@ -466,19 +466,17 @@ class DecoSettingsMapping():
         and then restore the original settings, which will contain items
         for immutable settings too. Otherwise the user would have to
         remove all the immutable keys before doing update - ugh.
+
+        0.3.0 added , _force_mutable keyword param
         """
         for d in dicts + (d_settings,):
             for k, v in d.items():
                 info = self._deco_class_settings_dict.get(k)
                 # skip immutable settings
-                if info and not self._deco_class_settings_dict[k].mutable:
+                if info and not self._deco_class_settings_dict[k].mutable and not _force_mutable:
                     continue
-                # Invisible settings aren't in dicts we return;
-                # perhaps the caller is trying to be cute. Raise KeyError if so.
-                # if info and not self._is_visible(k):
-                #     continue
-                # otherwise, do it (whether it's a setting key or not)
-                self.__setitem__(k, v, info=info)
+                # if not info, KeyError from __setitem__
+                self.__setitem__(k, v, info=info, _force_mutable=_force_mutable)
 
     def _get_tagged_value(self, key):
         """Return (indirect, value) for key"""

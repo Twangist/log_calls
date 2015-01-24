@@ -1,13 +1,100 @@
 VERSIONS
 --------
-0.2.6
+0.3.0
+      - log_calls can now decorate classes -- all methods in a class,
+        all inner classes and properties too.
+        settings given for the class decorator (via settings= and/or
+        keyword parameters) apply to every method.
+        If a method of the class is already deco'd, the settings it
+        supplies override those given at the class level :)
+
+        Works for *** inner classes *** too, in the same fashion:
+        If an inner class is already deco'd, the settings it
+        supplies override those given at the outer class level :)
+
+      - New keyword parameters (NOT "settings")
+        omit
+            string or tuple of strings.
+            When decorating a class, this/these methods and/or inner classes
+            will NOT be decorated.
+
+            The strings themselves can be globs, i.e. can contain wildcards:
+                Pattern Meaning
+                * 	    matches everything
+                ? 	    matches any single character
+                [seq] 	matches any character in seq     (seq can be a range e.g. [0-9])
+                [!seq] 	matches any character not in seq
+            * and ? can match dots
+
+            Can be class-prefixed e.g. D.DI.foo
+            or unprefixed (and then any matching method/inner class will be omitted)
+            Ignored when decorating a function.
+
+        only
+            string or tuple of strings.
+            When decorating a class, ONLY this/these methods and/or inner classes,
+            minus any in omit, will be decorated.
+            As for omit, the strings themselves can be globs.
+
+            Can be class-prefixed e.g. D.DI.foo,
+            or unprefixed (and then any matching method/inner class will be deco'd)
+            Ignored when decorating a function.
+
+        # NOTE: Outer class's `omit` and `only` blow away any supplied to inner classes
+        # So either, use on inner class(es) only,
+        # OR just use on outer -- anything you can specify for an inner class,
+        # you can specify on the outer class too
+
+        #   any inner class: '*.*'
+
+        TODO test more/thoroughly -- test_log_calls__class_deco.py
+        TODO document this
+
+        TODO Make `prefix` mutable in record_history deco
+
+        TODO Test record_history as a class deco
+      - changes to repr handling in "Arguments: ..."
+        objects that are still in construction (active __init__) use object.__repr__
+        otherwise straightup repr.
+        See "class Point" example for illustration.
+
+      - you cannot decorate repr with log_calls
+
+        TODO make it possible to deco it with record_history
+
+      - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
+        to apply to already-deco'd methods :)
+        [prefix is now a lot less useful, too, lol]
+
+        TODO document that / update docs to reflect
+        TODO test it -- dynamically change 'prefix' in various ways, test
+        todo    at both ends of call chains
+
+      - always suppress return value on __init__
+        Explicit "log_retval=True" on method overrides that.
+
+      - prefix works for inner classes too (Outer.Inner.foo)
+        TODO: Test with Py <= 3.2
+            # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
+            # so don't provide it, and then it will do the right thing
+            # even on inner classes
+            ## Can't say:
+            ##    self._settings_mapping.prefix += cls.__name__ + '.'
+            ## cuz TODO? self for class case doesn't have a _settings_mapping.... YET
+
+        Py3.3+ -- prefix on outermost class ignored (class. is used)
+         prefix specified for methods prevails;
+         prefix on inner classes *probably* prevails too  (but, TODO -- test/check)
+         TODO what happens on Py3.2?
+
       - record_history wasn't using @used_unused_keywords for
-      __init__, and wasn't passing its used_keywords, so prefix was
-      getting set to ''. Had to run tests on a weird machine to find
-      this out (TODO why didn't these fail on normal dev machine???)
-      Fixed.
+        __init__, and wasn't passing its used_keywords, so prefix was
+        getting set to ''. Had to run tests on a weird machine to find
+        this out (TODO why didn't these fail on normal dev machine???)
+        Fixed.
 
       - Removed deprecated 'settings_path' keyword parameter.
+        Updated `test_log_calls_more.py` (removed 'settings_path' test).
 
 0.2.5.post3
       - later binding for `prefix`, necessary for a real-world test,

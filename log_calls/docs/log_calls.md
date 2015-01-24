@@ -2179,9 +2179,10 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
     >>> A_DBG_BASIC = 1
     >>> A_DBG_INTERNAL = 2
 
-    >>> class A_meta(type):
+	>>> @log_calls(args_sep=separator, enabled='A_debug=', omit='_get_wrapper')
+    ... class A_meta(type):
     ...     @classmethod
-    ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug', log_retval=True)
+    ...     @log_calls(log_retval=True)
     ...     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
     ...         super_dict = super().__prepare__(cls_name, bases, **kwargs)
     ...         # Note use of .__func__ to get at decorated fn inside the classmethod
@@ -2193,7 +2194,6 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
     ...         super_dict['key-from-__prepare__'] = 1729
     ...         return super_dict
     ...
-    ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
     ...     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
     ...         cls_members['key-from-__new__'] = "No, Hardy!"
     ...         if A_debug >= A_DBG_INTERNAL:
@@ -2201,7 +2201,6 @@ The following class `A_meta` will serve as the metaclass for classes defined sub
     ...             logging_fn("    calling super() with cls_members =", cls_members)
     ...         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
     ...
-    ...     @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug')
     ...     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
     ...         if A_debug >= A_DBG_INTERNAL:
     ...             logging_fn = A_meta._get_wrapper('__init__').log_message
@@ -2417,35 +2416,35 @@ Here's a class exhibiting the full range of possibilities:
 #### [Instance method tests](id:instance-method-accessing-attrs)
 
     >>> x = X()                    # doctest: +ELLIPSIS
-    __init__ <== called by <module>
+    X.__init__ <== called by <module>
         arguments: self=<__main__.X object at ...>
         True
         1
-    __init__ ==> returning to <module>
+    X.__init__ ==> returning to <module>
 
     >>> x.my_method()               # doctest: +ELLIPSIS
-    my_method <== called by <module>
+    X.my_method <== called by <module>
         arguments: self=<__main__.X object at ...>
         2
         1
-    my_method ==> returning to <module>
+    X.my_method ==> returning to <module>
 
 #### [Class method test](id:class-method-accessing-attrs)
 
     >>> x.my_classmethod()      # or X.my_classmethod()
-    my_classmethod <== called by <module>
+    X.my_classmethod <== called by <module>
         arguments: cls=<class '__main__.X'>
         12
         1
-    my_classmethod ==> returning to <module>
+    X.my_classmethod ==> returning to <module>
 
 #### [Static method test](id:static-method-accessing-attrs)
 
     >>> x.my_staticmethod()     # or X.my_staticmethod()
-    my_staticmethod <== called by <module>
+    X.my_staticmethod <== called by <module>
         22
         1
-    my_staticmethod ==> returning to <module>
+    X.my_staticmethod ==> returning to <module>
 
 ##[Appendix – Keyword Parameters Reference](id:KeywordParametersReference)
 
