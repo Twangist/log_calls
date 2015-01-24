@@ -23,6 +23,8 @@ import time
 import datetime
 from collections import namedtuple, deque
 
+import fnmatch  # 0.3.0 for omit, only
+
 from .deco_settings import (DecoSetting,
                             DecoSetting_bool, DecoSetting_int, DecoSetting_str,
                             DecoSettingsMapping)
@@ -30,7 +32,7 @@ from .helpers import (get_args_pos, get_args_kwargs_param_names,
                       difference_update,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str,
-                      is_quoted_str)
+                      is_quoted_str, any_match)
 from .proxy_descriptors import ClassInstanceAttrProxy
 from .used_unused_kwds import used_unused_keywords
 
@@ -145,9 +147,44 @@ class DecoSettingArgs(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, True, allow_falsy=True, **kwargs)
 
+    @staticmethod
+    def _get_all_ids_of_instances_in_progress(context, *, skipframes):
+        in_progress = set()
+        # First, deal with wrapper/the function it wraps
+        deco = context['decorator']
+        if deco.f.__name__ == '__init__' and deco._classname_of_f:
+            argvals = context['argvals']
+            if argvals and not inspect.isclass(argvals[0]):  # not interested in metaclass __init__
+                in_progress.add(id(argvals[0]))
+
+        frame = sys._getframe(skipframes)
+        while 1:
+            funcname = frame.f_code.co_name
+            if funcname == '<module>':
+                break
+
+            if funcname == '__init__':
+                # so if it's really an instance __init__,
+                #     eval('self.__init__', frame.f_globals, frame.f_locals)
+                # is a bound method, so .__func__ will be underlying function
+                # and .__self__ is the instance it's bound to :)
+                try:
+                    init_method = eval('self.__init__', frame.f_globals, frame.f_locals)
+                except Exception as e:
+                    pass
+                else:
+                    if inspect.ismethod(init_method):
+                        func = init_method.__func__
+                        instance = init_method.__self__
+                        if not inspect.isclass(instance):     # not interested in metaclass __init__
+                            in_progress.add(id(instance))
+
+            frame = frame.f_back
+        return in_progress
+
     def pre_call_handler(self, context: dict):
         """Alert:
-        this class's handler knows the keyword of another handler,
+        this class's handler knows the keyword of another handler (args_sep),
         # whereas it shouldn't even know its own (it should use self.name)"""
         if not context['fparams']:
             return None
@@ -165,9 +202,32 @@ class DecoSettingArgs(DecoSetting_bool):
 
         msg = indent + "arguments: " + end_args_line
 
-        # A convenience function
+        # Two convenience functions
         def map_to_arg_eq_val_strs(pairs):
-            return map(lambda pair: '%s=%r' % pair, pairs)
+                return map(lambda pair: '%s=%r' % pair, pairs)
+
+        def map_to_arg_eq_val_strs_safe(pairs):
+            """
+            :param pairs: sequence of (arg, val) pairs
+            :return: list of strings `arg=val_str` where val_str is
+                        object.__repr__(val) if val is an instance currently being constructed,
+                        repr(val) otherwise
+            """
+            # Get all active instances whose __init__s are on call stack
+            # caller-of-caller-of-caller's frame
+            # caller is pre_call_handler, called by wrapper;
+            # we want to start with caller of wrapper, so skipframes=4
+            ids_objs_in_progress = self._get_all_ids_of_instances_in_progress(context, skipframes=4)
+
+            arg_eq_val_strs = []
+            for pair in pairs:
+                arg, val = pair
+                if id(val) in ids_objs_in_progress:
+                    arg_eq_val_str = '%s=%s' % (arg, object.__repr__(val))
+                else:
+                    arg_eq_val_str = '%s=%r' % pair
+                arg_eq_val_strs.append(arg_eq_val_str)
+            return arg_eq_val_strs
 
         args_vals = list(zip(context['argnames'], context['argvals']))
 
@@ -181,7 +241,7 @@ class DecoSettingArgs(DecoSetting_bool):
 
         if args_vals:
             msg += args_sep.join(
-                        map_to_arg_eq_val_strs(args_vals))
+                        map_to_arg_eq_val_strs_safe(args_vals))
         else:
             msg += "<none>"
 
@@ -708,6 +768,8 @@ class _deco_base():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
                  settings=None,
+                 _omit=tuple(),             # class deco'ing: tuple - omit these methods/inner classes
+                 _only=tuple(),             # class deco'ing: tuple - deco only these (minus any in omit)
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
@@ -769,20 +831,37 @@ class _deco_base():
         defaults_dict.update(self._changed_settings)    # defaults_dict is now no longer *that*
         self._effective_settings = defaults_dict
 
-        # 0.3.0
-        self.qualname_available = sys.version_info[0] >= 3 and sys.version_info[1] >= 3
+        def _make_sequence(names) -> tuple:
+            """names is either a string of space- and/or comma-separated umm tokens,
+            or is already a sequence of tokens.
+            Return tuple of tokens."""
+            if isinstance(names, str):
+                names = names.replace(',', ' ').split()
+            return tuple(map(str, names))
+
+        self._omit = _make_sequence(_omit)
+        self._only = _make_sequence(_only)
 
         self.prefix = prefix    # special case
         self._other_values_dict = other_values_dict     # 0.3.0
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
+
+    # Keys: attributes of properties;
+    # Vals: what users can suffix prop names with in omit & only lists
+    PROP_SUFFIXES = {'fget': 'getter',
+                     'fset': 'setter',
+                     'fdel': 'deleter'}
+
+
     def class__call__(self, cls):
         """
-        :param cls: class to decorate ALL the methods of.
+        :param cls: class to decorate ALL the methods of,
+                    including properties and methods of inner classes.
         :return: decorated class (cls - modified/operated on)
         Operate on each function in cls.
-        Use __getattribute__ to determine whether it is (/will be)
-        an instance function, a staticmethod or a classmethod;
+        Use __getattribute__ to determine whether a function is (/will be)
+        an instance method, staticmethod or classmethod;
 
         if either of the latter, get wrapped actual function (.__func__);
             if wrapped function is itself decorated by <this decorator>
@@ -798,27 +877,37 @@ class _deco_base():
                 updated with those deco_obj._changed_settings
 
         otherwise, (a non-wrapped function that will be an instance method)
+            we already have the function.
 
+        <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO TODO TODO TODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        Properties are different:
+            if type(item) == property,
+            getattr(item, '__get__').__self__ is a property object,
+            with attributes fget, fset, fdel,
+            and each of these yields the function to deal with (or None).
         """
+        ## Equivalently,
         # for name in cls.__dict__:
         #     item = cls.__getattribute__(cls, name)
+
+        # Convenience function
+        _any_match = partial(any_match, fnmatch.fnmatchcase)
+
         for name, item in vars(cls).items():
             actual_item = getattr(cls, name)
-
-            # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
-            # so don't provide it, and then it will do the right thing
-            # even on inner classes
-            ## Can't say:
-            ##    self._settings_mapping.prefix += cls.__name__ + '.'
-            ## cuz TODO? self for class case doesn't have a _settings_mapping.... YET
-
-####            self._effective_settings['prefix'] += cls.__name__ + '.'  # TODO Does this have any effect??
+            # If item is a staticmethod or classmethod,
+            # actual_item is the underlying function;
+            # if item is a function or class, actual_item is item.
+            # In all these cases, actual_item is callable.
+            # If item is a property, it's not callable, and actual_item is item.
+            if not (callable(actual_item) or type(item) == property):
+                continue
 
             #-------------------------------------------------------
             # Handle inner classes
             #-------------------------------------------------------
             if inspect.isclass(item):
-                # item is an inner class
+                # item is an inner class.
                 # decorate it, using self._changed_settings
                 # Use sentinel 'DECO_OF' attribute on cls to get those
                 deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
@@ -828,14 +917,97 @@ class _deco_base():
                     #    (copy of) self._changed_settings updated with its _changed_settings
                     new_settings.update(deco_obj._changed_settings)
 
-                new_class = self.__class__(settings=new_settings)(item)
+                # TODO??
+                # todo "omit" and "only" specified on inner classes get ignored/overridden
+                # todo What are the alternatives??
+                new_class = self.__class__(
+                    settings=new_settings,
+                    only=self._only,
+                    omit=self._omit
+                )(item)
                 # and replace in class dict
                 setattr(cls, name, new_class)
-                continue
+                continue    # for name, item in ...
+
+            #-------------------------------------------------------
+            # Handle properties
+            # Have to be able to omit or limit to only these.
+            # TODO document, write tests for this!
+            # Caller can specify, in omit or only parameters,
+            #    property_name  (matches all prop fns, get set del)
+            #    property_name + '.getter' or '.setter' or '.deleter'
+            #    name of function supplied as fget, fset, fdel arg
+            #        to property() function/constructor
+            # and/or
+            #    any of the above three, prefixed with class name
+            #    (INCLUDING possibly inner function qualifiers,
+            #     thus e.g. X.method.innerfunc.<locals>.Cls.prop.getter
+            # If property_name is given, it matches any/all of the
+            # property functions (get/set/del).
+            #-------------------------------------------------------
+            if type(item) == property:
+                # item == actual_item is a property object,
+                # also == getattr(item, '__get__').__self__ :)
+                new_funcs = {}                    # or {'fget': None, 'fset': None, 'fdel': None}
+                change = False
+                for attr in self.PROP_SUFFIXES:   # ('fget', 'fset', 'fdel')
+                    func = getattr(item, attr)
+                    # put this func in new_funcs[attr]
+                    # in case any change gets made. func == None is ok
+                    new_funcs[attr] = func
+                    if not func:
+                        continue    # for attr in (...)
+
+                    # Filter -- `omit` and `only`
+                    # 4 maybe 6 names to check
+                    # (4 cuz func.__name__ == name if @property and @propname.xxxer decos used)
+                    namelist = [pre + fn
+                                for pre in ('',
+                                            cls.__qualname__ + '.')
+                                for fn in {name,                        # varies faster than pre
+                                           name + '.' + self.PROP_SUFFIXES[attr],
+                                           func.__name__}]
+                    if _any_match(namelist, self._omit):
+                        continue
+                    if self._only and not _any_match(namelist, self._only):
+                        continue
+
+                    # get a fresh copy for each attr
+                    new_settings = self._changed_settings.copy()    # updated below
+
+                    # either func is deco'd, or it isn't
+                    deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
+                    if deco_obj:                        # it IS decorated
+                        # Tweak its deco settings
+                        new_settings.update(deco_obj._changed_settings)
+                        # update func's settings (_force_mutable=True to handle `max_history` properly)
+                        deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
+                        # ...
+                        # and use same func (func = wrapper)
+                        new_funcs[attr] = func
+                    else:                              # not deco'd
+                        # so decorate it
+                        new_funcs[attr] = self.__class__(settings=new_settings)(func)
+                        change = True
+
+                # Make new property object if anything changed
+                if change:
+                    # Replace property object in cls
+                    setattr(cls,
+                            name,
+                            property(new_funcs['fget'], new_funcs['fset'], new_funcs['fdel']))
+                continue    # for name, item in ...
 
             #-------------------------------------------------------
             # Handle instance, static, class methods
             #-------------------------------------------------------
+            # Filter with self._only and self._omit.
+            namelist = [name, cls.__qualname__ + '.' + name]
+            if _any_match(namelist, self._omit):
+                continue
+            if self._only and not _any_match(namelist, self._only):
+                continue
+
             func = None
             if type(item) == staticmethod:
                 func = actual_item              # == item.__func__
@@ -844,12 +1016,14 @@ class _deco_base():
             elif inspect.isfunction(item):
                 func = actual_item              # == item
 
-            if not func:                        # nothing we're interested in
+            if not func:                        # nothing we're interested in (whatever it is)
                 continue
 
             # It IS a method; func is the corresponding function
             deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
             new_settings = self._changed_settings.copy()    # updated below
+
+            # __init__ fixup, a nicety:
             # By default, don't log retval for __init__.
             # If user insists on it with 'log_retval=True' in __init__ deco,
             # that will override this.
@@ -913,16 +1087,10 @@ class _deco_base():
             # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            # # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
-            # # so don't provide it, and then it will do the right thing
-            # # even on inner classes
-            # TODO: Does this work properly on Py < 3.3 ?
-            if self.qualname_available:
-                self._changed_settings['prefix'] = cls.__qualname__ + '.'
-            else:
-                self._changed_settings['prefix'] = (
-                    self._changed_settings.get('prefix', '') + cls.__name__ + '.'  # TODO Py < 3.3, shouldn't it be clsname dot existing-prefix?
-                )
+            # For a **class**, set prefix = cls.__qualname__ + '.'
+            # So users shouldn't provide it, log_calls will do the right thing
+            # even on inner classes.
+            # We require Py3.3+, so __qualname__ is available.
 
             self.class__call__(cls)     # modifies cls
             # add attribute to cls: key is useful as sentinel, value is this deco
@@ -937,6 +1105,19 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # 0.3.0 -- case "f_or_cls is a function" -- namely, f
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+
+            # 0.3.0
+            self._fname = f.__name__ if '<locals>.' in f.__qualname__ else f.__qualname__
+
+
+            self._classname_of_f = '.'.join(self._fname.split('.')[:-1])
+
+            # Refuse to decorate '__repr__'s.
+            # (Maybe don't need to do this,
+            #  but it's a helluva lot easier to do it,
+            #  less confusing for users too, and a very small price to pay.)
+            if f.__name__ == '__repr__' and self._classname_of_f:
+                return f
 
             #================================================================
             # 0.3.0 -- from else to here, stuff migrated from __init__
@@ -986,7 +1167,7 @@ class _deco_base():
             #================================================================
 
             # Save signature and parameters of f
-            self.f_signature = inspect.signature(f)
+            self.f_signature = inspect.signature(f)     # Py >= 3.3
             self.f_params = self.f_signature.parameters
 
             # 0.2.4.post5 Use perf_counter if available (Py3.3+)
@@ -1063,7 +1244,9 @@ class _deco_base():
                                        int(not not do_indent and not not _enabled))
 
                 # Needed 3x:
-                prefixed_fname = _get_final_value('prefix') + f.__name__
+                # 0.3.0
+                ########## prefixed_fname = _get_final_value('prefix') + f.__name__
+                prefixed_fname = _get_final_value('prefix') + self._fname
 
                 # Stackframe hack:
                 _log_calls__active_call_items__ = {
@@ -1104,6 +1287,22 @@ class _deco_base():
                     ret = f(*args, **kwargs)
                     self._logging_state_pop()
                     return ret
+
+                # 0.3.0
+
+                if self._fname == 'Point.__repr__':     # TODO DEBUG DELETE
+                    pass                                # TODO DEBUG DELETE
+
+                # if self._class_of_f == tuple and self._classname_of_f:   # tuple: nutty 1st-time flag
+                #     try:
+                #         # have to eval self._classname_of_f in caller's context
+                #         self._class_of_f = eval(self._classname_of_f,
+                #                                 sys._getframe(1).f_globals,
+                #                                 sys._getframe(1).f_locals)
+                #         if not inspect.isclass(self._class_of_f):
+                #             self._class_of_f = None
+                #     except Exception:
+                #         self._class_of_f = None
 
                 ##~ PROFILE
                 #~ with time_block('setup_context') as profile__setup_context_init:
@@ -1490,6 +1689,8 @@ class log_calls(_deco_base):
     @used_unused_keywords()
     def __init__(self,
                  settings=None,         # 0.2.4.post2. A dict or a pathname
+                 omit=tuple(),          # class deco'ing: omit these methods/inner classes
+                 only=tuple(),          # class deco'ing: decorate only these methods/inner classes (minus any in omit)
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
@@ -1505,15 +1706,53 @@ class log_calls(_deco_base):
                  record_history=False,
                  max_history=0,
     ):
-        """(See class docstring)"""
+        """(See class docstring)
+        0.3.0
+        omit=tuple()
+            When decorating a class, specifies the methods that will NOT be decorated.
+            As for `field_names` parameter of namedtuples:
+                a single string with each name separated by whitespace and/or commas,
+                    for example 'x y' or 'x, y',
+                or a tuple/list/sequence of strings.
+            The strings themselves can be globs, i.e. can contain wildcards:
+                Pattern Meaning
+                * 	    matches everything
+                ? 	    matches any single character
+                [seq] 	matches any character in seq
+                [!seq] 	matches any character not in seq
+            * and ? can match dots, seq can be a range e.g. 0-9, a-z
+            Matching is case-sensitive, of course.
+
+            See https://docs.python.org/3/library/fnmatch.html
+
+            Can be class-prefixed e.g. C.f, or D.DI.foo,
+            or unprefixed (and then any matching method outermost or inner classes
+            will be omitted).
+            Ignored when decorating a function.
+
+        only=tuple()
+            As for `field_names` parameter of namedtuples:
+                a single string with each name separated by whitespace and/or commas,
+                    for example 'x y' or 'x, y',
+                or a tuple/list/sequence of strings.
+            When decorating a class, ONLY this/these methods, minus any in omit,
+            will be decorated.
+            Can be class-prefixed e.g. D.DI.foo,
+            or unprefixed (and then any matching method outermost or inner classes
+            will be deco'd).
+            Ignored when decorating a function.
+        """
         # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
-        if 'settings' in used_keywords_dict:
-            del used_keywords_dict['settings']
+        for kwd in ('settings', 'omit', 'only'):
+            if kwd in used_keywords_dict:
+                del used_keywords_dict[kwd]
 
         super().__init__(
             settings=settings,
+            _omit=omit,          # class deco'ing: tuple - omit these methods/inner classes
+            _only=only,          # class deco'ing: tuple - decorate only these methods/inner classes (minus any in omit)
             _used_keywords_dict=used_keywords_dict,
             enabled=enabled,
             args_sep=args_sep,

@@ -243,6 +243,88 @@ def main__lc_class_deco__immutable_setting():
     10
     """
 
+
+#=============================================================================
+# main__lc_class_deco__immutable_setting
+#=============================================================================
+MINIMAL = {}
+MINIMAL.update(
+    log_args=False, log_exit=False
+)
+
+
+def main__lc_class_deco__omit_only__basic():
+    """
+    >>> @log_calls(omit='f g', settings=MINIMAL)
+    ... class E():
+    ...     def f(self): pass
+    ...     def g(self): pass
+    ...     def h(self): pass
+    >>> e = E(); e.f(); e.g(); e.h()
+    E.h <== called by <module>
+
+    >>> @log_calls(only='f, h', settings=MINIMAL)
+    ... class F():
+    ...     def f(self): pass
+    ...     def g(self): pass
+    ...     def h(self): pass
+    >>> eff = F(); eff.f(); eff.g(); eff.h()
+    F.f <== called by <module>
+    F.h <== called by <module>
+
+    >>> @log_calls(only=['f', 'g'], omit=('g',), settings=MINIMAL)
+    ... class G():
+    ...     def f(self): pass
+    ...     def g(self): pass
+    ...     def h(self): pass
+    >>> gee = G(); gee.f(); gee.g(); gee.h()
+    G.f <== called by <module>
+    """
+    pass
+
+
+#=============================================================================
+# main__lc_class_deco__inner_classes
+#=============================================================================
+def main__lc_class_deco__inner_classes():
+    """
+Qualified (class-prefixed) names; names that match more than one method
+
+    >>> @log_calls(only=('H.HI.f', 'g'), settings=MINIMAL)
+    ... class H():
+    ...     def f(self): pass
+    ...     def g(self): pass
+    ...     def h(self): pass
+    ...     class HI():
+    ...         def f(self): pass
+    ...         def g(self): pass
+    ...         def h(self): pass
+    >>> aich = H(); aich.f(); aich.g(); aich.h()
+    H.g <== called by <module>
+    >>> hi = H.HI(); hi.f(); hi.g(); hi.h()
+    H.HI.f <== called by <module>
+    H.HI.g <== called by <module>
+
+
+    """
+    pass
+
+    #   wildcards * ?
+    # omit inner class, only inner class, only *_handler methods,
+    #   any inner class: '*.*'
+    # TODO
+
+    # wildcards [charseq] [!charseq]   (yes, ranges possible e.g. [0-9])
+    # TODO
+
+    # NOTE: Outer class's omit and only blow away any supplied to inner classes
+    # So either, use on inner class(es) only,
+    # OR just use on outer -- anything you can specify for an inner class,
+    # you can specify on the outer class too
+    # TODO - demonstrate
+
+
+
 ##############################################################################
 # end of tests.
 ##############################################################################
@@ -272,7 +354,6 @@ if __name__ == "__main__":
     # classinfo(C)
     # print('==================================================')
 
-    print('==================================================')
     doctest.testmod()   # (verbose=True)
 
     # unittest.main()

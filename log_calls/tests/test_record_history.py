@@ -168,11 +168,11 @@ caller appearing in the call chain:
     ...         for k in range(nth, 2 * nth):
     ...             record_me(a, b, k)
     >>> class Even(Base):
-    ...     @record_history(prefix='Even.')
+    ...     @record_history()
     ...     def call_it(self, n):
     ...         self.call_record_me(2*n + 1, 3*n + 1, n)
     >>> class Odd(Base):
-    ...     @record_history(prefix='Odd.')
+    ...     @record_history()
     ...     def call_it(self, n):
     ...         self.call_record_me(5*n + 1, 7*n + 1, n)
     >>> even = Even()

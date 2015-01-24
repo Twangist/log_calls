@@ -287,53 +287,26 @@ indentation level:
 
 ###[The *prefix* parameter (default - `''`): decorating methods](id:prefix-parameter)
 
-Especially useful for clarity when decorating methods, the `prefix` keyword
-parameter lets you specify a string with which to prefix the name of the
-function (or method). `log_calls` uses the prefixed name in its output: when logging
-a call to, and a return from, the function; when reporting the function's return
-value; and when the function is at the end of a [call or return chain](#Call-chains).
+********* TODO REWORK DOCS for `prefix`
 
-    >>> import math
-    >>> class Point():
-    ...     # Sometimes you can't decorate __init__.
-    ...     # __repr__ breaks if next line is uncommented.
-    ...     ## @log_calls(prefix='Point.')
-    ...     def __init__(self, x, y):
-    ...         self.x = x
-    ...         self.y = y
-    ...
-    ...     @staticmethod
-    ...     @log_calls(prefix='Point.')
-    ...     def distance(pt1, pt2):
-    ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
-    ...
-    ...     @log_calls(log_retval=True, prefix='Point.')
-    ...     def length(self):
-    ...         return self.distance(self, Point(0, 0))
-    ...
-    ...     @log_calls(prefix='Point.')
-    ...     def diag_reflect(self):
-    ...         self.x, self.y = self.y, self.x
-    ...         return self
-    ...
-    ...     def __repr__(self):
-    ...         return "Point" + str((self.x, self.y))
+    >>> @log_calls(prefix='*** ')
+    ... def f(): pass
+    >>> f()
+    *** f <== called by <module>
+    *** f ==> returning to <module>
 
-    >>> print("Point(1, 2).diag_reflect() =", Point(1, 2).diag_reflect())
-    Point.diag_reflect <== called by <module>
-        arguments: self=Point(1, 2)
-    Point.diag_reflect ==> returning to <module>
-    Point(1, 2).diag_reflect() = Point(2, 1)
+No need to manually specify *classname* + `'.'` prefix;
+any prefix you do supply is prepended to that:
 
-    >>> print("length of Point(1, 2) =", round(Point(1, 2).length(), 2))  # doctest: +ELLIPSIS
-    Point.length <== called by <module>
-        arguments: self=Point(1, 2)
-    Point.distance <== called by Point.length
-        arguments: pt1=Point(1, 2), pt2=Point(0, 0)
-    Point.distance ==> returning to Point.length
-        Point.length return value: 2.236...
-    Point.length ==> returning to <module>
-    length of Point(1, 2) = 2.24
+    >>> @log_calls(prefix='*** ')
+    ... class Cls():
+    ...     def __init__(self): pass
+    >>> c = Cls()                               # doctest: +ELLIPSIS
+    *** Cls.__init__ <== called by <module>
+        arguments: self=<test_log_calls.Cls object at 0x...>
+    *** Cls.__init__ ==> returning to <module>
+
+    >>> # TODO UPDATE THE FOLLOWING SENTENCE/PARAGRAPH (DOC)
 
 The test suite `tests/test_log_calls_more.py` contains more examples of using
 `log_calls` with methods of all kinds – instance methods, classmethods and staticmethods.
@@ -1809,16 +1782,17 @@ A_DBG_INTERNAL = 2
 #         which handles global indentation for you.
 #         Useful for verbose debugees that want their blather to align nicely
 
+
+@log_calls(args_sep=separator, enabled='A_debug=', omit='_get_wrapper')
 class A_meta(type):
     @classmethod
-    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=', log_retval=True)
+    @log_calls(log_retval=True)
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
             # TODO: Python 3.4.2 (on OS X 10.5.6 !) .__func__ not needed, in fact doesn't work SOMETIMES (?!) 
             # todo  -- how about earlier versions?
 #           # note use of .__func__ to get at decorated fn inside the classmethod
-#            logging_fn = mcs.__prepare__.__func__.log_message
             logging_fn = mcs.__prepare__.log_message
             logging_fn("    mro =", mcs.__mro__)
             logging_fn("    dict from super() = %r" % super_dict)
@@ -1826,7 +1800,6 @@ class A_meta(type):
         super_dict['key-from-__prepare__'] = 1729
         return super_dict
 
-    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         cls_members['key-from-__new__'] = "No, Hardy!"
         if A_debug >= A_DBG_INTERNAL:
@@ -1834,7 +1807,6 @@ class A_meta(type):
             logging_fn("    calling super() with cls_members =", cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
-    @log_calls(prefix='A_meta.', args_sep=separator, enabled='A_debug=')
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
             logging_fn = A_meta._get_wrapper('__init__').log_message
@@ -2061,35 +2033,35 @@ Here's a class exhibiting the full range of possibilities:
 #### [Instance method tests](id:instance-method-accessing-attrs)
 
     >>> x = X()                    # doctest: +ELLIPSIS
-    __init__ <== called by <module>
+    X.__init__ <== called by <module>
         arguments: self=<__main__.X object at ...>
         True
         1
-    __init__ ==> returning to <module>
+    X.__init__ ==> returning to <module>
 
     >>> x.my_method()               # doctest: +ELLIPSIS
-    my_method <== called by <module>
+    X.my_method <== called by <module>
         arguments: self=<__main__.X object at ...>
         2
         1
-    my_method ==> returning to <module>
+    X.my_method ==> returning to <module>
 
 #### [Class method test](id:class-method-accessing-attrs)
 
     >>> x.my_classmethod()      # or X.my_classmethod()
-    my_classmethod <== called by <module>
+    X.my_classmethod <== called by <module>
         arguments: cls=<class '__main__.X'>
         12
         1
-    my_classmethod ==> returning to <module>
+    X.my_classmethod ==> returning to <module>
 
 #### [Static method test](id:static-method-accessing-attrs)
 
     >>> x.my_staticmethod()     # or X.my_staticmethod()
-    my_staticmethod <== called by <module>
+    X.my_staticmethod <== called by <module>
         22
         1
-    my_staticmethod ==> returning to <module>
+    X.my_staticmethod ==> returning to <module>
     """
     pass
 
@@ -2109,6 +2081,80 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+    import math
+
+
+    @log_calls(indent=True)
+    class Point():
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+        @property
+        def pair(self):
+            return (self.x, self.y)
+
+        @pair.setter
+        @log_calls(prefix='set:')
+        def pair(self, pr):
+            self.x, self.y = pr
+
+        # @pair.deleter
+        # def pair(self):
+        #     print("pair.deleter called -- wouldn't know what to do.")
+
+
+        @staticmethod
+        def distance(pt1, pt2):
+            return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
+
+#        @log_calls()
+        @property
+        def norm(self):
+            return math.sqrt(self.x ** 2 + self.y ** 2)
+
+        length_ = log_calls(log_retval=True)(
+            lambda self: self.distance(Point(0, 0), self)
+        )
+
+        # @log_calls(log_retval=True)
+        # def length(self):
+        #     return self.distance(Point(0, 0), self)
+
+        def diag_reflect(self):
+            self.x, self.y = self.y, self.x
+            return self
+
+        def copy(self):
+            return Point(self.x, self.y)
+
+        def __repr__(self):
+            return "Point" + str((self.x, self.y))
+
+    p = Point(1, 2)
+    print('----------------------')
+    print("p.length_() =", p.length_())       # doctest: +ELLIPSIS
+    print('----------------------')
+    print('p.norm =', p.norm)
+
+    # print("p.__repr__.log_calls_settings.enabled ==", p.__repr__.log_calls_settings.enabled)
+    # p.__repr__.log_calls_settings.enabled = True
+    print("p.__repr__ hasattr log_calls_settings:", hasattr(p.__repr__, 'log_calls_settings'))
+    assert not hasattr(p.__repr__, 'log_calls_settings')
+
+    p_copy = p.copy()
+    print("%r.diag_reflect() =" % p_copy, p.diag_reflect())
+
+    #### print("length of %r =" % p, round(p.length(), 2))  # doctest: +ELLIPSIS
+
+    # Both getter & setter are deco'd:
+    print("p.pair =", p.pair)
+    p.pair = (100, 101)
+    print("After p.pair = (100, 101), p =", p)
+
+    exit(15)
+
 
 
     doctest.testmod()   # (verbose=True)

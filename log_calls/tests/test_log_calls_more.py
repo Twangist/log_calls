@@ -671,7 +671,7 @@ Call it:
     pass
 
 
-def main__methods__more():
+def main__methods__more():      # TODO use in docs?
     """
 ## instance methods, classmethods, staticmethods
 
@@ -680,21 +680,22 @@ def main__methods__more():
 
     >>> def g(): f()
 
-    >>> class Klass():
+    >>> @log_calls(indent=True, omit='__init__')
+    ... class Klass():
     ...     def __init__(self):
     ...         pass
     ...
-    ...     @log_calls(logger='lager=', prefix='Klass.', indent=True)
+    ...     @log_calls(logger='lager=')
     ...     def instance_method(self, **kwargs):
     ...         g()
     ...
     ...     @classmethod
-    ...     @log_calls(log_args=False, log_retval=True, prefix='Klass.', indent=True)
+    ...     @log_calls(log_args=False, log_retval=True)
     ...     def klassmethod(cls, **kwargs):
     ...         g()
     ...
     ...     @staticmethod
-    ...     @log_calls(args_sep=' + ', log_elapsed=True, prefix='Klass.', indent=True)
+    ...     @log_calls(args_sep=' + ', log_elapsed=True)
     ...     def statikmethod(x, y, **kwargs):
     ...         g()
 
