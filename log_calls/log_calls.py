@@ -1107,7 +1107,16 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
             # 0.3.0
-            self._fname = f.__name__ if '<locals>.' in f.__qualname__ else f.__qualname__
+            # self._fname = f.__name__ if '<locals>.' in f.__qualname__ else f.__qualname__
+            # TODO Try using __qualname__ ALL the time
+            self._fname = f.__qualname__
+
+            # TODO add new parameter `name`, which can optionally be an (old-style) format string
+            # We use:
+            #   try:
+            #       self.screen_name = (name % self._fname)
+            #   except TypeError:
+            #       self.screen_name = name
 
 
             self._classname_of_f = '.'.join(self._fname.split('.')[:-1])

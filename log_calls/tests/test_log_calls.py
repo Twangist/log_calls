@@ -590,14 +590,14 @@ that it has decorated:
     ...     h4()()
     >>> h5()
     h5 <== called by <module>
-        h4_inner <== called by h5
-            h1_inner <== called by h2 <== h3 <== h4_inner
+        h4.<locals>.h4_inner <== called by h5
+            h1.<locals>.h1_inner <== called by h2 <== h3 <== h4.<locals>.h4_inner
                 arguments: y=3
-                h0 <== called by h1_inner
+                h0 <== called by h1.<locals>.h1_inner
                     arguments: z=6
-                h0 ==> returning to h1_inner
-            h1_inner ==> returning to h2 ==> h3 ==> h4_inner
-        h4_inner ==> returning to h5
+                h0 ==> returning to h1.<locals>.h1_inner
+            h1.<locals>.h1_inner ==> returning to h2 ==> h3 ==> h4.<locals>.h4_inner
+        h4.<locals>.h4_inner ==> returning to h5
     h5 ==> returning to <module>
 
 ... even when the inner function is called from within the outer function
@@ -618,10 +618,10 @@ it's defined in:
     ...     j2()
     >>> j3()
     j3 <== called by <module>
-        j2_inner <== called by j2 <== j3
-            j0 <== called by j1 <== j2_inner
-            j0 ==> returning to j1 ==> j2_inner
-        j2_inner ==> returning to j2 ==> j3
+        j2.<locals>.j2_inner <== called by j2 <== j3
+            j0 <== called by j1 <== j2.<locals>.j2_inner
+            j0 ==> returning to j1 ==> j2.<locals>.j2_inner
+        j2.<locals>.j2_inner ==> returning to j2 ==> j3
     j3 ==> returning to <module>
 
 ###Call chains and *log_call_numbers*
@@ -1976,12 +1976,12 @@ Similarly, an inner function can just do the usual thing:
     outer: Before call to inner:
         its call number (inner.stats.num_calls_logged) = 0
         its elapsed_secs_logged = 0.0
-    inner <== called by outer
+    outer.<locals>.inner <== called by outer
         arguments: y=6
         inner.log_calls_settings.enabled = 7
-        inner: call number 1
-        inner: elapsed_secs_logged = 0.0
-    inner ==> returning to outer
+        outer.<locals>.inner: call number 1
+        outer.<locals>.inner: elapsed_secs_logged = 0.0
+    outer.<locals>.inner ==> returning to outer
     outer: After call to inner:
         its call number = 1
         its elapsed_secs_logged = ...

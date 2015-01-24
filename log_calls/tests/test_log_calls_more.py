@@ -662,10 +662,10 @@ def main__inner_functions__more():
 Call it:
 
     >>> inn()
-    inner <== called by <module>
-    f <== called by g <== inner
-    f ==> returning to g ==> inner
-    inner ==> returning to <module>
+    outer.<locals>.inner <== called by <module>
+    f <== called by g <== outer.<locals>.inner
+    f ==> returning to g ==> outer.<locals>.inner
+    outer.<locals>.inner ==> returning to <module>
 
     """
     pass
