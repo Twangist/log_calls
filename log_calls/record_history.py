@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.6'
+__version__ = '0.3.0'
 
 from .deco_settings import DecoSetting, DecoSettingsMapping
 from .log_calls import _deco_base, DecoSettingHistory
@@ -23,15 +23,32 @@ class record_history(_deco_base):
 
     # 0.2.6 Fix: use decorator:
     @used_unused_keywords()
-    def __init__(self, enabled=True, prefix='', max_history=0):
+    def __init__(self,
+                 omit=tuple(),      # 0.3.0 class deco'ing: omit these methods/inner classes
+                 only=tuple(),      # 0.3.0 class deco'ing: decorate only these methods/inner classes (minus any in omit)
+                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 enabled=True,
+                 prefix='',
+                 max_history=0):
         # 0.2.6 get used_keywords_dict and pass to super().__init__
         used_keywords_dict = record_history.__dict__['__init__'].get_used_keywords()
-        super().__init__(_used_keywords_dict=used_keywords_dict,
-                         enabled=enabled,
-                         prefix=prefix,
-                         max_history=max_history,
-                         indent=False,              # p.i.t.a. that this is here :|
-                         log_call_numbers=True,     # for call chain in history record
+        # 0.3.0 but first, ditch parameters that aren't settings
+        for kwd in ('omit', 'only', 'name'):
+            if kwd in used_keywords_dict:
+                del used_keywords_dict[kwd]
+
+        super().__init__(
+# TODO delete if impossible for record_history to deco __repr__ (TODO: investigate)
+#            _suppress_repr=False,   # 0.3.0 record_history *can* decorate __repr__
+            _omit=omit,             # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
+            _only=only,             # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (minus omit)
+            _name_param=name,       # 0.3.0 name or oldstyle fmt str etc.
+            _used_keywords_dict=used_keywords_dict,
+            enabled=enabled,
+            prefix=prefix,
+            max_history=max_history,
+            indent=False,              # p.i.t.a. that this is here :|
+            log_call_numbers=True,     # for call chain in history record
         )
 
     @classmethod

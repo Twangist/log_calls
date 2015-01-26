@@ -1954,7 +1954,7 @@ Similarly, an inner function can just do the usual thing:
 
     >>> @log_calls()
     ... def outer(x):
-    ...     @log_calls(enabled=7)
+    ...     @log_calls(name='%s', enabled=7)
     ...     def inner(y):
     ...         inner.log_message("inner.log_calls_settings.enabled =", inner.log_calls_settings.enabled)
     ...         inner.log_message("call number", inner.stats.num_calls_logged, prefix_with_name=True)
@@ -1969,6 +1969,9 @@ Similarly, an inner function can just do the usual thing:
     ...     outer.log_message("its call number =", inner.stats.num_calls_logged)
     ...     outer.log_message("its elapsed_secs_logged =", inner.stats.elapsed_secs_logged)
 
+We specified `name='%s'` in the decorator of `inner` so that the function's
+display name will be just `inner` and not `outer.<locals>.inner`:
+
     >>> outer(3)                # doctest: +ELLIPSIS
     outer <== called by <module>
         arguments: x=3
@@ -1976,12 +1979,12 @@ Similarly, an inner function can just do the usual thing:
     outer: Before call to inner:
         its call number (inner.stats.num_calls_logged) = 0
         its elapsed_secs_logged = 0.0
-    outer.<locals>.inner <== called by outer
+    inner <== called by outer
         arguments: y=6
         inner.log_calls_settings.enabled = 7
-        outer.<locals>.inner: call number 1
-        outer.<locals>.inner: elapsed_secs_logged = 0.0
-    outer.<locals>.inner ==> returning to outer
+        inner: call number 1
+        inner: elapsed_secs_logged = 0.0
+    inner ==> returning to outer
     outer: After call to inner:
         its call number = 1
         its elapsed_secs_logged = ...

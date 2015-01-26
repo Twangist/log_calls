@@ -12,6 +12,8 @@ VERSIONS
         If an inner class is already deco'd, the settings it
         supplies override those given at the outer class level :)
 
+        TODO Test record_history as a class deco
+
       - New keyword parameters (NOT "settings")
         omit
             string or tuple of strings.
@@ -48,19 +50,60 @@ VERSIONS
         #   any inner class: '*.*'
 
         TODO test more/thoroughly -- test_log_calls__class_deco.py
+        TODO test for record_history
         TODO document this
 
-        TODO Make `prefix` mutable in record_history deco
+      - added `name` parameter (functions only, ignored for classes), NOT a setting,
+        giving display name of function:
+        We now use __qualname__ ALL the time, unless user provides `name=display_name_str`
+        where `display_name_str` is either the name to be used for the fn in logged output,
+        or is an oldstyle format str into which f.__name__ will be substituted
+        to obtain the display name.
+        Useful if you find the qualnames of inner functions and methods cluttered,
+        and want to use just, say, "inner_fn" instead of "outer_fn.<locals>.inner_fn"
+        TODO tests/examples for this
+        > one test/example in `[Inner function accessing its attributes](id:inner-function-accessing-attrs)`
+        > TODO do more tests/examples
+        > TODO test with record_history
 
-        TODO Test record_history as a class deco
+      - added 'log_exprs(*exprs, sep=', ',
+                     extra_indent_level=1, prefix_with_name=False)
+        method, callable just like log_message
+        Intention is, provide an easy way to print out variables & expressions + their values
+        log_exprs evaluates each expr in the context of the caller,
+        so you can just pass it (quoted) variables and expressions
+        TODO tests/examples
+
+      - add `mute` setting: like enabled, int valued (but really, 3-valued):
+        log_calls.MUTE_NOT      (default -- all output produced)
+        log_calls.MUTE_CALLS    (mute output from decorated functions & methods & properties,
+                                 but log_message and log_exprs produce output;
+                                 call # recording, history recording continue if enabled)
+        log_calls.MUTE_ALL      (no output at all; but call # recording, history recording continue if enabled)
+
+        > 0 -- normal behavior, not mute (default)
+
+
+      - `prefix` mutable in record_history deco (done? -- it was)
+
       - changes to repr handling in "Arguments: ..."
         objects that are still in construction (active __init__) use object.__repr__
         otherwise straightup repr.
         See "class Point" example for illustration.
 
+        when displaying object arguments, log_calls (and record_history)
+        use the stock __repr__ method of `object` for objects still in
+        construction, i.e. whose __init__ methods are still running/
+        /still active/haven't yet returned/still on call stack.
+        This is true for all objects, instances of classes whether they're deco'd OR NOT
+        TODO illustrate with example/test..... (there's one in temptemp.py)
+
       - you cannot decorate repr with log_calls
+        TODO but you can with record_history
+        related to the above __repr__ handling
 
         TODO make it possible to deco it with record_history
+        TODO TEST that it's impossible with log_calls, possible with record_history
 
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
         to apply to already-deco'd methods :)

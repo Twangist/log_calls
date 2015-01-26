@@ -411,7 +411,6 @@ class _deco_base():
     _sentinels_proto = {
         'SENTINEL_ATTR': '_$_%s_sentinel_',             # name of attr
         'SENTINEL_VAR': "_$_%s-deco'd",
-        'PREFIXED_NAME': '_$_f_%s-prefixed-name',       # name of attr
         'WRAPPER_FN_OBJ': '_$_f_%s_wrapper_-BACKPTR',   # LATE ADDITION
         'DECO_OF': '_$_f_%s_wrapper_-or-cls-DECO'       # value = self (0.3.0)
     }
@@ -649,6 +648,28 @@ class _deco_base():
         self._indent_len.pop()
         self._output_fname.pop()
 
+    def _log_exprs(self, *exprs, sep=', ',
+                     extra_indent_level=1, prefix_with_name=False):
+        """Evaluates each expression (str) in exprs in the context of the caller;
+        makes string from each, expr = val,
+        pass those strs to _log_message.
+        :param exprs:
+        :param sep: as for _log_message
+        :param extra_indent_level: as for _log_message
+        :param prefix_with_name: as for _log_message
+        """
+        if not exprs:
+            return
+        msgs = []
+        caller_frame = sys._getframe(1)
+        for expr in exprs:
+            val = eval(expr, caller_frame.f_globals, caller_frame.f_locals)
+            msgs.append('%s = %s' % (expr, val))
+        self._log_message(*msgs,
+                          sep=sep,
+                          extra_indent_level=extra_indent_level,
+                          prefix_with_name=prefix_with_name)
+
     def _log_message(self, msg, *msgs, sep=' ',
                      extra_indent_level=1, prefix_with_name=False):
         """Signature much like that of print, such is the intent.
@@ -768,8 +789,9 @@ class _deco_base():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
                  settings=None,
-                 _omit=tuple(),             # class deco'ing: tuple - omit these methods/inner classes
-                 _only=tuple(),             # class deco'ing: tuple - deco only these (minus any in omit)
+                 _omit=tuple(),             # 0.3.0 class deco'ing: str or seq - omit these methods/proper; not a setting
+                 _only=tuple(),             # 0.3.0 class deco'ing: str or seq - deco only these (sans any in omit); not a setting
+                 _name_param=None,          # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
@@ -842,7 +864,8 @@ class _deco_base():
         self._omit = _make_sequence(_omit)
         self._only = _make_sequence(_only)
 
-        self.prefix = prefix    # special case
+        self.prefix = prefix                # special case
+        self._name_param = _name_param
         self._other_values_dict = other_values_dict     # 0.3.0
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
@@ -1107,19 +1130,23 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
             # 0.3.0
-            # self._fname = f.__name__ if '<locals>.' in f.__qualname__ else f.__qualname__
-            # TODO Try using __qualname__ ALL the time
-            self._fname = f.__qualname__
+            # Use __qualname__ ALL the time, unless user provides `name=display_name_str`
+            # where `display_name_str` is either the name to be used for the fn in logged output,
+            # or is an oldstyle format str into which f.__name__ will be substituted
+            # to obtain the display name.
+            # TODO DELETE UNUSED:
+            ## self._fname = f.__qualname__
 
-            # TODO add new parameter `name`, which can optionally be an (old-style) format string
-            # We use:
-            #   try:
-            #       self.screen_name = (name % self._fname)
-            #   except TypeError:
-            #       self.screen_name = name
+            # and setup f_display_name
+            if self._name_param:
+                try:
+                    self.f_display_name = (self._name_param % f.__name__)
+                except TypeError:
+                    self.f_display_name = self._name_param
+            else:
+                self.f_display_name = f.__qualname__
 
-
-            self._classname_of_f = '.'.join(self._fname.split('.')[:-1])
+            self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
 
             # Refuse to decorate '__repr__'s.
             # (Maybe don't need to do this,
@@ -1255,7 +1282,7 @@ class _deco_base():
                 # Needed 3x:
                 # 0.3.0
                 ########## prefixed_fname = _get_final_value('prefix') + f.__name__
-                prefixed_fname = _get_final_value('prefix') + self._fname
+                prefixed_fname = _get_final_value('prefix') + self.f_display_name
 
                 # Stackframe hack:
                 _log_calls__active_call_items__ = {
@@ -1296,22 +1323,6 @@ class _deco_base():
                     ret = f(*args, **kwargs)
                     self._logging_state_pop()
                     return ret
-
-                # 0.3.0
-
-                if self._fname == 'Point.__repr__':     # TODO DEBUG DELETE
-                    pass                                # TODO DEBUG DELETE
-
-                # if self._class_of_f == tuple and self._classname_of_f:   # tuple: nutty 1st-time flag
-                #     try:
-                #         # have to eval self._classname_of_f in caller's context
-                #         self._class_of_f = eval(self._classname_of_f,
-                #                                 sys._getframe(1).f_globals,
-                #                                 sys._getframe(1).f_locals)
-                #         if not inspect.isclass(self._class_of_f):
-                #             self._class_of_f = None
-                #     except Exception:
-                #         self._class_of_f = None
 
                 ##~ PROFILE
                 #~ with time_block('setup_context') as profile__setup_context_init:
@@ -1452,12 +1463,6 @@ class _deco_base():
                 self._sentinels['SENTINEL_ATTR'],
                 self._sentinels['SENTINEL_VAR']
             )
-            # Add prefixed name of f as an attribute
-            setattr(
-                f,      # revert to f, after trying f_log_calls_wrapper_
-                self._sentinels['PREFIXED_NAME'],
-                self.prefix + f.__name__
-            )
             # A back-pointer
             setattr(
                 f,
@@ -1495,6 +1500,13 @@ class _deco_base():
                 'log_message',
                 self._log_message,
             )
+            # 0.3.0
+            setattr(
+                f_log_calls_wrapper_,
+                'log_exprs',
+                self._log_exprs,
+            )
+
             return f_log_calls_wrapper_
             #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             # end else (case "f_or_cls is a function")
@@ -1526,12 +1538,6 @@ class _deco_base():
                     # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                     # Fixup: get name of wrapped function
                     inner_fn = curr_frame.f_locals['f']
-                    ### 0.3.0  NOT:
-                    # call_list[-1] = getattr(inner_fn,
-                    #                         cls._sentinels['PREFIXED_NAME'])
-                    ### BUT RATHER (so we can get rid of cls._sentinels['PREFIXED_NAME']
-                    ### AND on the theory that this gets overwritten anyway,
-                    ###  after inner loop ("if found")
                     call_list[-1] = inner_fn.__name__       # ~ placeholder
 
                     wrapper_frame = curr_frame
@@ -1571,6 +1577,7 @@ class _deco_base():
                 if hasattr(curr_fn, cls._sentinels['SENTINEL_ATTR']):
                     found = True
                     break   # inner loop
+
                 curr_frame = curr_frame.f_back
 
             # If found, then call_list[-1] is log_calls-wrapped
@@ -1697,9 +1704,10 @@ class log_calls(_deco_base):
 
     @used_unused_keywords()
     def __init__(self,
-                 settings=None,         # 0.2.4.post2. A dict or a pathname
-                 omit=tuple(),          # class deco'ing: omit these methods/inner classes
-                 only=tuple(),          # class deco'ing: decorate only these methods/inner classes (minus any in omit)
+                 settings=None,     # 0.2.4.post2. A dict or a pathname
+                 omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
+                 only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
+                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
@@ -1750,18 +1758,30 @@ class log_calls(_deco_base):
             or unprefixed (and then any matching method outermost or inner classes
             will be deco'd).
             Ignored when decorating a function.
+        name
+            We now use __qualname__ ALL the time as the display name of a function or method
+            (the name used for the fn in logged output),
+            UNLESS the user provides `name=display_name_str`
+            where `display_name_str` is either the name to be used for the fn in logged output,
+            or is an oldstyle format str into which f.__name__ will be substituted
+            to obtain the display name.
+            Useful e.g. to suppress the clutter of qualnames of inner functions and methods:
+            to use just, say, "inner_fn" instead of "outer_fn.<locals>.inner_fn",
+            supply `name='%s'`.
+            Ignored when decorating a class.
         """
         # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
-        for kwd in ('settings', 'omit', 'only'):
+        for kwd in ('settings', 'omit', 'only', 'name'):
             if kwd in used_keywords_dict:
                 del used_keywords_dict[kwd]
 
         super().__init__(
             settings=settings,
-            _omit=omit,          # class deco'ing: tuple - omit these methods/inner classes
-            _only=only,          # class deco'ing: tuple - decorate only these methods/inner classes (minus any in omit)
+            _omit=omit,             # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
+            _only=only,             # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (sans omit)
+            _name_param=name,       # 0.3.0 name or oldstyle fmt str etc.
             _used_keywords_dict=used_keywords_dict,
             enabled=enabled,
             args_sep=args_sep,
