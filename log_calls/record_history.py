@@ -16,6 +16,7 @@ class record_history(_deco_base):
         # visible:
         DecoSettingHistory('enabled'),  # alias "record_history" in log_calls
         DecoSetting('prefix',           str,  '',     allow_falsy=True, allow_indirect=False),
+        DecoSetting('mute',             int,  False,  allow_falsy=True, visible=False),  # 0.3.0
         DecoSetting('max_history',      int,  0,      allow_falsy=True, mutable=False),
     )
     DecoSettingsMapping.register_class_settings('record_history',    # name of this class. DRY - oh well.
@@ -38,14 +39,13 @@ class record_history(_deco_base):
                 del used_keywords_dict[kwd]
 
         super().__init__(
-# TODO delete if impossible for record_history to deco __repr__ (TODO: investigate)
-#            _suppress_repr=False,   # 0.3.0 record_history *can* decorate __repr__
-            _omit=omit,             # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
-            _only=only,             # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (minus omit)
-            _name_param=name,       # 0.3.0 name or oldstyle fmt str etc.
+            _omit=omit,        # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
+            _only=only,        # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (minus omit)
+            _name_param=name,  # 0.3.0 name or oldstyle fmt str etc.
             _used_keywords_dict=used_keywords_dict,
             enabled=enabled,
             prefix=prefix,
+            mute=False,
             max_history=max_history,
             indent=False,              # p.i.t.a. that this is here :|
             log_call_numbers=True,     # for call chain in history record

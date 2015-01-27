@@ -406,6 +406,16 @@ class _deco_base():
                                    value <= 0 --> unboundedly many records are stored.
     """
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # constants for the `mute` setting
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    class mute():
+        NOTHING = False     # (default -- all output produced)
+        CALLS = True        # (mute output from decorated functions & methods & properties,
+                            #  but log_message and thus log_exprs produce output;
+                            #  call # recording, history recording continue if enabled)
+        ALL = -1            # (no output at all; but call # recording, history recording continue if enabled)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # sentinels, for identifying functions on the calls stack
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     _sentinels_proto = {
@@ -638,15 +648,25 @@ class _deco_base():
                     caller_chain=caller_chain)
         )
 
+    # 0.3.0
+    def _enabled_state_push(self, enabled):
+        self._enabled_stack.append(enabled)
+
+    # 0.3.0
+    def _enabled_state_pop(self):
+        self._enabled_stack.pop()
+
     def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
         self._logging_fn.append(logging_fn)
         self._indent_len.append(global_indent_len)
         self._output_fname.append(output_fname)
 
-    def _logging_state_pop(self):
+    def _logging_state_pop(self, enabled_too=False):
         self._logging_fn.pop()
         self._indent_len.pop()
         self._output_fname.pop()
+        if enabled_too:
+            self._enabled_state_pop()
 
     def _log_exprs(self, *exprs, sep=', ',
                      extra_indent_level=1, prefix_with_name=False):
@@ -696,6 +716,20 @@ class _deco_base():
         self._output_fname[-1] is the function's possibly prefixed name,
             + possibly [its call #]
         """
+        # do nothing unless enabled! cuz then the other 'stack' accesses will blow up
+        if self._enabled_stack[-1] <= 0:    # disabled
+            return
+
+        # 0.3.0
+        # Write nothing if output is stifled (caller is NOT f_log_calls_wrapper_)
+        mute = self._settings_mapping['mute']
+        if mute == self.mute.ALL:
+            return
+        # adjust for calls not being logged -- don't indent an extra level
+        #  (no 'log_calls frame', no 'arguments:' to align with)
+        if mute == self.mute.CALLS:
+            extra_indent_level -= 1
+
         logging_fn = self._logging_fn[-1]
         indent_len = (self._indent_len[-1] +
                       + (extra_indent_level * self.INDENT)
@@ -797,6 +831,7 @@ class _deco_base():
                  log_call_numbers=False,
                  indent=False,
                  prefix='',
+                 mute=False,
                  ** other_values_dict):
         """(See class docstring)
         _used_keywords_dict: passed by subclass via super().__init__:
@@ -869,13 +904,11 @@ class _deco_base():
         self._other_values_dict = other_values_dict     # 0.3.0
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
-
     # Keys: attributes of properties;
     # Vals: what users can suffix prop names with in omit & only lists
     PROP_SUFFIXES = {'fget': 'getter',
                      'fset': 'setter',
                      'fdel': 'deleter'}
-
 
     def class__call__(self, cls):
         """
@@ -935,18 +968,24 @@ class _deco_base():
                 # Use sentinel 'DECO_OF' attribute on cls to get those
                 deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
                 new_settings = self._changed_settings.copy()
+                new_only = self._only
+                new_omit = self._omit
                 if deco_obj:    # cls is already decorated
                     # It IS already deco'd, so we want its settings to be
                     #    (copy of) self._changed_settings updated with its _changed_settings
                     new_settings.update(deco_obj._changed_settings)
+                    # TODO / TRY THIS
+                    # NOTICE WHAT THIS DOES:
+                    # inner "only" is what was originally given IF SOMETHING WAS GIVEN
+                    #     -- DON'T add outer ones -- otherwise, use the outer ones;
+                    # inner "omit" is cumulative -- DO add outer ones
+                    new_only = deco_obj._only or self._only
+                    new_omit += deco_obj._omit
 
-                # TODO??
-                # todo "omit" and "only" specified on inner classes get ignored/overridden
-                # todo What are the alternatives??
                 new_class = self.__class__(
                     settings=new_settings,
-                    only=self._only,
-                    omit=self._omit
+                    only=new_only,
+                    omit=new_omit
                 )(item)
                 # and replace in class dict
                 setattr(cls, name, new_class)
@@ -984,6 +1023,7 @@ class _deco_base():
                     # Filter -- `omit` and `only`
                     # 4 maybe 6 names to check
                     # (4 cuz func.__name__ == name if @property and @propname.xxxer decos used)
+                    dont_decorate = False
                     namelist = [pre + fn
                                 for pre in ('',
                                             cls.__qualname__ + '.')
@@ -991,23 +1031,31 @@ class _deco_base():
                                            name + '.' + self.PROP_SUFFIXES[attr],
                                            func.__name__}]
                     if _any_match(namelist, self._omit):
-                        continue
+                        dont_decorate = True
                     if self._only and not _any_match(namelist, self._only):
-                        continue
+                        dont_decorate = True
 
                     # get a fresh copy for each attr
                     new_settings = self._changed_settings.copy()    # updated below
 
                     # either func is deco'd, or it isn't
                     deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
+
+                    if dont_decorate:
+                        if deco_obj:
+                            new_funcs[attr] = deco_obj.f  # Undecorate
+                            change = True
+                        continue
+
                     if deco_obj:                        # it IS decorated
                         # Tweak its deco settings
                         new_settings.update(deco_obj._changed_settings)
                         # update func's settings (_force_mutable=True to handle `max_history` properly)
                         deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
                         # ...
-                        # and use same func (func = wrapper)
-                        new_funcs[attr] = func
+                        # and use same func ( = wrapper)
+                        # We already did this above:
+                        #   new_funcs[attr] = func
                     else:                              # not deco'd
                         # so decorate it
                         new_funcs[attr] = self.__class__(settings=new_settings)(func)
@@ -1025,11 +1073,12 @@ class _deco_base():
             # Handle instance, static, class methods
             #-------------------------------------------------------
             # Filter with self._only and self._omit.
+            dont_decorate = False
             namelist = [name, cls.__qualname__ + '.' + name]
             if _any_match(namelist, self._omit):
-                continue
+                dont_decorate = True
             if self._only and not _any_match(namelist, self._only):
-                continue
+                dont_decorate = True
 
             func = None
             if type(item) == staticmethod:
@@ -1044,6 +1093,11 @@ class _deco_base():
 
             # It IS a method; func is the corresponding function
             deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
+            if dont_decorate:
+                if deco_obj:
+                    setattr(cls, name, deco_obj.f)  # Undecorate
+                continue
+
             new_settings = self._changed_settings.copy()    # updated below
 
             # __init__ fixup, a nicety:
@@ -1053,8 +1107,7 @@ class _deco_base():
             if name == '__init__':
                 new_settings['log_retval'] = False
 
-            # is func deco'd by this decorator?
-            if deco_obj:
+            if deco_obj:        # is func deco'd by this decorator?
                 # Yes. Figure out settings for func,
                 new_settings.update(deco_obj._changed_settings)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
@@ -1110,11 +1163,6 @@ class _deco_base():
             # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            # For a **class**, set prefix = cls.__qualname__ + '.'
-            # So users shouldn't provide it, log_calls will do the right thing
-            # even on inner classes.
-            # We require Py3.3+, so __qualname__ is available.
-
             self.class__call__(cls)     # modifies cls
             # add attribute to cls: key is useful as sentinel, value is this deco
             setattr(
@@ -1134,10 +1182,9 @@ class _deco_base():
             # where `display_name_str` is either the name to be used for the fn in logged output,
             # or is an oldstyle format str into which f.__name__ will be substituted
             # to obtain the display name.
-            # TODO DELETE UNUSED:
-            ## self._fname = f.__qualname__
+            # We require Py3.3+, so __qualname__ is available.
 
-            # and setup f_display_name
+            # setup f_display_name
             if self._name_param:
                 try:
                     self.f_display_name = (self._name_param % f.__name__)
@@ -1198,6 +1245,8 @@ class _deco_base():
             self._logging_fn = []     # stack
             self._indent_len = []     # stack
             self._output_fname = []   # stack
+            self._enabled_stack = []  # # 0.3.0 - um, stack
+
             #----------------------------------------------------------------
             # 0.3.0 -- from else to here, stuff migrated from __init__
             #================================================================
@@ -1206,14 +1255,9 @@ class _deco_base():
             self.f_signature = inspect.signature(f)     # Py >= 3.3
             self.f_params = self.f_signature.parameters
 
-            # 0.2.4.post5 Use perf_counter if available (Py3.3+)
-            try:
-                from time import perf_counter, process_time
-                wall_time_fn = perf_counter
-                CPU_time_fn = process_time
-            except ImportError:
-                wall_time_fn = \
-                CPU_time_fn = time.time
+            # 0.3.0 We assume Py3.3 so we use perf_counter, process_time all the time
+            wall_time_fn = time.perf_counter
+            CPU_time_fn = time.process_time
 
             ##~ PROFILE
             # self.profile__ = OrderedDict((
@@ -1255,9 +1299,14 @@ class _deco_base():
                 # must be set before calling f.
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 _enabled = _get_final_value('enabled')
+                # 0.3.0 in case f calls log_message (no output if f disabled)
+                self._enabled_state_push(_enabled)
+
                 # 0.2.4.post5 "true bypass": if 'enabled' < 0 then scram
                 if _enabled < 0:
-                    return f(*args, **kwargs)
+                    ret = f(*args, **kwargs)
+                    self._enabled_state_pop()
+                    return ret
 
                 # Bump call counters, before calling fn.
                 # Note: elapsed_secs, CPU_secs not reflected yet of course
@@ -1321,7 +1370,7 @@ class _deco_base():
                 # (_xxx variables set, ok to call f)
                 if not _enabled:
                     ret = f(*args, **kwargs)
-                    self._logging_state_pop()
+                    self._logging_state_pop(enabled_too=True)
                     return ret
 
                 ##~ PROFILE
@@ -1385,23 +1434,27 @@ class _deco_base():
                     difference_update(kwargs.copy(), context['explicit_kwargs'])
                 # END profile__setup_context_kwargs_dicts
 
+                # 0.3.0
+                mute = _get_final_value('mute')
+
                 ##~ PROFILE
                 #~ with time_block('pre_call_handlers') as profile__pre_call_handlers:
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # Call pre-call handlers, collect nonempty return values
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                pre_msgs = []
-                for setting_name in self._settings_mapping._pre_call_handlers:  # keys
-                    if _get_final_value(setting_name):
-                        info = self._settings_mapping._get_DecoSetting(setting_name)
-                        msg = info.pre_call_handler(context)
-                        if msg:
-                            pre_msgs.append(msg)
+                if not mute:        # 0.3.0
+                    pre_msgs = []
+                    for setting_name in self._settings_mapping._pre_call_handlers:  # keys
+                        if _get_final_value(setting_name):
+                            info = self._settings_mapping._get_DecoSetting(setting_name)
+                            msg = info.pre_call_handler(context)
+                            if msg:
+                                pre_msgs.append(msg)
 
-                # Write pre-call messages
-                if logging_fn:
-                    for msg in pre_msgs:
-                        self._log_message(msg, extra_indent_level=0)
+                    # Write pre-call messages
+                    if logging_fn:
+                        for msg in pre_msgs:
+                            self._log_message(msg, extra_indent_level=0)
                 # END profile__pre_call_handlers
 
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1427,20 +1480,21 @@ class _deco_base():
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # Call post-call handlers, collect nonempty return values
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                post_msgs = []
-                for setting_name in self._settings_mapping._post_call_handlers:  # keys
-                    if _get_final_value(setting_name):
-                        info = self._settings_mapping._get_DecoSetting(setting_name)
-                        msg = info.post_call_handler(context)
-                        if msg:
-                            post_msgs.append(msg)
+                if not mute:        # 0.3.0
+                    post_msgs = []
+                    for setting_name in self._settings_mapping._post_call_handlers:  # keys
+                        if _get_final_value(setting_name):
+                            info = self._settings_mapping._get_DecoSetting(setting_name)
+                            msg = info.post_call_handler(context)
+                            if msg:
+                                post_msgs.append(msg)
 
-                # Write post-call messages
-                if logging_fn:
-                    for msg in post_msgs:
-                        self._log_message(msg, extra_indent_level=0)
+                    # Write post-call messages
+                    if logging_fn:
+                        for msg in post_msgs:
+                            self._log_message(msg, extra_indent_level=0)
 
-                self._logging_state_pop()
+                self._logging_state_pop(enabled_too=True)
                 # END profile__post_call_handlers
 
                 ##~ PROFILE
@@ -1695,6 +1749,8 @@ class log_calls(_deco_base):
         DecoSettingLogger('logger',          (logging.Logger,
                                               str),          None,          allow_falsy=True),
         DecoSetting_int('loglevel',          int,            logging.DEBUG, allow_falsy=False),
+        DecoSetting_int('mute',              int,            False,         allow_falsy=True,
+                        allow_indirect=False, mutable=True),
         DecoSettingHistory('record_history'),
         DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
                         allow_indirect=False, mutable=False),
@@ -1720,6 +1776,7 @@ class log_calls(_deco_base):
                  file=None,    # detectable value so we late-bind to sys.stdout
                  logger=None,
                  loglevel=logging.DEBUG,
+                 mute=False,
                  record_history=False,
                  max_history=0,
     ):
@@ -1795,6 +1852,7 @@ class log_calls(_deco_base):
             file=file,
             logger=logger,
             loglevel=loglevel,
+            mute=mute,
             record_history=record_history,
             max_history=max_history,
         )

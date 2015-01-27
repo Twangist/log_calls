@@ -10,5 +10,6 @@ prefix=''
 file=None
 logger='logger_='
 loglevel=10
+mute=False
 record_history=False
 max_history=57

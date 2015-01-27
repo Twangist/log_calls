@@ -1,7 +1,8 @@
 VERSIONS
 --------
 0.3.0
-      - log_calls can now decorate classes -- all methods in a class,
+      - log_calls can now decorate classes -- all methods in a class
+        (whether instance methods, classmethods or staticmethods),
         all inner classes and properties too.
         settings given for the class decorator (via settings= and/or
         keyword parameters) apply to every method.
@@ -11,6 +12,8 @@ VERSIONS
         Works for *** inner classes *** too, in the same fashion:
         If an inner class is already deco'd, the settings it
         supplies override those given at the outer class level :)
+
+        Methods and properties DON'T get doubly decorated :)
 
         TODO Test record_history as a class deco
 
@@ -42,14 +45,19 @@ VERSIONS
             or unprefixed (and then any matching method/inner class will be deco'd)
             Ignored when decorating a function.
 
-        # NOTE: Outer class's `omit` and `only` blow away any supplied to inner classes
-        # So either, use on inner class(es) only,
-        # OR just use on outer -- anything you can specify for an inner class,
-        # you can specify on the outer class too
+            Inner `only` overrides outer `only --
+                inner "only" is just what the inner class says to decorate,
+                    * PROVIDED is specifies something * -- methods from outer class are NOT added;
+                    otherwise, the methods from the outer `only` are used;
+            inner `omit` is added to outer `omit`.
+                    # inner "omit" is cumulative -- DO add outer ones
 
-        #   any inner class: '*.*'
+            Methods/properties (even specific property handlers (get/set/del))
+                that are decorated individually and are NOT on `only` list
+                will get UNdecorated;
+            methods/properties that are decorated at inner class level
+                can be UNdecorated if omitted by outer class
 
-        TODO test more/thoroughly -- test_log_calls__class_deco.py
         TODO test for record_history
         TODO document this
 
@@ -61,28 +69,45 @@ VERSIONS
         to obtain the display name.
         Useful if you find the qualnames of inner functions and methods cluttered,
         and want to use just, say, "inner_fn" instead of "outer_fn.<locals>.inner_fn"
-        TODO tests/examples for this
         > one test/example in `[Inner function accessing its attributes](id:inner-function-accessing-attrs)`
         > TODO do more tests/examples
         > TODO test with record_history
+        TODO document
 
       - added 'log_exprs(*exprs, sep=', ',
                      extra_indent_level=1, prefix_with_name=False)
-        method, callable just like log_message
+        method, callable just like log_message -- it's an attribute of deco'd function.
         Intention is, provide an easy way to print out variables & expressions + their values
         log_exprs evaluates each expr in the context of the caller,
         so you can just pass it (quoted) variables and expressions
-        TODO tests/examples
+        TODO tests/examples (there's one; do more?)
+        TODO document
 
-      - add `mute` setting: like enabled, int valued (but really, 3-valued):
-        log_calls.MUTE_NOT      (default -- all output produced)
-        log_calls.MUTE_CALLS    (mute output from decorated functions & methods & properties,
+      - add `mute` setting: 3-valued:
+        log_calls.mute.NOTHING  (default -- all output produced)
+        alias False
+        log_calls.mute.CALLS    (mute output from decorated functions & methods & properties,
                                  but log_message and log_exprs produce output;
                                  call # recording, history recording continue if enabled)
-        log_calls.MUTE_ALL      (no output at all; but call # recording, history recording continue if enabled)
+        alias True
+        log_calls.mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
+        alias -1
 
-        > 0 -- normal behavior, not mute (default)
+        mutable, but NOT allow_indirect: log_message has to be able to get the value,
+        and then doesn't have access to the args to f (if f is not enabled, and only kludgily, if f is enabled)
+        TODO implement
+        TODO write tests
+        TODO document
 
+      - Little fix: if f is disabled, log_message would (/could) blow up.
+        log_message now produces no output if f is not enabled.
+
+      - TODO DOCUMENT that we REQUIRE Python 3.3+ (__qualname__ now,
+             and already we used inspect.signature so in fact we already require 3.3+)
+        TODO can we check Py version in setup.py AND FAIL if version too low?
+
+      - TODO Change docs to reflect that we always use perf_counter and process_time,
+             cuz we assume Py3.3+ so they're "available"
 
       - `prefix` mutable in record_history deco (done? -- it was)
 
@@ -102,7 +127,7 @@ VERSIONS
         TODO but you can with record_history
         related to the above __repr__ handling
 
-        TODO make it possible to deco it with record_history
+        TODO make it possible to deco it with record_history (possible? TODO figure out)
         TODO TEST that it's impossible with log_calls, possible with record_history
 
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
@@ -113,22 +138,10 @@ VERSIONS
         TODO test it -- dynamically change 'prefix' in various ways, test
         todo    at both ends of call chains
 
-      - always suppress return value on __init__
+      - suppress return value on __init__
         Explicit "log_retval=True" on method overrides that.
 
       - prefix works for inner classes too (Outer.Inner.foo)
-        TODO: Test with Py <= 3.2
-            # For a **class**, prefix is suffixed (!) with cls.__name__ + '.'
-            # so don't provide it, and then it will do the right thing
-            # even on inner classes
-            ## Can't say:
-            ##    self._settings_mapping.prefix += cls.__name__ + '.'
-            ## cuz TODO? self for class case doesn't have a _settings_mapping.... YET
-
-        Py3.3+ -- prefix on outermost class ignored (class. is used)
-         prefix specified for methods prevails;
-         prefix on inner classes *probably* prevails too  (but, TODO -- test/check)
-         TODO what happens on Py3.2?
 
       - record_history wasn't using @used_unused_keywords for
         __init__, and wasn't passing its used_keywords, so prefix was

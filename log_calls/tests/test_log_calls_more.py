@@ -445,6 +445,7 @@ Verify the settings:
      'file': None,
      'logger': 'logger_',
      'loglevel': 10,
+     'mute': False,
      'record_history': False,
      'max_history': 57}
 
@@ -502,6 +503,7 @@ Let's examine the settings:
      'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
      'logger': 'star3_logger',
      'loglevel': 10,
+     'mute': False,
      'record_history': False,
      'max_history': 0}
 
@@ -582,6 +584,7 @@ Let's use this troubled settings file and examine the resulting settings:
      'file': None,
      'logger': None,
      'loglevel': 10,
+     'mute': False,
      'record_history': False,
      'max_history': 0}
 
@@ -620,6 +623,7 @@ Verify that `f`'s settings are as expected:
      'file': None,
      'logger': 'logger_',
      'loglevel': 10,
+     'mute': False,
      'record_history': False,
      'max_history': 57}
 

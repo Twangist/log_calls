@@ -1,9 +1,6 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.1.14'
+__version__ = '0.3.0'
 
-from log_calls import record_history
-
-import unittest
 
 from unittest import TestCase
 

@@ -894,7 +894,7 @@ write settings using the `log_calls` keywords as keys:
 The `log_calls_settings` attribute has a length:
 
     >>> len(f.log_calls_settings)
-    14
+    15
 
 Its keys and items can be iterated through:
 
@@ -905,16 +905,15 @@ Its keys and items can be iterated through:
      'log_retval', 'log_elapsed', 'log_exit',
      'indent', 'log_call_numbers',
      'prefix', 'file',
-     'logger', 'loglevel',
+     'logger', 'loglevel', 'mute',
      'record_history', 'max_history']
-    >>> items = []
-    >>> for k, v in f.log_calls_settings.items(): items.append((k, v))
-    >>> items                                           # doctest: +NORMALIZE_WHITESPACE
+    >>> list(f.log_calls_settings.items())              # doctest: +NORMALIZE_WHITESPACE
     [('enabled', False),   ('args_sep', ', '),    ('log_args', True),
      ('log_retval', True), ('log_elapsed', True), ('log_exit', True),
      ('indent', False),         ('log_call_numbers', False),
      ('prefix', ''),            ('file', None),
      ('logger', None),          ('loglevel', 10),
+     ('mute', False),
      ('record_history', False), ('max_history', 0)]
 
 You can use `in` to test for key membership:
@@ -1006,6 +1005,7 @@ but using `as_dict()` is sufficient):
                  ('indent', False),           ('log_call_numbers', False),
                  ('prefix', ''),              ('file', None),
                  ('logger', None),            ('loglevel', 10),
+                 ('mute', False),
                  ('record_history', False),   ('max_history', 0)])
 
 change settings temporarily:

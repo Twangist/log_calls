@@ -245,7 +245,7 @@ def main__lc_class_deco__immutable_setting():
 
 
 #=============================================================================
-# main__lc_class_deco__immutable_setting
+# main__lc_class_deco__omit_only__basic
 #=============================================================================
 MINIMAL = {}
 MINIMAL.update(
@@ -305,25 +305,312 @@ Qualified (class-prefixed) names; names that match more than one method
     H.HI.f <== called by <module>
     H.HI.g <== called by <module>
 
+Wildcard '*'
+Omitting all/any inner classes with '*.*.*':
+# NOTE: qualname will *always* match '*.*' so can't use that to filter for inner classes
+
+    >>> @log_calls(omit='*.*.*', settings=MINIMAL)
+    ... class O():
+    ...     def f(self): pass
+    ...     class I1():
+    ...         def g1(self): pass
+    ...     class I2():
+    ...         def g2(self): pass
+    >>> O().f(); O.I1().g1(); O.I2().g2()
+    O.f <== called by <module>
+
+Only '*_handler' methods:
+
+    >>> @log_calls(only='*_handler', settings=MINIMAL)
+    ... class O():
+    ...     def f(self): pass
+    ...     def my_handler(self): pass
+    ...     def their_handler(self): pass
+    ...     class I1():
+    ...         def g1(self): pass
+    ...         def some_handler(self): pass
+    ...     class I2():
+    ...         def another_handler(self): pass
+    ...         def g2(self): pass
+    >>> oh = O(); oh.f(); oh.my_handler(); oh.their_handler()
+    O.my_handler <== called by <module>
+    O.their_handler <== called by <module>
+    >>> ohi1 = O.I1(); ohi1.g1(); ohi1.some_handler()
+    O.I1.some_handler <== called by <module>
+    >>> ohi2 = O.I2(); ohi2.another_handler(); ohi2.g2()
+    O.I2.another_handler <== called by <module>
+
+Wildcard '?':
+
+    >>> @log_calls(only='f_ab?', settings=MINIMAL)
+    ... class X():
+    ...     def f_ab(self): pass
+    ...     def f_abc(self): pass
+    ...     def f_abd(self): pass
+    >>> x = X(); x.f_ab(); x.f_abc(); x.f_abd()
+    X.f_abc <== called by <module>
+    X.f_abd <== called by <module>
+
+Character sets and ranges
+
+Match characters in set:
+
+    >>> @log_calls(only='g_ab[cd]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters in range:
+
+    >>> @log_calls(only='g_ab[a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters not in range
+
+    >>> @log_calls(only='g_ab[!a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_ab7_and_more <== called by <module>
+
+Inner `only` overrides outer `only`
+In I1, only g1 is decorated, despite the outer class's `only` specifier:
+
+    >>> @log_calls(only='*_handler', settings=MINIMAL)
+    ... class O():
+    ...     def f(self): pass
+    ...     def my_handler(self): pass
+    ...     def their_handler(self): pass
+    ...     @log_calls(only='g1')
+    ...     class I1():
+    ...         def g1(self): pass
+    ...         def some_handler(self): pass
+    >>> ohi1 = O.I1(); ohi1.g1(); ohi1.some_handler()
+    O.I1.g1 <== called by <module>
+
+Inner `omit` is added to outer `omit`
+
+    >>> @log_calls(omit='*_handler', settings=MINIMAL)
+    ... class O():
+    ...     def f(self): pass
+    ...     def my_handler(self): pass
+    ...     def their_handler(self): pass
+    ...     @log_calls(omit='*_function')
+    ...     class I1():
+    ...         def g1(self): pass
+    ...         def some_handler(self): pass
+    ...         def some_function(self): pass
+    >>> ohi1 = O.I1(); ohi1.g1(); ohi1.some_handler(); ohi1.some_function()
+    O.I1.g1 <== called by <module>
+    """
+    pass
+
+
+#=============================================================================
+# main__lc_class_deco__undecorate_methods
+#=============================================================================
+def main__lc_class_deco__undecorate_methods():
+    """
+Topmost-class level:
+
+    >>> @log_calls(omit='f', settings=MINIMAL)
+    ... class O():
+    ...     @log_calls()
+    ...     def f(self): pass
+    >>> O().f()         # (no output)
+
+    >>> @log_calls(only='g', settings=MINIMAL)
+    ... class O():
+    ...     @log_calls()
+    ...     def f(self): pass
+    ...     def g(self): pass
+    >>> O().f(); O().g()
+    O.g <== called by <module>
+
+Inner class:
+
+    >>> @log_calls(omit='f', settings=MINIMAL)
+    ... class O():
+    ...     @log_calls(omit='g')
+    ...     class I():
+    ...         def f(self): pass
+    ...         def g(self): pass
+    >>> O.I().f(); O.I().g()        # (no output)
+
+    >>> @log_calls(only='f', settings=MINIMAL)
+    ... class O():
+    ...     @log_calls(only='g')
+    ...     class I():
+    ...         def f(self): pass
+    ...         def g(self): pass
+    >>> O.I().f(); O.I().g()
+    O.I.g <== called by <module>
 
     """
     pass
 
-    #   wildcards * ?
-    # omit inner class, only inner class, only *_handler methods,
-    #   any inner class: '*.*'
-    # TODO
 
-    # wildcards [charseq] [!charseq]   (yes, ranges possible e.g. [0-9])
-    # TODO
+#=============================================================================
+# main__lc_class_deco__undecorate_properties
+#=============================================================================
+def main__lc_class_deco__undecorate_entire_property():
+    """
+Property specified via decorator:
+    Top-level:
+        - only
+    >>> @log_calls(only='f', settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @property
+    ...     @log_calls()
+    ...     def prop(self): pass
+    ...     @prop.setter
+    ...     @log_calls()
+    ...     def prop(self, val): pass
+    >>> A().f(); A().prop; A().prop = 17
+    A.f <== called by <module>
 
-    # NOTE: Outer class's omit and only blow away any supplied to inner classes
-    # So either, use on inner class(es) only,
-    # OR just use on outer -- anything you can specify for an inner class,
-    # you can specify on the outer class too
-    # TODO - demonstrate
+        - omit
+    >>> @log_calls(omit='prop', log_exit=False)
+    ... class A():
+    ...     @property
+    ...     @log_calls()
+    ...     def prop(self): pass
+    ...     @prop.setter
+    ...     @log_calls()
+    ...     def prop(self, val): pass
+    >>> A().prop; A().prop = 17     # (no output)
+
+    Inner class:
+        - only
+    >>> @log_calls(only='f', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         @property
+    ...         def prop(self): pass
+    ...         @prop.setter
+    ...         def prop(self, val): pass
+    >>> A.I().f(); A.I().prop; A.I().prop = 17
+    A.I.f <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls(omit='f')
+    ...     class I():
+    ...         def f(self): pass
+    ...         @property
+    ...         def prop(self): pass
+    ...         @prop.setter
+    ...         def prop(self, val): pass
+    >>> A.I().f(); A.I().prop; A.I().prop = 17  # (no output)
+
+Property specified via property():
+    Top-level:
+        (FIRST, here's what happens without `only` or `omit`):
+    >>> @log_calls(settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @log_calls()
+    ...     def prop_get(self): pass
+    ...     @log_calls()
+    ...     def prop_set(self, val): pass
+    ...     prop = property(prop_get, prop_set)
+    >>> A().f(); A().prop; A().prop = 17
+    A.f <== called by <module>
+    A.prop_get <== called by <module>
+    A.prop_set <== called by <module>
+
+        - only
+    >>> @log_calls(only='f', settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @log_calls()
+    ...     def prop_get(self): pass
+    ...     @log_calls()
+    ...     def prop_set(self, val): pass
+    ...     prop = property(prop_get, prop_set)
+    >>> A().f(); A().prop; A().prop = 17
+    A.f <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop', settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @log_calls()
+    ...     def prop_get(self): pass
+    ...     @log_calls()
+    ...     def prop_set(self, val): pass
+    ...     prop = property(prop_get, prop_set)
+    >>> A().f(); A().prop; A().prop = 17
+    A.f <== called by <module>
 
 
+    Inner class:
+        - only
+    >>> @log_calls(only='f', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         def prop_get(self): pass
+    ...         def prop_set(self, val): pass
+    ...         prop = property(prop_get, prop_set)
+    >>> A.I().f(); A.I().prop; A.I().prop = 17
+    A.I.f <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         def prop_get(self): pass
+    ...         def prop_set(self, val): pass
+    ...         prop = property(prop_get, prop_set)
+    >>> A.I().f(); A.I().prop; A.I().prop = 17
+    A.I.f <== called by <module>
+
+    """
+    pass
+
+
+#=============================================================================
+# main__lc_class_deco__undecorate_property_attrs
+#=============================================================================
+# TODO: resume. Certain prop methods, prop.getter .setter .deleter
+# todo  as well as by fn name when using property() (can use BOTH naming styles then -- illustrate)
+
+def main__lc_class_deco__undecorate_property_attrs():
+    """
+    """
+    pass
+
+
+#   certain of them
+#       omit= 'propname.getter'
+#           -  @property ... @property.setter ...
+#           -  def my_setter(self)... my_getter(self)... my_deleter(self)...;
+#              propname = property(my_setter, my_getter, my_deleter)
+#       only = 'propname.setter'
+#           -  @property ... @property.setter ...
+#           -  def my_setter(self)... my_getter(self)... my_deleter(self)...;
+#              propname = property(my_setter, my_getter, my_deleter)
+#
 
 ##############################################################################
 # end of tests.
@@ -351,6 +638,20 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+    # @log_calls(omit='prop', log_exit=False)
+    # class A():
+    #     @property
+    #     @log_calls()
+    #     def prop(self): pass
+    #     @prop.setter
+    #     @log_calls(args_sep='\\n')
+    #     def prop(self, val): pass
+    # A().prop        # (no output)
+    # A().prop = 17   # (no output)
+
+    pass
+
     # classinfo(C)
     # print('==================================================')
 
