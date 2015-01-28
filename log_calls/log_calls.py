@@ -683,8 +683,11 @@ class _deco_base():
         msgs = []
         caller_frame = sys._getframe(1)
         for expr in exprs:
-            val = eval(expr, caller_frame.f_globals, caller_frame.f_locals)
-            msgs.append('%s = %s' % (expr, val))
+            try:
+                val = eval(expr, caller_frame.f_globals, caller_frame.f_locals)
+            except Exception as e:  # (SyntaxError, NameError, IndexError, ...)
+                val = '<** ' + str(e) + ' **>'
+            msgs.append('%s = %r' % (expr, val))
         self._log_message(*msgs,
                           sep=sep,
                           extra_indent_level=extra_indent_level,
@@ -726,9 +729,11 @@ class _deco_base():
         if mute == self.mute.ALL:
             return
         # adjust for calls not being logged -- don't indent an extra level
-        #  (no 'log_calls frame', no 'arguments:' to align with)
+        #  (no 'log_calls frame', no 'arguments:' to align with),
+        #  and prefix with display name cuz there's no log_calls "frame"
         if mute == self.mute.CALLS:
             extra_indent_level -= 1
+            prefix_with_name = True
 
         logging_fn = self._logging_fn[-1]
         indent_len = (self._indent_len[-1] +

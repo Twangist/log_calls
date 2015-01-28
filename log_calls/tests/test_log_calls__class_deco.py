@@ -120,7 +120,7 @@ main__lc_class_deco__all_method_types.__doc__ = \
 
 
 #=============================================================================
-# main__lc_class_deco__all_method_types
+# main__lc_class_deco__inner_classes
 #=============================================================================
 
 #-----------------------
@@ -284,9 +284,9 @@ def main__lc_class_deco__omit_only__basic():
 
 
 #=============================================================================
-# main__lc_class_deco__inner_classes
+# main__lc_class_deco__omit_only__inner_classes
 #=============================================================================
-def main__lc_class_deco__inner_classes():
+def main__lc_class_deco__omit_only__inner_classes():
     """
 Qualified (class-prefixed) names; names that match more than one method
 
@@ -385,7 +385,7 @@ Match characters not in range
     >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
     Y.g_ab7_and_more <== called by <module>
 
-Inner `only` overrides outer `only`
+When provided and nonempty, inner `only` overrides outer `only`
 In I1, only g1 is decorated, despite the outer class's `only` specifier:
 
     >>> @log_calls(only='*_handler', settings=MINIMAL)
@@ -399,6 +399,23 @@ In I1, only g1 is decorated, despite the outer class's `only` specifier:
     ...         def some_handler(self): pass
     >>> ohi1 = O.I1(); ohi1.g1(); ohi1.some_handler()
     O.I1.g1 <== called by <module>
+
+If inner class has no `only` [or if it's an empty string or empty tuple or empty list],
+`only` from the outer class applies:
+
+    >>> @log_calls(only='*_handler', settings=MINIMAL)
+    ... class O():
+    ...     def f(self): pass
+    ...     def my_handler(self): pass
+    ...     def their_handler(self): pass
+    ...     @log_calls(log_exit=True)
+    ...     class I1():
+    ...         def g1(self): pass
+    ...         def some_handler(self): pass
+    >>> ohi1 = O.I1(); ohi1.g1(); ohi1.some_handler()
+    O.I1.some_handler <== called by <module>
+    O.I1.some_handler ==> returning to <module>
+
 
 Inner `omit` is added to outer `omit`
 
@@ -483,7 +500,7 @@ Property specified via decorator:
     A.f <== called by <module>
 
         - omit
-    >>> @log_calls(omit='prop', log_exit=False)
+    >>> @log_calls(omit='prop')
     ... class A():
     ...     @property
     ...     @log_calls()
@@ -529,11 +546,14 @@ Property specified via property():
     ...     def prop_get(self): pass
     ...     @log_calls()
     ...     def prop_set(self, val): pass
-    ...     prop = property(prop_get, prop_set)
-    >>> A().f(); A().prop; A().prop = 17
+    ...     @log_calls()
+    ...     def prop_del(self): pass
+    ...     prop = property(prop_get, prop_set, prop_del)
+    >>> A().f(); A().prop; A().prop = 17; del A().prop
     A.f <== called by <module>
     A.prop_get <== called by <module>
     A.prop_set <== called by <module>
+    A.prop_del <== called by <module>
 
         - only
     >>> @log_calls(only='f', settings=MINIMAL)
@@ -592,68 +612,139 @@ Property specified via property():
 #=============================================================================
 # main__lc_class_deco__undecorate_property_attrs
 #=============================================================================
-# TODO: resume. Certain prop methods, prop.getter .setter .deleter
-# todo  as well as by fn name when using property() (can use BOTH naming styles then -- illustrate)
-
 def main__lc_class_deco__undecorate_property_attrs():
     """
+Property specified via decorator:
+    Top-level:
+        - only
+    >>> @log_calls(only='prop.getter', settings=MINIMAL)
+    ... class A():
+    ...     @property
+    ...     def prop(self): pass
+    ...     @prop.setter
+    ...     @log_calls()
+    ...     def prop(self, val): pass
+    >>> A().prop; A().prop = 17
+    A.prop <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop.setter', settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @property
+    ...     @log_calls(name='A.%s.getter')
+    ...     def prop(self): pass
+    ...     @prop.setter
+    ...     @log_calls()
+    ...     def prop(self, val): pass
+    >>> A().f(); A().prop; A().prop = 17
+    A.f <== called by <module>
+    A.prop.getter <== called by <module>
+
+    Inner class:
+        - only
+    >>> @log_calls(only='prop.deleter', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         @property
+    ...         def prop(self): pass
+    ...         @prop.setter
+    ...         def prop(self, val): pass
+    ...         @prop.deleter
+    ...         @log_calls(name='A.I.%s.deleter')
+    ...         def prop(self): pass
+    >>> A.I().f(); A.I().prop; A.I().prop = 17; del A.I().prop
+    A.I.prop.deleter <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop.setter prop.deleter', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls(omit='f')
+    ...     class I():
+    ...         def f(self): pass
+    ...         @property
+    ...         def prop(self): pass
+    ...         @prop.setter
+    ...         def prop(self, val): pass
+    ...         @prop.deleter
+    ...         def prop(self): pass
+    >>> A.I().f(); A.I().prop; A.I().prop = 17; del A.I().prop
+    A.I.prop <== called by <module>
+
+Property specified via property():
+    Top-level:
+        - only [OBSERVE, uses both ways of referring to the property attrs]
+    >>> @log_calls(only='prop_get prop.deleter', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     def prop_get(self): pass
+    ...     @log_calls()
+    ...     def prop_set(self, val): pass
+    ...     @log_calls()
+    ...     def prop_del(self): pass
+    ...     prop = property(prop_get, prop_set, prop_del)
+    >>> A().prop; A().prop = 17; del A().prop
+    A.prop_get <== called by <module>
+    A.prop_del <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop_get', settings=MINIMAL)
+    ... class A():
+    ...     def f(self): pass
+    ...     @log_calls()
+    ...     def prop_get(self): pass
+    ...     @log_calls()
+    ...     def prop_del(self): pass
+    ...     prop = property(prop_get, None, prop_del)
+    >>> A().f(); A().prop; del A().prop
+    A.f <== called by <module>
+    A.prop_del <== called by <module>
+
+    Inner class:
+        - only
+    >>> @log_calls(only='prop.getter', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         def prop_get(self): pass
+    ...         def prop_set(self, val): pass
+    ...         prop = property(prop_get, prop_set)
+    >>> A.I().f(); A.I().prop; A.I().prop = 17
+    A.I.prop_get <== called by <module>
+
+        - omit
+    >>> @log_calls(omit='prop_get', settings=MINIMAL)
+    ... class A():
+    ...     @log_calls()
+    ...     class I():
+    ...         def f(self): pass
+    ...         def prop_get(self): pass
+    ...         def prop_set(self, val): pass
+    ...         prop = property(prop_get, prop_set)
+    >>> A.I().f(); A.I().prop; A.I().prop = 17
+    A.I.f <== called by <module>
+    A.I.prop_set <== called by <module>
     """
     pass
 
 
-#   certain of them
-#       omit= 'propname.getter'
-#           -  @property ... @property.setter ...
-#           -  def my_setter(self)... my_getter(self)... my_deleter(self)...;
-#              propname = property(my_setter, my_getter, my_deleter)
-#       only = 'propname.setter'
-#           -  @property ... @property.setter ...
-#           -  def my_setter(self)... my_getter(self)... my_deleter(self)...;
-#              propname = property(my_setter, my_getter, my_deleter)
-#
-
 ##############################################################################
 # end of tests.
 ##############################################################################
-# import inspect
-#
-#
-# def classinfo(cls):
-#     for name in cls.__dict__:
-#         item = getattr(cls, name)
-#         print(name, ' -- ', item)
-#         if inspect.ismethoddescriptor(item): print("\tismethoddescriptor")
-#         elif inspect.ismemberdescriptor(item): print("\tismemberdescriptor")
-#         elif inspect.ismethod(item): print("\tismethod")
-#         raw_item = cls.__getattribute__(cls, name)
-#         if type(raw_item) in (staticmethod, classmethod) or inspect.isfunction(raw_item):
-#             print("\t%s" % type(raw_item))
 
 
-##############################################################################
+#-----------------------------------------------------------------------------
 # For unittest integration
+#-----------------------------------------------------------------------------
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests
 
 
 if __name__ == "__main__":
-
-    # @log_calls(omit='prop', log_exit=False)
-    # class A():
-    #     @property
-    #     @log_calls()
-    #     def prop(self): pass
-    #     @prop.setter
-    #     @log_calls(args_sep='\\n')
-    #     def prop(self, val): pass
-    # A().prop        # (no output)
-    # A().prop = 17   # (no output)
-
-    pass
-
-    # classinfo(C)
-    # print('==================================================')
 
     doctest.testmod()   # (verbose=True)
 
