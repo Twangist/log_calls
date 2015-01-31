@@ -675,7 +675,7 @@ Call it:
     pass
 
 
-def main__methods__more():      # TODO use in docs?
+def main__methods__more():
     """
 ## instance methods, classmethods, staticmethods
 

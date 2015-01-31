@@ -295,8 +295,9 @@ indentation level:
     *** f <== called by <module>
     *** f ==> returning to <module>
 
-No need to manually specify *classname* + `'.'` prefix;
-any prefix you do supply is prepended to that:
+For methods, you don't need to manually specify a *classname* + `'.'` prefix:
+the classname is, by default, part of the display name used for the method.
+Any prefix you do supply is prepended to that:
 
     >>> @log_calls(prefix='*** ')
     ... class Cls():
@@ -306,10 +307,10 @@ any prefix you do supply is prepended to that:
         arguments: self=<test_log_calls.Cls object at 0x...>
     *** Cls.__init__ ==> returning to <module>
 
-    >>> # TODO UPDATE THE FOLLOWING SENTENCE/PARAGRAPH (DOC)
-
-The test suite `tests/test_log_calls_more.py` contains more examples of using
-`log_calls` with methods of all kinds – instance methods, classmethods and staticmethods.
+The test suites `tests/test_log_calls_more.py`, `tests/test_log_calls__class_deco.py`
+and `tests/test_log_calls_v30_minor_features_fixes.py` contains more examples of using
+`log_calls` with methods of all kinds – instance methods, classmethods and staticmethods,
+and properties.
 
 ###[The *file* parameter (default - *sys.stdout*)](id:file-parameter)
 The `file` parameter specifies a stream (an instance of `io.TextIOBase`) to which
@@ -1790,9 +1791,7 @@ class A_meta(type):
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
-            # TODO: Python 3.4.2 (on OS X 10.5.6 !) .__func__ not needed, in fact doesn't work SOMETIMES (?!) 
-            # todo  -- how about earlier versions?
-#           # note use of .__func__ to get at decorated fn inside the classmethod
+            # TODO .__func__ not needed? anymore?
             logging_fn = mcs.__prepare__.log_message
             logging_fn("    mro =", mcs.__mro__)
             logging_fn("    dict from super() = %r" % super_dict)

@@ -105,7 +105,7 @@ CallRecord = namedtuple(
 #     kwargs
 #-----------------------------------------------------------------------------
 
-# TODO 0.2.6, possible `context` setting:  - - - - - - - - - - - - - - - - - -
+# TODO 0.3.x, possible `context` setting:  - - - - - - - - - - - - - - - - - -
 # todo  context key/vals that would be of interest to wrapped functions:
 #     settings
 #     stats
@@ -450,6 +450,8 @@ class _deco_base():
     #     DecoSetting_bool(  'indent',           bool, False, allow_falsy=True),
     #     DecoSetting_bool(  'log_call_numbers', bool, False, allow_falsy=True),
     #     DecoSetting_str(   'prefix',           str,  '',    allow_falsy=True,  allow_indirect=False)
+    #     # and (example args; record_history adds visible=False):
+    #     DecoSetting(       'mute',             int,  False, allow_falsy=True,  allow_indirect=False)
     # )
     # DecoSettingsMapping.register_class_settings('_deco_base',
     #                                             _setting_info_list)
@@ -488,6 +490,18 @@ class _deco_base():
         This enforces the rule that the descriptor names / attrs
         are the same for all (deco) instances, i.e. that they 're class-level."""
         return cls._method_descriptor_names
+
+    # 0.3.0
+    @classmethod
+    def allow_repr(cls) -> bool:
+        """Subclass must say yay or nay"""
+        raise NotImplementedError
+
+    # 0.3.0
+    @classmethod
+    def fixup_for_init(cls, some_settings: dict):
+        """Default: do nothing"""
+        return
 
     # A few generic properties, internal logging, and exposed
     # as descriptors on the stats (ClassInstanceAttrProxy) obj
@@ -649,6 +663,13 @@ class _deco_base():
         )
 
     # 0.3.0
+    LoggingState = namedtuple("LoggingState",
+                              ('logging_fn',
+                               'indent_len',
+                               'output_fname',
+                               'mute'))
+
+    # 0.3.0
     def _enabled_state_push(self, enabled):
         self._enabled_stack.append(enabled)
 
@@ -656,15 +677,13 @@ class _deco_base():
     def _enabled_state_pop(self):
         self._enabled_stack.pop()
 
-    def _logging_state_push(self, logging_fn, global_indent_len, output_fname):
-        self._logging_fn.append(logging_fn)
-        self._indent_len.append(global_indent_len)
-        self._output_fname.append(output_fname)
+    def _logging_state_push(self, logging_fn, global_indent_len, output_fname, mute):
+        self.logging_state_stack.append(
+            self.LoggingState(logging_fn, global_indent_len, output_fname, mute)
+        )
 
     def _logging_state_pop(self, enabled_too=False):
-        self._logging_fn.pop()
-        self._indent_len.pop()
-        self._output_fname.pop()
+        self.logging_state_stack.pop()
         if enabled_too:
             self._enabled_state_pop()
 
@@ -724,8 +743,9 @@ class _deco_base():
             return
 
         # 0.3.0
+        logging_state = self.logging_state_stack[-1]
         # Write nothing if output is stifled (caller is NOT f_log_calls_wrapper_)
-        mute = self._settings_mapping['mute']
+        mute = logging_state.mute
         if mute == self.mute.ALL:
             return
         # adjust for calls not being logged -- don't indent an extra level
@@ -735,8 +755,7 @@ class _deco_base():
             extra_indent_level -= 1
             prefix_with_name = True
 
-        logging_fn = self._logging_fn[-1]
-        indent_len = (self._indent_len[-1] +
+        indent_len = (logging_state.indent_len +
                       + (extra_indent_level * self.INDENT)
                      )
         if indent_len < 0:
@@ -744,8 +763,8 @@ class _deco_base():
         the_msgs = (msg,) + msgs
         the_msg = sep.join(map(str, the_msgs))
         if prefix_with_name:
-            the_msg = self._output_fname[-1] + ': ' + the_msg
-        logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
+            the_msg = logging_state.output_fname + ': ' + the_msg
+        logging_state.logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
 
     def _read_settings_file(self, settings_path=''):
         """If settings_path names a file that exists,
@@ -979,11 +998,10 @@ class _deco_base():
                     # It IS already deco'd, so we want its settings to be
                     #    (copy of) self._changed_settings updated with its _changed_settings
                     new_settings.update(deco_obj._changed_settings)
-                    # TODO / TRY THIS
                     # NOTICE WHAT THIS DOES:
                     # inner "only" is what was originally given IF SOMETHING WAS GIVEN
                     #     -- DON'T add outer ones -- otherwise, use the outer ones;
-                    # inner "omit" is cumulative -- DO add outer ones
+                    # inner "omit" is cumulative, union -- DO add outer ones
                     new_only = deco_obj._only or self._only
                     new_omit += deco_obj._omit
 
@@ -998,8 +1016,7 @@ class _deco_base():
 
             #-------------------------------------------------------
             # Handle properties
-            # Have to be able to omit or limit to only these.
-            # TODO document, write tests for this!
+            #
             # Caller can specify, in omit or only parameters,
             #    property_name  (matches all prop fns, get set del)
             #    property_name + '.getter' or '.setter' or '.deleter'
@@ -1110,7 +1127,7 @@ class _deco_base():
             # If user insists on it with 'log_retval=True' in __init__ deco,
             # that will override this.
             if name == '__init__':
-                new_settings['log_retval'] = False
+                self.fixup_for_init(new_settings)
 
             if deco_obj:        # is func deco'd by this decorator?
                 # Yes. Figure out settings for func,
@@ -1120,7 +1137,11 @@ class _deco_base():
             else:
                 # func is not deco'd.
                 # decorate it, using self._changed_settings
-                new_func = self.__class__(settings=new_settings)(func)
+                # TODO record_history doesn't know from 'settings' param,
+                # cuz it really doesn't need one, so this:
+                ##### new_func = self.__class__(settings=new_settings)(func)
+                # fails. So try:
+                new_func = self.__class__(** new_settings)(func)
 
                 # if necessary, rewrap with @classmethod or @staticmethod
                 if type(item) == staticmethod:
@@ -1200,11 +1221,8 @@ class _deco_base():
 
             self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
 
-            # Refuse to decorate '__repr__'s.
-            # (Maybe don't need to do this,
-            #  but it's a helluva lot easier to do it,
-            #  less confusing for users too, and a very small price to pay.)
-            if f.__name__ == '__repr__' and self._classname_of_f:
+            # Refuse to decorate '__repr__' if subclass doesn't allow it.
+            if f.__name__ == '__repr__' and self._classname_of_f and not self.allow_repr():
                 return f
 
             #================================================================
@@ -1247,10 +1265,9 @@ class _deco_base():
             # 0.2.2.post1
             # stack(s), pushed & popped wrapper of deco'd function
             # by _logging_state_push, _logging_state_pop
-            self._logging_fn = []     # stack
-            self._indent_len = []     # stack
-            self._output_fname = []   # stack
-            self._enabled_stack = []  # # 0.3.0 - um, stack
+            # 0.3.0 convert to pushing/popping single namedtuples
+            self.logging_state_stack = []    # 0.3.0 stack of LoggingState namedtuples
+            self._enabled_stack = []         # 0.3.0 - um, stack, of 'enabled's
 
             #----------------------------------------------------------------
             # 0.3.0 -- from else to here, stuff migrated from __init__
@@ -1364,12 +1381,15 @@ class _deco_base():
                                    if _log_call_numbers else '')
                 output_fname = prefixed_fname + call_number_str
 
+                # 0.3.0
+                mute = _get_final_value('mute')
+
                 # 0.2.2 -- self._log_message() will use
                 # the logging_fn, indent_len and output_fname at top of these stacks;
                 # thus, verbose functions should use log_message to write their blather.
                 # There are parallel stacks of these,
                 # used by self._log_message(), maintained in this wrapper.
-                self._logging_state_push(logging_fn, global_indent_len, output_fname)
+                self._logging_state_push(logging_fn, global_indent_len, output_fname, mute)
                 # END profile__up_to__not_enabled_call
 
                 # (_xxx variables set, ok to call f)
@@ -1438,9 +1458,6 @@ class _deco_base():
                 context['implicit_kwargs'] = \
                     difference_update(kwargs.copy(), context['explicit_kwargs'])
                 # END profile__setup_context_kwargs_dicts
-
-                # 0.3.0
-                mute = _get_final_value('mute')
 
                 ##~ PROFILE
                 #~ with time_block('pre_call_handlers') as profile__pre_call_handlers:
@@ -1725,6 +1742,29 @@ class log_calls(_deco_base):
         logger:            If not None (the default), a Logger which will be used
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
+        mute:              setting. 3-valued:
+                            log_calls.mute.NOTHING  (default -- all output produced)
+                            alias False
+                            log_calls.mute.CALLS    (mute output from decorated functions
+                                                     & methods & properties, but log_message
+                                                     and log_exprs produce output;
+                                                     call # recording, history recording continue
+                                                     if enabled)
+                            alias True
+                            log_calls.mute.ALL      (no output at all; but call # recording,
+                                                     history recording continue if enabled)
+                            alias -1
+
+                            mutable, but NOT allow_indirect: log_message has to be able
+                            to get the value, and then doesn't have access to the args to f
+                            (if f is not enabled, and only kludgily, if f is enabled)
+
+                            When `mute` is True (log_calls.mute.CALLS,
+                            log_expr and log_message adjust for calls not being logged:
+                            because there's no log_calls "frame",
+                            -- they don't indent an extra level no 'arguments:' to align with), and
+                            -- they automatically prefix messages with function's display name
+
         record_history:    If true, an array of records will be kept, one for each
                            call to the function; each holds call number (1-based),
                            arguments and defaulted keyword arguments, return value,
@@ -1733,59 +1773,7 @@ class log_calls(_deco_base):
         max_history:       An int. value >  0 --> store at most value-many records,
                                                   oldest records overwritten;
                                    value <= 0 --> unboundedly many records are stored.
-    """
-    # *** DecoSettingsMapping "API" --
-    # (1) initialize: call register_class_settings
-
-    # allow indirection for all except prefix and max_history, which also isn't mutable
-    _setting_info_list = (
-        DecoSettingEnabled('enabled'),
-        DecoSetting_str('args_sep',          str,            ', ',          allow_falsy=False),
-        DecoSettingArgs('log_args'),
-        DecoSettingRetval('log_retval'),
-        DecoSettingElapsed('log_elapsed'),
-        DecoSettingExit('log_exit'),
-        DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
-        DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
-        DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
-                        allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False
-
-        DecoSettingFile('file',              io.TextIOBase,  None,          allow_falsy=True),
-        DecoSettingLogger('logger',          (logging.Logger,
-                                              str),          None,          allow_falsy=True),
-        DecoSetting_int('loglevel',          int,            logging.DEBUG, allow_falsy=False),
-        DecoSetting_int('mute',              int,            False,         allow_falsy=True,
-                        allow_indirect=False, mutable=True),
-        DecoSettingHistory('record_history'),
-        DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
-                        allow_indirect=False, mutable=False),
-    )
-    DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
-                                                _setting_info_list)
-
-    @used_unused_keywords()
-    def __init__(self,
-                 settings=None,     # 0.2.4.post2. A dict or a pathname
-                 omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
-                 only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
-                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
-                 enabled=True,
-                 args_sep=', ',
-                 log_args=True,
-                 log_retval=False,
-                 log_elapsed=False,
-                 log_exit=True,
-                 indent=False,         # probably better than =True
-                 log_call_numbers=False,
-                 prefix='',
-                 file=None,    # detectable value so we late-bind to sys.stdout
-                 logger=None,
-                 loglevel=logging.DEBUG,
-                 mute=False,
-                 record_history=False,
-                 max_history=0,
-    ):
-        """(See class docstring)
+        Parameters that aren't *settings*
         0.3.0
         omit=tuple()
             When decorating a class, specifies the methods that will NOT be decorated.
@@ -1831,6 +1819,59 @@ class log_calls(_deco_base):
             to use just, say, "inner_fn" instead of "outer_fn.<locals>.inner_fn",
             supply `name='%s'`.
             Ignored when decorating a class.
+    """
+    # *** DecoSettingsMapping "API" --
+    # (1) initialize: call register_class_settings
+
+    # allow indirection for all except prefix and max_history, which also isn't mutable
+    _setting_info_list = (
+        DecoSettingEnabled('enabled'),
+        DecoSetting_str('args_sep',          str,            ', ',          allow_falsy=False),
+        DecoSettingArgs('log_args'),
+        DecoSettingRetval('log_retval'),
+        DecoSettingElapsed('log_elapsed'),
+        DecoSettingExit('log_exit'),
+        DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
+        DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
+        DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
+                        allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False
+
+        DecoSettingFile('file',              io.TextIOBase,  None,          allow_falsy=True),
+        DecoSettingLogger('logger',          (logging.Logger,
+                                              str),          None,          allow_falsy=True),
+        DecoSetting_int('loglevel',          int,            logging.DEBUG, allow_falsy=False),
+        DecoSetting_int('mute',              int,            False,         allow_falsy=True,
+                        allow_indirect=True, mutable=True),
+        DecoSettingHistory('record_history'),
+        DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
+                        allow_indirect=False, mutable=False),
+    )
+    DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
+                                                _setting_info_list)
+
+    @used_unused_keywords()
+    def __init__(self,
+                 settings=None,     # 0.2.4.post2. A dict or a pathname
+                 omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
+                 only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
+                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 enabled=True,
+                 args_sep=', ',
+                 log_args=True,
+                 log_retval=False,
+                 log_elapsed=False,
+                 log_exit=True,
+                 indent=False,         # probably better than =True
+                 log_call_numbers=False,
+                 prefix='',
+                 file=None,    # detectable value so we late-bind to sys.stdout
+                 logger=None,
+                 loglevel=logging.DEBUG,
+                 mute=False,
+                 record_history=False,
+                 max_history=0,
+    ):
+        """(See base class docstring)
         """
         # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
@@ -1861,6 +1902,16 @@ class log_calls(_deco_base):
             record_history=record_history,
             max_history=max_history,
         )
+
+    # 0.3.0
+    @classmethod
+    def allow_repr(cls) -> bool:
+        return False
+
+    # 0.3.0
+    @classmethod
+    def fixup_for_init(cls, some_settings: dict):
+        some_settings['log_retval'] = False
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn):

@@ -731,6 +731,42 @@ Property specified via property():
     pass
 
 
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+def main__lc_class_deco__omitonly_locals_in_qualname():
+    """
+Only A.create_objs.<locals>.I.method and A.create_objs.<locals>.I.delx will be decorated.
+We have to test using `.<locals>` in `omit`/`only`. This is an artificial example,
+but they all would be -- `.<locals>` only qualifies functions, classes and variables local
+to a function, and `log_calls` does NOT recurse into function bodies (the locals of a function)
+as it does into class members, so anything decorated inside a function will have to be
+decorated explicitly, and then the `... .<locals>.` isn't needed to disambiguate anything.
+Nevertheless, :
+
+    >>> @log_calls(omit='create_obj')
+    ... class A():
+    ...     def create_obj(self):
+    ...         @log_calls(omit='A.create_obj.<locals>.I.?etx  prop', settings=MINIMAL)
+    ...         class I():
+    ...             def method(self): pass
+    ...             def getx(self): pass
+    ...             def setx(self, v): pass
+    ...             def delx(self): pass
+    ...             x = property(getx, setx, delx)
+    ...             @property
+    ...             def prop(self): pass
+    ...             @prop.setter
+    ...             def prop(self, v): pass
+    ...
+    ...         return I()
+
+    >>> aye = A().create_obj()
+    >>> aye.method(); aye.x; aye.x = 42; del aye.x; aye.prop; aye.prop = 101
+    A.create_obj.<locals>.I.method <== called by <module>
+    A.create_obj.<locals>.I.delx <== called by <module>
+    """
+    pass
+
 ##############################################################################
 # end of tests.
 ##############################################################################

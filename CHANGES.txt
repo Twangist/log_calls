@@ -58,6 +58,20 @@ VERSIONS
             methods/properties that are decorated at inner class level
                 can be UNdecorated if omitted by outer class
 
+            # TODO document
+            # Caller can specify, in omit or only parameters,
+            #    property_name  (matches all prop fns, get set del)
+            #    property_name + '.getter' or '.setter' or '.deleter'
+            #    name of function supplied as fget, fset, fdel arg
+            #        to property() function/constructor
+            # and/or
+            #    any of the above three, prefixed with class name
+            # TODO write test for this!
+            #    (INCLUDING possibly inner function qualifiers,
+            #     thus e.g. X.method.innerfunc.<locals>.Cls.prop.getter
+            # If property_name is given, it matches any/all of the
+            # property functions (get/set/del).
+
         TODO test for record_history
         TODO document this
 
@@ -94,16 +108,13 @@ VERSIONS
         log_calls.mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
         alias -1
 
-        mutable, but NOT allow_indirect: log_message has to be able to get the value,
-        and then doesn't have access to the args to f (if f is not enabled, and only kludgily, if f is enabled)
-        TODO DOCUMENT: when `mute` is True (log_calls.mute.CALLS, log_expr and log_message ...
-        adjust for calls not being logged:
+        mutable, AND allow_indirect
+        log_* adjusts for calls not being logged:
         because there's no log_calls "frame",
-        -- they don't indent an extra level no 'arguments:' to align with), and
+        -- they don't indent an extra level -- no 'arguments:' to align with), and
         -- they automatically prefix messages with function's display name
 
-
-        TODO write tests (one or two in test_log_calls_v30_minor_features_fixes.py; more?)
+        tests/examples in test_log_calls_v30_minor_features_fixes.py
         TODO document
 
       - Little fix: if f is disabled, log_message would (/could) blow up.

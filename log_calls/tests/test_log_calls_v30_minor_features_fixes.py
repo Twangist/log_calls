@@ -4,6 +4,10 @@ _version__ = '0.3.0'
 from log_calls import log_calls
 
 
+#-------------------------------------------------------------------
+# test__omit_property_attr__repr_with_init_active
+#-------------------------------------------------------------------
+
 def test__omit_property_attr__repr_with_init_active():
     """
     >>> @log_calls(omit='pair.deleter')
@@ -48,6 +52,7 @@ def test__omit_property_attr__repr_with_init_active():
 
 
 #-------------------------------------------------------------------
+# test__repr_with_init_active_2
 # __repr__ handling for objects still in construction;
 # class inside a function
 #-------------------------------------------------------------------
@@ -213,6 +218,74 @@ similarly for `rec ==> returning to rec ==> rec`), the nearest `rec`,
 to the left of "<==", is not enabled, and `log_calls` has chased back
 further till it found an *enabled* function it decorated (namely, another
 invocation of `rec`, with an odd value for `level`).
+    """
+    pass
+
+
+#-------------------------------------------------------------------
+# Tests/examples of log_message writing only if enabled
+#-------------------------------------------------------------------
+def test__log_message__indirect_mute():
+    """
+    settings = {'indent': True, 'mute': 'mute_'}
+
+    @log_calls(settings=settings)
+    def f(extra_mute_val=None, **kwargs):
+        f.log_message("before g", prefix_with_name=True)
+        g(extra_mute_val=extra_mute_val, **kwargs)
+        f.log_message("after g", prefix_with_name=True)
+
+    @log_calls(settings=settings)
+    def g(extra_mute_val=None, **kwargs):
+        g.log_message("before h", prefix_with_name=True)
+        if extra_mute_val is not None and 'mute_' in kwargs:
+            kwargs['mute_'] = extra_mute_val
+        h(**kwargs)
+        g.log_message("after h", prefix_with_name=True)
+
+    @log_calls(settings=settings)
+    def h(**kwargs):
+        h.log_message("greetings", prefix_with_name=True)
+
+    f(mute_=False)
+    '''
+    f <== called by <module>
+        arguments: [**]kwargs={'mute_': False}
+        defaults:  extra_mute_val=None
+        f: before g
+        g <== called by f
+            arguments: extra_mute_val=None, [**]kwargs={'mute_': False}
+            g: before h
+            h <== called by g
+                arguments: [**]kwargs={'mute_': False}
+                h: greetings
+            h ==> returning to g
+            g: after h
+        g ==> returning to f
+        f: after g
+    f ==> returning to <module>
+    '''
+    print('-----------------------')
+    f(mute_=True)                   # True == log_calls.mute.CALLS
+    '''
+    f: before g
+        g: before h
+            h: greetings
+        g: after h
+    f: after g
+    '''
+    print('-----------------------')
+    f(mute_=True, extra_mute_val=log_calls.mute.ALL)    # shut up h
+    '''
+    f: before g
+        g: before h
+        g: after h
+    f: after g
+    '''
+    print('-----------------------')
+    f(mute_=log_calls.mute.ALL)
+    # (no output)
+
     """
     pass
 
