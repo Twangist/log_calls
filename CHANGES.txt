@@ -66,11 +66,25 @@ VERSIONS
             #        to property() function/constructor
             # and/or
             #    any of the above three, prefixed with class name
-            # TODO write test for this!
+            #
             #    (INCLUDING possibly inner function qualifiers,
             #     thus e.g. X.method.innerfunc.<locals>.Cls.prop.getter
             # If property_name is given, it matches any/all of the
             # property functions (get/set/del).
+
+      - TODO DOCUMENT -- accessing attributes added by decos to properties
+        Attributes of properties defined by @property decorator are harder to access.
+        You have to use `getattr(getattr(rt.__class__, 'a'), 'fget')` to access
+        the underlying getter function -- e.g. from tests/test_record_history__class_deco.py:
+
+            >>> getattr(getattr(rt.__class__, 'a'), 'fget').stats.num_calls_logged
+            10
+
+        and similarly 'fset' and 'fdel'.
+
+        Accessing attributes of a property defined using the `property` function
+        is straightforward/standard.
+
 
         TODO test for record_history
         TODO document this

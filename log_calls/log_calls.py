@@ -687,15 +687,19 @@ class _deco_base():
         if enabled_too:
             self._enabled_state_pop()
 
-    def _log_exprs(self, *exprs, sep=', ',
-                     extra_indent_level=1, prefix_with_name=False):
+    def _log_exprs(self, *exprs,
+                   sep=', ',
+                   extra_indent_level=1,
+                   prefix_with_name=False,
+                   prefix=''):
         """Evaluates each expression (str) in exprs in the context of the caller;
         makes string from each, expr = val,
         pass those strs to _log_message.
-        :param exprs:
+        :param exprs: exprs to evaluate and log with value
         :param sep: as for _log_message
         :param extra_indent_level: as for _log_message
         :param prefix_with_name: as for _log_message
+        :param prefix: additional text to prepend to output message
         """
         if not exprs:
             return
@@ -710,10 +714,14 @@ class _deco_base():
         self._log_message(*msgs,
                           sep=sep,
                           extra_indent_level=extra_indent_level,
-                          prefix_with_name=prefix_with_name)
+                          prefix_with_name=prefix_with_name,
+                          _prefix=prefix)
 
-    def _log_message(self, msg, *msgs, sep=' ',
-                     extra_indent_level=1, prefix_with_name=False):
+    def _log_message(self, msg, *msgs,
+                     sep=' ',
+                     extra_indent_level=1,
+                     prefix_with_name=False,
+                     _prefix=''):
         """Signature much like that of print, such is the intent.
         "log" one or more "messages", which can be anything - a string,
         an int, object with __str__ method... all get str()'d.
@@ -737,6 +745,9 @@ class _deco_base():
         to the message ultimately written.
         self._output_fname[-1] is the function's possibly prefixed name,
             + possibly [its call #]
+
+        _prefix: for log_exprs, callers of log_message won't need to use it
+                 additional text to prepend to output message
         """
         # do nothing unless enabled! cuz then the other 'stack' accesses will blow up
         if self._enabled_stack[-1] <= 0:    # disabled
@@ -764,6 +775,8 @@ class _deco_base():
         the_msg = sep.join(map(str, the_msgs))
         if prefix_with_name:
             the_msg = logging_state.output_fname + ': ' + the_msg
+        if _prefix:
+            the_msg = _prefix + the_msg
         logging_state.logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
 
     def _read_settings_file(self, settings_path=''):
@@ -1080,7 +1093,8 @@ class _deco_base():
                         #   new_funcs[attr] = func
                     else:                              # not deco'd
                         # so decorate it
-                        new_funcs[attr] = self.__class__(settings=new_settings)(func)
+                        #### new_funcs[attr] = self.__class__(settings=new_settings)(func)
+                        new_funcs[attr] = self.__class__(** new_settings)(func)
                         change = True
 
                 # Make new property object if anything changed

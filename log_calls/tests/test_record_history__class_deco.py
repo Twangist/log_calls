@@ -20,7 +20,7 @@ A not very interesting class:
     >>> @record_history(omit='h')
     ... class RecordThem():
     ...     def __init__(self, a):
-    ...         self.a = a
+    ...         self._a = a
     ...     def f(self, x):
     ...         return self.a * x
     ...     @record_history(name='RT.gee')
@@ -28,19 +28,23 @@ A not very interesting class:
     ...         return self.f(x) + y
     ...     def h(self, x, y, z):
     ...         pass
+    ...     @property
+    ...     def a(self):
+    ...         return self._a
     ...     def __repr__(self):
-    ...         return '<A(%r) at 0x%x>' % (self.a, id(self))
+    ...         return '<A(%r) at 0x%x>' % (self._a, id(self))
     >>> rt = RecordThem(10)
     >>> hasattr(rt.h, 'stats')
     False
     >>> print(rt)                              # doctest: +ELLIPSIS
     <A(10) at 0x...>
+    >>>
     >>> for i in range(5):
     ...     _ = rt.f(i), rt.g(i, 2*i)   # _ = ... : suppress doctest output
     >>> rt.f.stats.num_calls_logged, rt.g.stats.num_calls_logged
     (10, 5)
-    >>> rt.__repr__.stats.num_calls_logged
-    1
+    >>> rt.__init__.stats.num_calls_logged, rt.__repr__.stats.num_calls_logged
+    (1, 1)
     >>> print(rt.f.stats.history_as_csv)       # doctest: +ELLIPSIS
     call_num|self|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
     1|<A(10) at 0x...>|0|0|...|...|...|'RecordThem.f'|['<module>']
@@ -54,6 +58,20 @@ A not very interesting class:
     9|<A(10) at 0x...>|4|40|...|...|...|'RecordThem.f'|['<module>']
     10|<A(10) at 0x...>|4|40|...|...|...|'RecordThem.f'|['RT.gee [5]']
     <BLANKLINE>
+
+Attributes of properties defined by @property decorator are harder to access.
+You have to use `getattr(getattr(rt.__class__, 'a'), 'fget')` to access
+the underlying getter function:
+    >>> getattr(getattr(rt.__class__, 'a'), 'fget').stats.num_calls_logged
+    10
+
+and similarly 'fset' and 'fdel'.
+
+Reason: `rt.a` is an int, so there's no such thing as, for example, rt.a.stats:
+    >>> rt.a.stats.num_calls_logged         # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'int' object has no attribute 'stats'
 
     """
     pass
