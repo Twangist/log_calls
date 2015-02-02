@@ -284,23 +284,6 @@ def any_match(match_fn, seq, patterns):
 
 if __name__ == "__main__":
 
-    # import fnmatch
-    # matcher = fnmatch.fnmatchcase
-    # names = (s for s in ('pair', 'P.pair', 'pair.getter', 'P.pair.getter'))
-    # patterns = ('pair', )
-    # match = False
-    # x = any_match(matcher, names, patterns)
-    # for s in names:
-    #     for pat in patterns:
-    #         match = match or matcher(s, pat)
-    #
-    # gen = (
-    #     matcher(s, pat)
-    #     for s in names
-    #     for pat in patterns
-    # )
-    # ll = list(gen)
-
 
     import doctest
     doctest.testmod()

@@ -68,35 +68,38 @@ class ClassInstanceAttrProxy():
     The transform '==>' is accomplished by install_proxy_descriptor.
 
     This class keeps a record of which other classes it has already created
-    descriptors for (_classes_proxied, initially empty set).
-
-    Class whose instance class_instance is passed must implement classmethods:
-        get_descriptor_names()
-        get_method_descriptor_names()
+    descriptors for (_classes_and_attrs_proxied, initially empty set)
+    -- a little naively,
+       classname + marker + tuple(data_descriptor_names) + marker + tuple(method_descriptor_names).
 
     Note that the attributes of instances of other class that are exposed
     in this way can themselves be descriptors (e.g. properties).
     """
-    # Only create descriptors on the class once:
+    # Only create descriptors on the class once,
+    # for class of class_instance + these attributes/descr names:
     # for a given descr_name (attr name) they'd be the same :)
-    _classes_proxied = set()
+    _classes_and_attrs_proxied = set()
 
-    def __init__(self, *, class_instance):
+    def __init__(self, *, class_instance, data_descriptor_names, method_descriptor_names):
         """What makes these work is the class_instance arg,
         which a descriptor uses to access a class_instance
         and from that its attr of the same name."""
         self._proxied_instance_ = class_instance
 
-        classname = class_instance.__class__.__name__
-        if classname not in self._classes_proxied:
+        class_and_descr_names = (
+            class_instance.__class__.__name__
+            + '|'
+            + ','.join(data_descriptor_names)
+            + '|'
+            + ','.join(method_descriptor_names)
+        )
+        if class_and_descr_names not in self._classes_and_attrs_proxied:
             # Create descriptors *** on the class ***, once only per class.
             # Same __get__/__set__ functions, called on different instances.
             # It doesn't work to create them on instances:
             #         setattr(self, ... ) doesn't fly.
-            class_descr_names = chain(product(class_instance.get_descriptor_names(),
-                                              {True}),
-                                      product(class_instance.get_method_descriptor_names(),
-                                              {False})
+            class_descr_names = chain(product(data_descriptor_names,   {True}),
+                                      product(method_descriptor_names, {False})
             )
             for descr_name, is_data in list(class_descr_names):
                 # Create & add descriptor to this class. readonly only matters if is_data
@@ -104,4 +107,4 @@ class ClassInstanceAttrProxy():
                                          data=is_data, readonly=is_data)
 
             # Record this class as 'already (successfully!) handled'
-            self._classes_proxied.add(classname)
+            self._classes_and_attrs_proxied.add(class_and_descr_names)

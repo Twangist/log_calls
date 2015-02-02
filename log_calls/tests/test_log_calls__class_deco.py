@@ -247,8 +247,7 @@ def main__lc_class_deco__immutable_setting():
 #=============================================================================
 # main__lc_class_deco__omit_only__basic
 #=============================================================================
-MINIMAL = {}
-MINIMAL.update(
+MINIMAL = dict(
     log_args=False, log_exit=False
 )
 
@@ -690,6 +689,8 @@ Property specified via property():
     A.prop_del <== called by <module>
 
         - omit
+        Referring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
+
     >>> @log_calls(omit='prop_get', settings=MINIMAL)
     ... class A():
     ...     def f(self): pass
@@ -716,6 +717,7 @@ Property specified via property():
     A.I.prop_get <== called by <module>
 
         - omit
+        Again, eferring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
     >>> @log_calls(omit='prop_get', settings=MINIMAL)
     ... class A():
     ...     @log_calls()
@@ -731,7 +733,72 @@ Property specified via property():
     pass
 
 
+#=============================================================================
+# main__lc_class_deco__omitonly_with_property_ctor__use_qualified_names
+#=============================================================================
+def main__lc_class_deco__omitonly_with_property_ctor__use_qualified_names():
+    """
+We perform fixups on the 'omit' and 'only' lists so that you can use
+propertyname.getter, propertyname.setter, propertyname.deleter
+to refer to methods supplied to the 'property' constructor, which are also
+in the class dictionary.
+
+Empirically: In Python 3.4.2, 'xx' is enumerated before 'setxx' in class XX.
+Without the fixup, these tests would (or, could) fail.
+
+- omit
+
+    >>> @log_calls(omit='xx.setter')
+    ... class XX():
+    ...     def __init__(self): pass
+    ...     def method(self): pass
+    ...     @staticmethod
+    ...     def statmethod():        pass
+    ...     @classmethod
+    ...     def clsmethod(cls):      pass
+    ...     def setxx(self, val):     pass
+    ...     def delxx(self):          pass
+    ...     xx = property(None, setxx, delxx)
+
+The method is NOT decorated:
+
+    >>> XX.log_calls_wrapper('xx.setter') is None
+    True
+    >>> XX.log_calls_wrapper('setxx') is None
+    True
+
+
+- only
+
+    >>> @log_calls(only='y.setter')
+    ... class Y():
+    ...     def __init__(self): pass
+    ...     def method(self): pass
+    ...     @staticmethod
+    ...     def statmethod():        pass
+    ...     @classmethod
+    ...     def clsmethod(cls):      pass
+    ...     def sety(self, val):     pass
+    ...     def dely(self):          pass
+    ...     y = property(None, sety, dely)
+
+Wrappers found for 'sety' and 'y.setter' are identical:
+
+    >>> Y.log_calls_wrapper('sety') is Y.log_calls_wrapper('y.setter')
+    True
+
+and the method IS decorated:
+
+    >>> bool( Y.log_calls_wrapper('sety') )
+    True
+
+
+
+    """
+    pass
+
 #-----------------------------------------------------------------------------
+# main__lc_class_deco__omitonly_locals_in_qualname
 #-----------------------------------------------------------------------------
 def main__lc_class_deco__omitonly_locals_in_qualname():
     """
@@ -766,6 +833,195 @@ Nevertheless, :
     A.create_obj.<locals>.I.delx <== called by <module>
     """
     pass
+
+
+#-----------------------------------------------------------------------------
+# main__test__log_calls_wrapper__from_outside
+#-----------------------------------------------------------------------------
+def main__test__log_calls_wrapper__from_outside():
+    """
+    >>> @log_calls(omit='*_nodeco delx')
+    ... class A():
+    ...     def __init__(self):      pass
+    ...     def method(self):        pass
+    ...
+    ...     def method_nodeco(self): pass
+    ...
+    ...     @staticmethod
+    ...     def statmethod():        pass
+    ...     @classmethod
+    ...     def clsmethod(cls):      pass
+    ...
+    ...     @staticmethod
+    ...     def statmethod_nodeco():   pass
+    ...     @classmethod
+    ...     def clsmethod_nodeco(cls): pass
+    ...
+    ...     @property
+    ...     def prop(self):          pass
+    ...     @prop.setter
+    ...     def prop(self, val):     pass
+    ...
+    ...     def setx(self, val):     pass
+    ...     def delx(self):          pass
+    ...
+    ...     x = property(None, setx, delx)
+    >>> a = A()                             # doctest: +ELLIPSIS
+    A.__init__ <== called by <module>
+        arguments: self=<__main__.A object at 0x...>
+    A.__init__ ==> returning to <module>
+
+First, the method names that work
+---------------------------------
+    >>> decorated_A = (
+    ...     '__init__',
+    ...     'method',
+    ...     'statmethod',
+    ...     'clsmethod',
+    ...     'prop',
+    ...     'prop.getter',
+    ...     'prop.setter',
+    ...     'x.setter',
+    ...     'setx',
+    ... )
+    >>> all(a.log_calls_wrapper(name) for name in decorated_A)
+    True
+
+    >>> not_decorated_A = (
+    ...     'method_nodeco',
+    ...     'statmethod_nodeco',
+    ...     'clsmethod_nodeco',
+    ...     'x.deleter',
+    ...     'delx',
+    ... )
+    >>> all((a.log_calls_wrapper(name) is None) for name in not_decorated_A)
+    True
+    >>> a.log_calls_wrapper('x.setter') == a.log_calls_wrapper('setx')
+    True
+    >>> a.log_calls_wrapper('x.deleter') == a.log_calls_wrapper('delx')
+    True
+
+Stuff that fails - deco'd class
+-------------------------------
+
+    >>> bad_names = (
+    ...     'no_such_method',
+    ...     'foo.bar.baz',
+    ...     'foo.',
+    ...     'prop.',
+    ...     'prop.foo',
+    ...     'prop.deleter',
+    ...     'x.getter',
+    ...     'x',        # equiv to x.getter
+    ...     'method.getter',
+    ... )
+    >>> for name in bad_names:
+    ...     try:
+    ...         wrapper = a.log_calls_wrapper(name)
+    ...     except AttributeError as e:
+    ...         print(e)
+    AttributeError: class 'A' has no such attribute as 'no_such_method'
+    AttributeError: no such method specifier 'foo.bar.baz'
+    AttributeError: bad method specifier 'foo.'
+    AttributeError: bad method specifier 'prop.'
+    AttributeError: prop.foo -- unknown qualifier 'foo'
+    AttributeError: property 'prop' has no 'deleter' in class 'A'
+    AttributeError: property 'x' has no 'getter' in class 'A'
+    AttributeError: property 'x' has no 'getter' in class 'A'
+    AttributeError: method.getter -- 'method' is not a property of class 'A'
+
+    >>> try:
+    ...     wrapper = a.log_calls_wrapper('__doc__')
+    ... except TypeError as e:
+    ...     print(e)
+    TypeError: item '__doc__' of class 'A' is of type 'NoneType' and can't be decorated
+
+Now, stuff that fails - non-deco'd class
+----------------------------------------
+
+    >>> class NoDeco():
+    ...     pass
+
+    >>> nd = NoDeco()
+    >>> # 'NoDeco' object has no attribute 'log_calls_wrapper'
+    >>> print(nd.log_calls_wrapper)             # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+
+    >>> # 'NoDeco' object has no attribute 'log_calls_wrapper'
+    >>> print(nd.log_calls_wrapper('__init__'))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: ...
+    """
+    pass
+
+# SURGERY:
+main__test__log_calls_wrapper__from_outside.__doc__ = \
+    main__test__log_calls_wrapper__from_outside.__doc__.replace("__main__", __name__)
+
+#-----------------------------------------------------------------------------
+# main__test__log_calls_wrapper__from_inside
+# test methods accessing their OWN wrappers
+#-----------------------------------------------------------------------------
+def main__test__log_calls_wrapper__from_inside():
+    """
+    >>> @log_calls(mute=True)
+    ... class B():
+    ...     def __init__(self):
+    ...         wrapper = self.log_calls_wrapper('__init__')
+    ...         wrapper.log_message('Hi')
+    ...     def method(self):
+    ...         wrapper = self.log_calls_wrapper('method')
+    ...         wrapper.log_message('Hi')
+    ...
+    ...     @staticmethod
+    ...     def statmethod():
+    ...         wrapper = B.log_calls_wrapper('statmethod')
+    ...         wrapper.log_message('Hi')
+    ...
+    ...     @classmethod
+    ...     def clsmethod(cls):
+    ...         wrapper = B.log_calls_wrapper('clsmethod')
+    ...         wrapper.log_message('Hi')
+    ...
+    ...     @property
+    ...     def prop(self):
+    ...         wrapper = self.log_calls_wrapper('prop.getter')
+    ...         wrapper.log_message('Hi')
+    ...     @prop.setter
+    ...     def prop(self, val):
+    ...         wrapper = self.log_calls_wrapper('prop.setter')
+    ...         wrapper.log_message('Hi from prop.setter')
+    ...
+    ...     def setx(self, val):
+    ...         wrapper = self.log_calls_wrapper('setx')
+    ...         wrapper.log_message('Hi from setx alias x.setter')
+    ...     def delx(self):
+    ...         wrapper = self.log_calls_wrapper('x.deleter')
+    ...         wrapper.log_message('Hi from delx alias x.deleter')
+    ...
+    ...     x = property(None, setx, delx)
+    >>> b = B()
+    B.__init__: Hi
+    >>> b.method()
+    B.method: Hi
+    >>> b.statmethod()
+    B.statmethod: Hi
+    >>> b.clsmethod()
+    B.clsmethod: Hi
+    >>> b.prop
+    B.prop: Hi
+    >>> b.prop = 17
+    B.prop: Hi from prop.setter
+    >>> b.x = 13
+    B.setx: Hi from setx alias x.setter
+    >>> del b.x
+    B.delx: Hi from delx alias x.deleter
+    """
+    pass
+
 
 ##############################################################################
 # end of tests.
