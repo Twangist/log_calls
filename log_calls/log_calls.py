@@ -366,7 +366,7 @@ PROPERTY_ATTRS_to_USER_SUFFIXES = {
 # <deco_name> = 'log_calls', 'record_history', ...
 #-----------------------------------------------------------------------------
 def _get_underlying_function(item, actual_item):
-    """Factors out some code used 2x, in _get_deco_wrapper and in _deco_base.class__call__
+    """Factors out some code used 2x, in _get_deco_wrapper and in _deco_base._class__call__
     For some class cls, and some name,
     :param item:           vars(cls)[name] == cls.__dict__[name]
     :param actual_item:    getattr(cls, name)
@@ -1013,19 +1013,25 @@ class _deco_base():
                 names = names.replace(',', ' ').split()
             return tuple(map(str, names))
 
-        self._omit = _make_sequence(_omit)
-        self._only = _make_sequence(_only)
+        self._omit_ex = self._omit = _make_sequence(_omit)
+        self._only_ex = self._only = _make_sequence(_only)
 
         self.prefix = prefix                # special case
         self._name_param = _name_param
         self._other_values_dict = other_values_dict     # 0.3.0
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
+    @property
+    def omit(self): return self._omit_ex
+
+    @property
+    def only(self): return self._only_ex
+
     @staticmethod
     def _is_a_function_in_class(xname, cls) -> bool:
         if xname in cls.__dict__:
-            # Get entry for func.__name__ from cls;
-            # if it's a function, update cls definition too
+            # Get 'raw' item for xname from cls;
+            # if it's a function, return True
             xitem = cls.__getattribute__(cls, xname)
             if inspect.isfunction(xitem):
                 return True
@@ -1112,7 +1118,7 @@ class _deco_base():
 
         return tuple(no_duplicates(method_specs_ex))
 
-    def class__call__(self, cls):
+    def _class__call__(self, cls):
         """
         :param cls: class to decorate ALL the methods of,
                     including properties and methods of inner classes.
@@ -1155,8 +1161,8 @@ class _deco_base():
         # Otherwise, if the function gets enumerated after the property
         # in loop through cls.__dict__ below, it won't be recognized
         # by name as something to omit or decorate-only.
-        self._omit = self._add_property_method_names(cls, self._omit)
-        self._only = self._add_property_method_names(cls, self._only)
+        self._omit_ex = self._add_property_method_names(cls, self._omit)
+        self._only_ex = self._add_property_method_names(cls, self._only)
 
         ## Equivalently,
         # for name in cls.__dict__:
@@ -1243,9 +1249,10 @@ class _deco_base():
                                 for fn in {name,                        # varies faster than pre
                                            name + '.' + PROPERTY_ATTRS_to_USER_SUFFIXES[attr],
                                            func_name}]
-                    if _any_match(namelist, self._omit):
+                    if _any_match(namelist, self._omit_ex):
                         dont_decorate = True
-                    if self._only and not _any_match(namelist, self._only):
+                    if self._only and not _any_match(namelist, self._only_ex):
+                        dont_decorate = True
                         dont_decorate = True
 
                     # get a fresh copy for each attr
@@ -1307,9 +1314,9 @@ class _deco_base():
             # Filter with self._only and self._omit.
             dont_decorate = False
             namelist = [name, cls.__qualname__ + '.' + name]
-            if _any_match(namelist, self._omit):
+            if _any_match(namelist, self._omit_ex):
                 dont_decorate = True
-            if self._only and not _any_match(namelist, self._only):
+            if self._only and not _any_match(namelist, self._only_ex):
                 dont_decorate = True
 
             func = _get_underlying_function(item, actual_item)
@@ -1365,17 +1372,6 @@ class _deco_base():
         to decorate. The return value of __call__ is called subsequently.
         So, this method *returns* the decorator proper.
         (~ Bruce Eckel in a book, ___) TODO ref.
-
-        # 0.2.4.post5+ profiling (of record_history)
-
-            setup_stackframe_hack         7.5 %
-            up_to__not_enabled_call       3.3 %
-            setup_context_init            1.2 %
-            setup_context_inspect_bind   23.4 %
-            setup_context_post_bind       8.8 %
-            setup_context_kwargs_dicts   32.2 %
-            pre_call_handlers             1.3 %
-            post_call_handlers           22.3 %
         """
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         # 0.3.0 -- handle decorating both functions and classes
@@ -1395,7 +1391,7 @@ class _deco_base():
             # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            self.class__call__(cls)     # modifies cls
+            self._class__call__(cls)     # modifies cls
             # add attribute to cls: key is useful as sentinel, value is this deco
             setattr(
                 cls,
@@ -1416,8 +1412,8 @@ class _deco_base():
             # largely for testing (by the time anyone gets to see these,
             # they're no longer used... 'cept outer class at class level
             # can manipulate inner classes' omit and only, but so what)
-            setattr(cls, '_omit', self._omit)
-            setattr(cls, '_only', self._only)
+            setattr(cls, this_deco_class.__name__ + '_omit', self.omit)
+            setattr(cls, this_deco_class.__name__ + '_only', self.only)
 
             return cls
 
