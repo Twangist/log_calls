@@ -18,6 +18,25 @@ import inspect
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper function(s)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def no_duplicates(seq):
+    """Generator that removes duplicates from seq (preserving order).
+    Without order preservation, it would suffice to return list(set(seq)).
+    seq is an iterable.
+    >>> list(no_duplicates([1, 2, 3, 3, 2, 0, 1]))
+    [1, 2, 3, 0]
+    >>> tuple(no_duplicates([1, 2, 3, 4]))
+    (1, 2, 3, 4)
+    >>> ''.join(no_duplicates('ababcabcd...xyz'))
+    'abcd.xyz'
+    """
+    seen = set()
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            yield(x)
+    return
+
+
 def difference_update(d, d_remove):
     """Change and return d.
     d: mutable mapping, d_remove: iterable.

@@ -29,7 +29,7 @@ import fnmatch  # 0.3.0 for omit, only
 from .deco_settings import (DecoSetting,
                             DecoSetting_bool, DecoSetting_int, DecoSetting_str,
                             DecoSettingsMapping)
-from .helpers import (get_args_pos, get_args_kwargs_param_names,
+from .helpers import (no_duplicates, get_args_pos, get_args_kwargs_param_names,
                       difference_update,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str,
@@ -1031,7 +1031,7 @@ class _deco_base():
                 return True
         return False
 
-    def _fixup_method_list(self, cls, method_specs: tuple) -> tuple:
+    def _add_property_method_names(self, cls, method_specs: tuple) -> tuple:
         """For each name in method_specs (a tuple),
         if name is of the form propertyname.suffix
         where suffix is in ('getter', 'setter', 'deleter'),
@@ -1039,40 +1039,78 @@ class _deco_base():
         (.fget, .fset, .fdel) of attribute with name propertyname,
         provided that function is in the class dict and is a function.
 
+        More generally, a name in method_specs is of the form
+            expr [. suffix]
+        where expr is a method or property name, possibly prefixed
+        by classname + '.', AND WHICH MAY CONTAIN WILDCARDS AND
+        CHARACTER RANGES (to match or reject). Classname can name
+        inner classes & so can contain dots; Wildcards can match dot.
+        Wildcards/chart classes are as in "globs" --
+        matching is done with fnmatch.fnmatchcase.
+
         :param cls: class being deco'd, some of whose methods/fns
                     are in method_specs
         :param method_specs: self._omit or self._only
                              members are names of methods/fns,
                              or propertyname.suffix as described above
-        :return: tuple - method_specs + tuple(added_method_specs)
+        :return: tuple - method_specs_ex, consisting of the method specs
+                 in method_specs, each followed by any & all added
+                 property functions, with no duplicates
         """
-        added_method_specs = []
+        cls_prefix = cls.__qualname__ + '.'
+
+        # Make list/collection of properties in cls,
+        #   plus their names
+        # Note that item.__qualname__ == cls_prefix + item.__name__
+        cls_properties = []
+        for name, item in cls.__dict__.items():
+            if type(item) == property:
+                # properties don't HAVE __name__s or __qualname__s
+                cls_properties.append((name, item))
+
+        # return value; method_specs_ex will contain method_specs
+        method_specs_ex = []
+
         for method_spec in method_specs:
-            dot_pos = method_spec.rfind('.')    # pos of rightmost dot  TODO mistaken (qualnames) gotta split('.')
+            method_specs_ex.append(method_spec)     # method_specs_ex contains method_specs
+            dot_pos = method_spec.rfind('.')
             if dot_pos == -1:
                 continue
             suffix = method_spec[dot_pos+1:]
             if suffix not in PROPERTY_USER_SUFFIXES_to_ATTRS:
                 continue
-            propname = method_spec[:dot_pos]
-            # Is propname actually a property of cls?
-            try:
-                prop = cls.__getattribute__(cls, propname)
-            except AttributeError:
-                prop = None
-            if not prop or type(prop) != property:
+            root = method_spec[:dot_pos]
+            # root may contain dot(s), and may contain wildcards &/or char ranges.
+            # See if there are properties (one OR MORE) in cls
+            # whose name or whose ~~ qualname matches root.
+            # `matching_properties_and_flags` holds (prop, flag)
+            # where flag == False if prop's name matches root,
+            #            == True  if cls_prefix + name matches root,
+            matching_properties_and_flags = []
+            for name, prop in cls_properties:
+                if fnmatch.fnmatchcase(name, root):
+                    matching_properties_and_flags.append((prop, False))
+                elif fnmatch.fnmatchcase(cls_prefix + name, root):
+                    matching_properties_and_flags.append((prop, True))
+            if not matching_properties_and_flags:
                 continue
-            # get attribute (function) corresponding to method_spec
-            func = getattr(prop, PROPERTY_USER_SUFFIXES_to_ATTRS[suffix], None)
-            if not func:
-                continue
-            # Is func, by name, actually a function of class?
-            # If so, add its name to list
-            func_name = func.__name__
-            if self._is_a_function_in_class(func_name, cls):
-                added_method_specs.append(func_name)
 
-        return method_specs + tuple(added_method_specs)
+            # For each (prop, matches_qualname) in matching_properties_and_flags,
+            # get attribute (function) of prop corresponds to suffix;
+            # if it exists & is a function in cls, add its matching name
+            for prop, matches_qualname in matching_properties_and_flags:
+                func = getattr(prop, PROPERTY_USER_SUFFIXES_to_ATTRS[suffix], None)
+                if not func:
+                    continue
+                # Is func, by name, actually a function of class cls?
+                # If so, add its (possibly cls-prefix'd) name to list
+                func_name = func.__name__
+                if self._is_a_function_in_class(func_name, cls):
+                    if matches_qualname:
+                        func_name = cls_prefix + func_name
+                    method_specs_ex.append(func_name)
+
+        return tuple(no_duplicates(method_specs_ex))
 
     def class__call__(self, cls):
         """
@@ -1117,8 +1155,8 @@ class _deco_base():
         # Otherwise, if the function gets enumerated after the property
         # in loop through cls.__dict__ below, it won't be recognized
         # by name as something to omit or decorate-only.
-        self._omit = self._fixup_method_list(cls, self._omit)
-        self._only = self._fixup_method_list(cls, self._only)
+        self._omit = self._add_property_method_names(cls, self._omit)
+        self._only = self._add_property_method_names(cls, self._only)
 
         ## Equivalently,
         # for name in cls.__dict__:
@@ -1374,6 +1412,12 @@ class _deco_base():
                 this_deco_class.__name__ + '_wrapper',
                 classmethod(partial(_get_deco_wrapper, this_deco_class))
             )
+
+            # largely for testing (by the time anyone gets to see these,
+            # they're no longer used... 'cept outer class at class level
+            # can manipulate inner classes' omit and only, but so what)
+            setattr(cls, '_omit', self._omit)
+            setattr(cls, '_only', self._only)
 
             return cls
 

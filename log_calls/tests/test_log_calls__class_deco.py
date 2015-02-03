@@ -1038,6 +1038,20 @@ def load_tests(loader, tests, ignore):
 
 if __name__ == "__main__":
 
+    @log_calls(omit='xx.setter')
+    class XX():
+        def __init__(self): pass
+        def method(self): pass
+        @staticmethod
+        def statmethod():        pass
+        @classmethod
+        def clsmethod(cls):      pass
+        def setxx(self, val):     pass
+        def delxx(self):          pass
+        xx = property(None, setxx, delxx)
+
+    XX.log_calls_wrapper('xx.setter') is None
+
     doctest.testmod()   # (verbose=True)
 
     # unittest.main()
