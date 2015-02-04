@@ -813,6 +813,7 @@ and the method IS decorated:
     """
     pass
 
+
 #=============================================================================
 # main__lc_class_deco__omitonly_with_property_ctor__property_name_only
 #=============================================================================
@@ -994,11 +995,23 @@ Stuff that fails - deco'd class
     ...     'x.getter',
     ...     'x',        # equiv to x.getter
     ...     'method.getter',
+    ...     '.uvwxyz',
+    ...     'not an identifier',
+    ...     '88 < x**2',
+    ...
+    ...     '__doc__',
+    ...     17,
+    ...     False,
+    ...     tuple(),
+    ...     ['83'],
+    ...     None
     ... )
     >>> for name in bad_names:
     ...     try:
     ...         wrapper = a.log_calls_wrapper(name)
     ...     except AttributeError as e:
+    ...         print(e)
+    ...     except TypeError as e:
     ...         print(e)
     AttributeError: class 'A' has no such attribute as 'no_such_method'
     AttributeError: no such method specifier 'foo.bar.baz'
@@ -1009,12 +1022,16 @@ Stuff that fails - deco'd class
     AttributeError: property 'x' has no 'getter' in class 'A'
     AttributeError: property 'x' has no 'getter' in class 'A'
     AttributeError: method.getter -- 'method' is not a property of class 'A'
-
-    >>> try:
-    ...     wrapper = a.log_calls_wrapper('__doc__')
-    ... except TypeError as e:
-    ...     print(e)
+    AttributeError: bad method specifier '.uvwxyz'
+    AttributeError: class 'A' has no such attribute as 'not an identifier'
+    AttributeError: class 'A' has no such attribute as '88 < x**2'
     TypeError: item '__doc__' of class 'A' is of type 'NoneType' and can't be decorated
+    TypeError: expecting str for argument 'fname', got 17 of type int
+    TypeError: expecting str for argument 'fname', got False of type bool
+    TypeError: expecting str for argument 'fname', got () of type tuple
+    TypeError: expecting str for argument 'fname', got ['83'] of type list
+    TypeError: expecting str for argument 'fname', got None of type NoneType
+
 
 Now, stuff that fails - non-deco'd class
 ----------------------------------------

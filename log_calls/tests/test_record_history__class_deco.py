@@ -4,6 +4,9 @@ __version__ = '0.2.1'
 import doctest
 
 
+#-----------------------------------------------------------------------------
+# main__record_history_class_deco
+#-----------------------------------------------------------------------------
 def main__record_history_class_deco():
     """
 # [The *record_history* decorator as a class decorator](id:record_history-decorator-class-deco)
@@ -34,17 +37,31 @@ A not very interesting class:
     ...     def __repr__(self):
     ...         return '<A(%r) at 0x%x>' % (self._a, id(self))
     >>> rt = RecordThem(10)
-    >>> hasattr(rt.h, 'stats')
-    False
+
+`RecordThem.__init__` is decorated:
+
+    >>> rt.__init__.stats.num_calls_logged
+    1
+
+Unlike `log_calls`, `record_history` *can* decorate `__repr__`.
+This will call `RecordThem.__repr__` once:
+
     >>> print(rt)                              # doctest: +ELLIPSIS
     <A(10) at 0x...>
+
+`__repr` is decorated in `RecordThem`:
+
+    >>> rt.__repr__.stats.num_calls_logged
+    1
+
+`RecordThem.f` and `RecordThem.g` are decorated:
+
     >>>
     >>> for i in range(5):
     ...     _ = rt.f(i), rt.g(i, 2*i)   # _ = ... : suppress doctest output
     >>> rt.f.stats.num_calls_logged, rt.g.stats.num_calls_logged
     (10, 5)
-    >>> rt.__init__.stats.num_calls_logged, rt.__repr__.stats.num_calls_logged
-    (1, 1)
+
     >>> print(rt.f.stats.history_as_csv)       # doctest: +ELLIPSIS
     call_num|self|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
     1|<A(10) at 0x...>|0|0|...|...|...|'RecordThem.f'|['<module>']
@@ -59,19 +76,41 @@ A not very interesting class:
     10|<A(10) at 0x...>|4|40|...|...|...|'RecordThem.f'|['RT.gee [5]']
     <BLANKLINE>
 
-Attributes of properties defined by @property decorator are harder to access.
-You have to use `getattr(getattr(rt.__class__, 'a'), 'fget')` to access
-the underlying getter function:
-    >>> getattr(getattr(rt.__class__, 'a'), 'fget').stats.num_calls_logged
+`RecordThem.h` is not decorated:
+
+    >>> hasattr(rt.h, 'stats')
+    False
+
+---------------------------------------------------------
+## `record_history_wrapper` method of a decorated class
+
+Attributes of properties defined by the @property decorator can be accessed
+using the `record_history_wrapper` classmethod:
+
+    >>> RecordThem.record_history_wrapper('a.getter').stats.num_calls_logged
     10
 
-and similarly 'fset' and 'fdel'.
+We could have also used `rt.record_history_wrapper('a.getter')`. You pass
+`record_history_wrapper` the name of a method, or a property suffixed with
+`.getter`, '.setter' or '.deleter'. If you pass just the name of a property,
+`.getter` is assumed:
 
-Reason: `rt.a` is an int, so there's no such thing as, for example, rt.a.stats:
-    >>> rt.a.stats.num_calls_logged         # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'int' object has no attribute 'stats'
+    >>> RecordThem.record_history_wrapper('a').stats.num_calls_logged
+    10
+
+`record_history_wrapper` returns None if the method exists but isn't decorated:
+
+    >>> print(rt.record_history_wrapper('h'))
+    None
+
+and raises an exception for other arguments (see tests and description for `log_calls_wrapper`).
+
+---------------------------------------------------------
+## `record_history_omit` `record_history_only`
+
+    >>> rt.record_history_omit
+    ('h',)
+
 
     """
     pass
@@ -82,7 +121,26 @@ main__record_history_class_deco.__doc__ = \
     main__record_history_class_deco.__doc__.replace("__main__", __name__)
 
 
+#-----------------------------------------------------------------------------
+# main__record_history_class_deco__
+#-----------------------------------------------------------------------------
+
+
+
+
+#-----------------------------------------------------------------------------
+# main__record_history_class_deco__
+#-----------------------------------------------------------------------------
+
+
+##############################################################################
+# end of tests.
+##############################################################################
+
+
+#-----------------------------------------------------------------------------
 # For unittest integration
+#-----------------------------------------------------------------------------
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests

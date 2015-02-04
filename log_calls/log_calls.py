@@ -360,12 +360,7 @@ PROPERTY_ATTRS_to_USER_SUFFIXES = OrderedDict(
 
 
 #-----------------------------------------------------------------------------
-# _get_deco_wrapper
-# classmethod(partial(_get_deco_wrapper, deco_class))
-# added as attribute '<deco_name>_wrapper' to decorated classes,
-# so that they can easily access the added attributes
-# of methods and properties.
-# <deco_name> = 'log_calls', 'record_history', ...
+# _get_underlying_function
 #-----------------------------------------------------------------------------
 def _get_underlying_function(item, actual_item):
     """Factors out some code used 2x, in _get_deco_wrapper and in _deco_base._class__call__
@@ -385,7 +380,14 @@ def _get_underlying_function(item, actual_item):
 
 
 #-----------------------------------------------------------------------------
-def _get_deco_wrapper(deco_class, cls, fname):
+# _get_deco_wrapper
+# classmethod(partial(_get_deco_wrapper, deco_class))
+# added as attribute '<deco_name>_wrapper' to decorated classes,
+# so that they can easily access the added attributes
+# of methods and properties.
+# <deco_name> = 'log_calls', 'record_history', ...
+#-----------------------------------------------------------------------------
+def _get_deco_wrapper(deco_class, cls, fname: str):
     """
     deco_class: log_calls, record_history, ...
     cls is (supposed to be) a decorated class.
@@ -410,17 +412,22 @@ def _get_deco_wrapper(deco_class, cls, fname):
     """
     # Is cls decorated? Raise AttributeError if not.
     sentinel = deco_class._sentinels['DECO_OF']
-    if not getattr(cls, sentinel, None):        # TODO NEVER HAPPENS
-        raise AttributeError("AttributeError: class '%s' is not decorated by %s"
-                             % (cls.__name__, deco_class.__name__))
+    ###  NEVER HAPPENS
+    # if not getattr(cls, sentinel, None):
+    #     raise AttributeError("AttributeError: class '%s' is not decorated by %s"
+    #                          % (cls.__name__, deco_class.__name__))
+    if not isinstance(fname, str):
+        raise TypeError("TypeError: expecting str for argument 'fname', got %r of type %s"
+                        % (fname, type(fname).__name__))
+
     parts = fname.split('.')
     if len(parts) > 2:
         raise AttributeError("AttributeError: no such method specifier '%s'" % fname)
     prop_suffix = None
     if len(parts) == 2:
         fname, prop_suffix = parts
-        if not prop_suffix:
-            raise AttributeError("AttributeError: bad method specifier '%s.'" % fname)
+        if not (fname and prop_suffix):
+            raise AttributeError("AttributeError: bad method specifier '%s.%s'" % (fname, prop_suffix))
 
     cls_dict = cls.__dict__     # = vars(cls) but faster
     if fname not in cls_dict:
