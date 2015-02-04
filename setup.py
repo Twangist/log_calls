@@ -48,6 +48,12 @@ about stack frame internals which may not be valid in other interpreters.
 See the documentation online at http://www.pythonhosted.org/log_calls/,
 or at docs/log_calls.*, for usage, details, examples and *tips und tricks*.
 """
+import sys
+if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 3):
+    print("Sorry, log_calls requires Python 3.3 or higher.", file=sys.stderr)
+    sys.exit(1)
+
+#-------------------
 import log_calls
 
 from setuptools import setup
@@ -56,8 +62,8 @@ setup(
     version=log_calls.__version__,
     author=log_calls.__author__,       # "Brian O'Neill",
     author_email='twangist@gmail.com',
-    description='Debugging and profiling decorator that logs '
-                'caller name(s), args+values, execution time, and more. '
+    description='Debugging and profiling decorator for functions and classes '
+                'that logs caller name(s), args+values, execution time, and more. '
                 'Eliminates reams of boilerplate code.',
     long_description=__doc__,
     license='MIT',

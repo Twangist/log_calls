@@ -198,7 +198,7 @@ class DecoSettingsMapping():
     # When this is last char of a parameter value (to decorator),
     # interpret value of parameter to be the name of
     # a keyword parameter ** of the wrapped function f **
-    KEYWORD_MARKER = '='
+    INDIRECT_VALUE_MARKER = '='
 
     @classmethod
     def register_class_settings(cls, deco_classname, settings_iter):
@@ -393,15 +393,15 @@ class DecoSettingsMapping():
                (not isinstance(final_type, tuple) or str not in final_type):
                 # It IS indirect, and val designates a keyword of f
                 indirect = True
-                # Remove trailing self.KEYWORD_MARKER if any
-                if value[-1] == self.KEYWORD_MARKER:
+                # Remove trailing self.INDIRECT_VALUE_MARKER if any
+                if value[-1] == self.INDIRECT_VALUE_MARKER:
                     value = value[:-1]
             else:
                 # final_type == str, or
                 # isinstance(final_type, tuple) and str in final_type.
                 # so val denotes an indirect value, an f-keyword,
-                # IFF last char is KEYWORD_MARKER
-                indirect = (value[-1] == self.KEYWORD_MARKER)
+                # IFF last char is INDIRECT_VALUE_MARKER
+                indirect = (value[-1] == self.INDIRECT_VALUE_MARKER)
                 if indirect:
                     value = value[:-1]
 
@@ -414,7 +414,7 @@ class DecoSettingsMapping():
                 "setting (key) '%s' is not visible in class '%s'."
                 % (key, self.deco_class.__name__))
         indirect, value = self._tagged_values_dict[key]
-        return value + '=' if indirect else value
+        return value + self.INDIRECT_VALUE_MARKER if indirect else value
 
     def __len__(self):
         """Return # of visible settings."""

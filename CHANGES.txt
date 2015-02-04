@@ -58,6 +58,29 @@ VERSIONS
             methods/properties that are decorated at inner class level
                 can be UNdecorated if omitted by outer class
 
+            # TODO document
+            # Caller can specify, in omit or only parameters,
+            #    property_name  (matches all prop fns, get set del)
+            #    property_name + '.getter' or '.setter' or '.deleter'
+            #    name of function supplied as fget, fset, fdel arg
+            #        to property() function/constructor
+            # and/or
+            #    any of the above three, prefixed with class name
+            #
+            #    (INCLUDING possibly inner function qualifiers,
+            #     thus e.g. X.method.innerfunc.<locals>.Cls.prop.getter
+            # If property_name is given, it matches any/all of the
+            # property functions (get/set/del).
+
+      - Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
+        (mostly for testing & debugging -- TODO : comment out of "if ___" out in release?)
+
+      - Added log_calls_wrapper method to decorated methods
+        so that they can easily access their log_calls-added attributes,
+        in particular `log_message` and `log_exprs`, without having to jump
+        through all kinds of special-case hoops as in versions of log_calls < 0.3
+
+
         TODO test for record_history
         TODO document this
 
@@ -70,7 +93,8 @@ VERSIONS
         Useful if you find the qualnames of inner functions and methods cluttered,
         and want to use just, say, "inner_fn" instead of "outer_fn.<locals>.inner_fn"
         > one test/example in `[Inner function accessing its attributes](id:inner-function-accessing-attrs)`
-        > TODO do more tests/examples
+        > another two in test_log_calls__class_deco.py function main__lc_class_deco__undecorate_property_attrs()
+        > TODO do more tests/examples ?
         > TODO test with record_history
         TODO document
 
@@ -80,7 +104,7 @@ VERSIONS
         Intention is, provide an easy way to print out variables & expressions + their values
         log_exprs evaluates each expr in the context of the caller,
         so you can just pass it (quoted) variables and expressions
-        TODO tests/examples (there's one; do more?)
+        TODO tests/examples (there's one (test_log_calls_v30_minor_features_fixes.py); do more?)
         TODO document
 
       - add `mute` setting: 3-valued:
@@ -93,17 +117,22 @@ VERSIONS
         log_calls.mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
         alias -1
 
-        mutable, but NOT allow_indirect: log_message has to be able to get the value,
-        and then doesn't have access to the args to f (if f is not enabled, and only kludgily, if f is enabled)
-        TODO implement
-        TODO write tests
+        mutable, AND allow_indirect
+        log_* adjusts for calls not being logged:
+        because there's no log_calls "frame",
+        -- they don't indent an extra level -- no 'arguments:' to align with), and
+        -- they automatically prefix messages with function's display name
+
+        tests/examples in test_log_calls_v30_minor_features_fixes.py
         TODO document
 
       - Little fix: if f is disabled, log_message would (/could) blow up.
         log_message now produces no output if f is not enabled.
+        TODO Test/example in test_log_calls_v30_minor_features_fixes.py
+        TODO document (the bright side of this)
 
       - TODO DOCUMENT that we REQUIRE Python 3.3+ (__qualname__ now,
-             and already we used inspect.signature so in fact we already require 3.3+)
+             and already we used inspect.signature so in fact we already required 3.3+)
         TODO can we check Py version in setup.py AND FAIL if version too low?
 
       - TODO Change docs to reflect that we always use perf_counter and process_time,
@@ -121,27 +150,28 @@ VERSIONS
         construction, i.e. whose __init__ methods are still running/
         /still active/haven't yet returned/still on call stack.
         This is true for all objects, instances of classes whether they're deco'd OR NOT
-        TODO illustrate with example/test..... (there's one in temptemp.py)
+        TODO illustrate with example/test..... (there's one (more?) in test_log_calls_v30_minor_features_fixes.py.py)
 
-      - you cannot decorate repr with log_calls
-        TODO but you can with record_history
+      - you cannot decorate repr with log_calls or record_history
         related to the above __repr__ handling
 
+        TODO TEST/example that it's impossible with log_calls (already have >= 1? test_log_calls_v30_minor_features_fixes.py?)
+        TODO show [not] possible with record_history either
+
         TODO make it possible to deco it with record_history (possible? TODO figure out)
-        TODO TEST that it's impossible with log_calls, possible with record_history
 
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
         to apply to already-deco'd methods :)
         [prefix is now a lot less useful, too, lol]
 
         TODO document that / update docs to reflect
-        TODO test it -- dynamically change 'prefix' in various ways, test
+        TODO test it -- dynamically change 'prefix' in various ways, test    (isn't there a test? where?)
         todo    at both ends of call chains
 
-      - suppress return value on __init__
-        Explicit "log_retval=True" on method overrides that.
+      - suppress return value on __init__, by default;
+        explicit "log_retval=True" on method overrides that.
 
-      - prefix works for inner classes too (Outer.Inner.foo)
+      - prefix works for inner classes too (Outer.Inner.foo)    [TODO why shouldn't it? unclear. Delete this?]
 
       - record_history wasn't using @used_unused_keywords for
         __init__, and wasn't passing its used_keywords, so prefix was

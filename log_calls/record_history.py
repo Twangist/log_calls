@@ -51,11 +51,16 @@ class record_history(_deco_base):
             log_call_numbers=True,     # for call chain in history record
         )
 
+    # 0.3.0
+    @classmethod
+    def allow_repr(cls) -> bool:
+        return True
+
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn):
         """Return None: no output.
         cls: unused.."""
         return None
 
-    def __call__(self, f):
-        return super().__call__(f)
+    # def __call__(self, f):
+    #     return super().__call__(f)
