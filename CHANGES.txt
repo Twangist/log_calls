@@ -72,18 +72,13 @@ VERSIONS
             # If property_name is given, it matches any/all of the
             # property functions (get/set/del).
 
-      - TODO DOCUMENT -- accessing attributes added by decos to properties
-        Attributes of properties defined by @property decorator are harder to access.
-        You have to use `getattr(getattr(rt.__class__, 'a'), 'fget')` to access
-        the underlying getter function -- e.g. from tests/test_record_history__class_deco.py:
+      - Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
+        (mostly for testing & debugging -- TODO : comment out of "if ___" out in release?)
 
-            >>> getattr(getattr(rt.__class__, 'a'), 'fget').stats.num_calls_logged
-            10
-
-        and similarly 'fset' and 'fdel'.
-
-        Accessing attributes of a property defined using the `property` function
-        is straightforward/standard.
+      - Added log_calls_wrapper method to decorated methods
+        so that they can easily access their log_calls-added attributes,
+        in particular `log_message` and `log_exprs`, without having to jump
+        through all kinds of special-case hoops as in versions of log_calls < 0.3
 
 
         TODO test for record_history

@@ -672,6 +672,11 @@ Property specified via decorator:
     >>> A.I().f(); A.I().prop; A.I().prop = 17; del A.I().prop
     A.I.prop <== called by <module>
 
+    >>> A.log_calls_omit
+    ('prop.setter', 'prop.deleter')
+    >>> A.I.log_calls_omit
+    ('prop.setter', 'prop.deleter', 'f')
+
 Property specified via property():
     Top-level:
         - only [OBSERVE, uses both ways of referring to the property attrs]
@@ -687,6 +692,9 @@ Property specified via property():
     >>> A().prop; A().prop = 17; del A().prop
     A.prop_get <== called by <module>
     A.prop_del <== called by <module>
+
+    >>> A.log_calls_only
+    ('prop_get', 'prop.deleter', 'prop_del')
 
         - omit
         Referring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
@@ -716,8 +724,10 @@ Property specified via property():
     >>> A.I().f(); A.I().prop; A.I().prop = 17
     A.I.prop_get <== called by <module>
 
+    >>> A.I.log_calls_only
+    ('prop.getter', 'prop_get')
+
         - omit
-        Again, eferring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
     >>> @log_calls(omit='prop_get', settings=MINIMAL)
     ... class A():
     ...     @log_calls()
@@ -729,6 +739,9 @@ Property specified via property():
     >>> A.I().f(); A.I().prop; A.I().prop = 17
     A.I.f <== called by <module>
     A.I.prop_set <== called by <module>
+
+    >>> A.I.log_calls_omit
+    ('prop_get',)
     """
     pass
 
@@ -767,6 +780,8 @@ The method is NOT decorated:
     >>> XX.log_calls_wrapper('setxx') is None
     True
 
+    >>> XX.log_calls_omit
+    ('xx.setter', 'setxx')
 
 - only
 
@@ -792,10 +807,75 @@ and the method IS decorated:
     >>> bool( Y.log_calls_wrapper('sety') )
     True
 
-
+    >>> Y.log_calls_only
+    ('y.setter', 'sety')
 
     """
     pass
+
+#=============================================================================
+# main__lc_class_deco__omitonly_with_property_ctor__property_name_only
+#=============================================================================
+def main__lc_class_deco__omitonly_with_property_ctor__property_name_only():
+    """
+Same class we test omit='xx.setter' with,
+where `xx` is a property created using `property` constructor,
+and `xx` is enumerated by `cls.__dict__` before `setxx` in Py3.4.2.
+This failed in  prior to handling entire properties
+in `_deco_base._add_property_method_names`
+
+    >>> @log_calls(omit='xx')
+    ... class XX():
+    ...     def __init__(self): pass
+    ...     def method(self): pass
+    ...     @staticmethod
+    ...     def statmethod():        pass
+    ...     @classmethod
+    ...     def clsmethod(cls):      pass
+    ...     def setxx(self, val):     pass
+    ...     def delxx(self):          pass
+    ...     xx = property(None, setxx, delxx)
+
+The method is NOT decorated:
+
+    >>> XX.log_calls_wrapper('xx.setter') is None
+    True
+    >>> XX.log_calls_wrapper('setxx') is None
+    True
+
+    >>> XX.log_calls_omit
+    ('xx', 'setxx', 'delxx')
+
+    - only
+
+    >>> @log_calls(only='xxx')
+    ... class XXX():
+    ...     def __init__(self): pass
+    ...     def method(self): pass
+    ...     @staticmethod
+    ...     def statmethod():        pass
+    ...     @classmethod
+    ...     def clsmethod(cls):      pass
+    ...     def setxxx(self, val):     pass
+    ...     def delxxx(self):          pass
+    ...     xxx = property(None, setxxx, delxxx)
+
+Wrappers found for 'setxxx' and 'xxx.setter' are identical:
+
+    >>> XXX.log_calls_wrapper('setxxx') is XXX.log_calls_wrapper('xxx.setter')
+    True
+
+and the method IS decorated:
+
+    >>> bool( XXX.log_calls_wrapper('setxxx') )
+    True
+
+    >>> XXX.log_calls_only
+    ('xxx', 'setxxx', 'delxxx')
+
+    """
+    pass
+
 
 #-----------------------------------------------------------------------------
 # main__lc_class_deco__omitonly_locals_in_qualname

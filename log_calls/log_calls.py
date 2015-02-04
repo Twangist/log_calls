@@ -22,7 +22,7 @@ import os
 import io   # so we can refer to io.TextIOBase
 import time
 import datetime
-from collections import namedtuple, deque
+from collections import namedtuple, deque, OrderedDict
 
 import fnmatch  # 0.3.0 for omit, only
 
@@ -344,17 +344,19 @@ class DecoSettingLogger(DecoSetting):
 # useful lil lookup tables
 #-----------------------------------------------------------------------------
 
-PROPERTY_USER_SUFFIXES_to_ATTRS = {
-    'getter': 'fget',
-    'setter': 'fset',
-    'deleter': 'fdel'}
+# OrderedDicts instead of dicts for the sake of
+# tests of <cls>.log_calls_omit, <cls>.log_calls_only
+PROPERTY_USER_SUFFIXES_to_ATTRS = OrderedDict(
+    (('getter', 'fget'),
+     ('setter', 'fset'),
+     ('deleter', 'fdel')) )
 
 # Keys: attributes of properties;
 # Vals: what users can suffix prop names with in omit & only lists
-PROPERTY_ATTRS_to_USER_SUFFIXES = {
-    'fget': 'getter',
-    'fset': 'setter',
-    'fdel': 'deleter'}
+PROPERTY_ATTRS_to_USER_SUFFIXES = OrderedDict(
+    (('fget', 'getter'),
+     ('fset', 'setter'),
+     ('fdel', 'deleter')) )
 
 
 #-----------------------------------------------------------------------------
@@ -1080,35 +1082,40 @@ class _deco_base():
         for method_spec in method_specs:
             method_specs_ex.append(method_spec)     # method_specs_ex contains method_specs
             dot_pos = method_spec.rfind('.')
-            if dot_pos == -1:
-                continue
-            suffix = method_spec[dot_pos+1:]
-            if suffix not in PROPERTY_USER_SUFFIXES_to_ATTRS:
-                continue
-            root = method_spec[:dot_pos]
-            # root may contain dot(s), and may contain wildcards &/or char ranges.
-            # See if there are properties (one OR MORE) in cls
-            # whose name or whose ~~ qualname matches root.
-            # `matching_properties_and_flags` holds (prop, flag)
-            # where flag == False if prop's name matches root,
-            #            == True  if cls_prefix + name matches root,
-            matching_properties_and_flags = []
+
+            suffix = ''
+            if dot_pos != -1:
+                suffix = method_spec[dot_pos+1:]
+
+            if suffix in PROPERTY_USER_SUFFIXES_to_ATTRS:
+                pattern = method_spec[:dot_pos]
+                suffixes = (suffix,)
+            else:
+                pattern = method_spec
+                suffixes = tuple(PROPERTY_USER_SUFFIXES_to_ATTRS.keys())
+
+            matching_props_suffixes_and_flags = []
             for name, prop in cls_properties:
-                if fnmatch.fnmatchcase(name, root):
-                    matching_properties_and_flags.append((prop, False))
-                elif fnmatch.fnmatchcase(cls_prefix + name, root):
-                    matching_properties_and_flags.append((prop, True))
-            if not matching_properties_and_flags:
+                for sfx in suffixes:
+                    if fnmatch.fnmatchcase(name, pattern):
+                        matching_props_suffixes_and_flags.append((prop, sfx, False))
+                    elif fnmatch.fnmatchcase(cls_prefix + name, pattern):
+                        matching_props_suffixes_and_flags.append((prop, sfx, True))
+
+            if not matching_props_suffixes_and_flags:
                 continue
 
-            # For each (prop, matches_qualname) in matching_properties_and_flags,
-            # get attribute (function) of prop corresponds to suffix;
+            # For each (prop, sfx, matches_qualname) in matching_props_suffixes_and_flags,
+            # get attribute (function) of prop corresponds to sfx;
             # if it exists & is a function in cls, add its matching name
-            for prop, matches_qualname in matching_properties_and_flags:
-                func = getattr(prop, PROPERTY_USER_SUFFIXES_to_ATTRS[suffix], None)
+            # (its .__name__ if not matches_qualname, else cls_prefix + its .__name__)
+            for prop, sfx, matches_qualname in matching_props_suffixes_and_flags:
+                func = getattr(prop, PROPERTY_USER_SUFFIXES_to_ATTRS[sfx], None)
                 if not func:
                     continue
                 # Is func, by name, actually a function of class cls?
+                # (This is false if @property etc decos were used to create prop,
+                #  true if property ctor was used.)
                 # If so, add its (possibly cls-prefix'd) name to list
                 func_name = func.__name__
                 if self._is_a_function_in_class(func_name, cls):
