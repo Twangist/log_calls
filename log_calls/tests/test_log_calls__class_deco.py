@@ -1009,22 +1009,22 @@ Stuff that fails - deco'd class
     >>> for name in bad_names:
     ...     try:
     ...         wrapper = a.log_calls_wrapper(name)
-    ...     except AttributeError as e:
+    ...     except ValueError as e:
     ...         print(e)
     ...     except TypeError as e:
     ...         print(e)
-    AttributeError: class 'A' has no such attribute as 'no_such_method'
-    AttributeError: no such method specifier 'foo.bar.baz'
-    AttributeError: bad method specifier 'foo.'
-    AttributeError: bad method specifier 'prop.'
-    AttributeError: prop.foo -- unknown qualifier 'foo'
-    AttributeError: property 'prop' has no 'deleter' in class 'A'
-    AttributeError: property 'x' has no 'getter' in class 'A'
-    AttributeError: property 'x' has no 'getter' in class 'A'
-    AttributeError: method.getter -- 'method' is not a property of class 'A'
-    AttributeError: bad method specifier '.uvwxyz'
-    AttributeError: class 'A' has no such attribute as 'not an identifier'
-    AttributeError: class 'A' has no such attribute as '88 < x**2'
+    ValueError: class 'A' has no such attribute as 'no_such_method'
+    ValueError: no such method specifier 'foo.bar.baz'
+    ValueError: bad method specifier 'foo.'
+    ValueError: bad method specifier 'prop.'
+    ValueError: prop.foo -- unknown qualifier 'foo'
+    ValueError: property 'prop' has no 'deleter' in class 'A'
+    ValueError: property 'x' has no 'getter' in class 'A'
+    ValueError: property 'x' has no 'getter' in class 'A'
+    ValueError: method.getter -- 'method' is not a property of class 'A'
+    ValueError: bad method specifier '.uvwxyz'
+    ValueError: class 'A' has no such attribute as 'not an identifier'
+    ValueError: class 'A' has no such attribute as '88 < x**2'
     TypeError: item '__doc__' of class 'A' is of type 'NoneType' and can't be decorated
     TypeError: expecting str for argument 'fname', got 17 of type int
     TypeError: expecting str for argument 'fname', got False of type bool
@@ -1064,7 +1064,7 @@ main__test__log_calls_wrapper__from_outside.__doc__ = \
 #-----------------------------------------------------------------------------
 def main__test__log_calls_wrapper__from_inside():
     """
-    >>> @log_calls(mute=True)
+    >>> @log_calls(omit='no_deco', mute=True)
     ... class B():
     ...     def __init__(self):
     ...         wrapper = self.log_calls_wrapper('__init__')
@@ -1072,7 +1072,9 @@ def main__test__log_calls_wrapper__from_inside():
     ...     def method(self):
     ...         wrapper = self.log_calls_wrapper('method')
     ...         wrapper.log_message('Hi')
-    ...
+    ...     def no_deco(self):
+    ...         wrapper = self.log_calls_wrapper('no_deco')
+    ...         wrapper.log_message('Hi')
     ...     @staticmethod
     ...     def statmethod():
     ...         wrapper = B.log_calls_wrapper('statmethod')
@@ -1116,6 +1118,16 @@ def main__test__log_calls_wrapper__from_inside():
     B.setx: Hi from setx alias x.setter
     >>> del b.x
     B.delx: Hi from delx alias x.deleter
+
+`no_deco` is not decorated, so `log_calls_wrapper` returns None,
+but the method tries to access its `log_message` attribute --
+hence this error message:
+
+    >>> b.no_deco()         # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'NoneType' object has no attribute 'log_message'
+
     """
     pass
 
@@ -1134,6 +1146,183 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+    @log_calls(omit='no_deco', mute=True)
+    class B():
+        def __init__(self):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi')
+        def method(self):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi')
+        def no_deco(self):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi')
+        @staticmethod
+        def statmethod():
+            wrapper = B.log_calls_wrapper()
+            wrapper.log_message('Hi')
+
+        @classmethod
+        def clsmethod(cls):
+            wrapper = B.log_calls_wrapper()
+            wrapper.log_message('Hi')
+
+        @property
+        def prop(self):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi')
+        @prop.setter
+        def prop(self, val):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi from prop.setter')
+
+        def setx(self, val):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi from setx alias x.setter')
+        def delx(self):
+            wrapper = self.log_calls_wrapper()
+            wrapper.log_message('Hi from delx alias x.deleter')
+
+        x = property(None, setx, delx)
+    b = B()
+    # B.__init__: Hi
+    b.method()
+    # B.method: Hi
+    b.statmethod()
+    # B.statmethod: Hi
+    b.clsmethod()
+    #B.clsmethod: Hi
+    b.prop
+    #B.prop: Hi
+    b.prop = 17
+    #B.prop: Hi from prop.setter
+    b.x = 13
+    #B.setx: Hi from setx alias x.setter
+    del b.x
+    #B.delx: Hi from delx alias x.deleter
+
+# `no_deco` is not decorated, so `log_calls_wrapper` returns None,
+# but the method tries to access its `log_message` attribute --
+# hence this error message:
+#
+#    >>> b.no_deco()         # doctest: +IGNORE_EXCEPTION_DETAIL
+#    Traceback (most recent call last):
+#        ...
+#    AttributeError: 'NoneType' object has no attribute 'log_message'
+
+# This won't work/is wrong:
+    try:
+        b.method.log_calls_wrapper()
+    except AttributeError as e:
+        # 'function' object has no attribute 'log_calls_wrapper'
+        print(e)
+
+    try:
+        b.no_deco()
+    except ValueError as e:
+        print(e)
+        # ''no_deco' is not decorated [1]
+
+    b.method.log_calls_settings.enabled = 0
+    b.method()  # no log_* output if enabled <= 0, but method can still call log_calls_wrapper
+
+    b.method.log_calls_settings.enabled = -1     # "true bypass" -- method can't call log_calls_wrapper
+    try:
+        b.method()
+    except ValueError as e:
+        print(e)
+        # ValueError: 'method' appears to be true-bypassed (enabled < 0) or undecorated
+
+# TODO induce more errors
+
+    def f_log_calls_wrapper_():     # note name -- fake out log_calls_wrapper for a few clauses
+        # No local named _deco_base__active_call_items__
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # 'no_deco' appears to be true-bypassed (enabled < 0) or undecorated
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper longer
+        _deco_base__active_call_items__ = 17    # exists but isn't a dict
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # 'no_deco' appears to not be decorated
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper still longer
+        _deco_base__active_call_items__ = {    # exists, is a dict, no key '_wrapper_deco'
+            'a': 45
+        }
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # 'no_deco' appears to not be decorated
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+        _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
+            '_wrapper_deco': 45
+        }
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # 'no_deco' is not decorated
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+        _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
+            '_wrapper_deco': log_calls()    # correct type, but not hooked up properly
+        }
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # log_calls decorator object for 'no_deco' missing an attribute (internal error or external damage)
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+        lc = log_calls()    # correct type, but still not hooked up properly
+        lc.f = None
+        _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
+            '_wrapper_deco': lc
+        }
+
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+        lc = log_calls()    # correct type, but still not hooked up properly
+        lc.f = None
+        _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
+            '_wrapper_deco': lc
+        }
+
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
+
+    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+        lc = log_calls()    # correct type, lc.f correct, but STILL not hooked up properly
+        lc.f = B.no_deco
+        _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
+            '_wrapper_deco': lc
+        }
+
+        try:
+            b.no_deco()
+        except ValueError as e:
+            print(e)
+    f_log_calls_wrapper_()  # couldn't find log_calls wrapper of 'no_deco'
+
+
+#    exit(89)
 
     doctest.testmod()   # (verbose=True)
 

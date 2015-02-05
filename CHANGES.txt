@@ -75,11 +75,17 @@ VERSIONS
       - Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
         (mostly for testing & debugging -- TODO : comment out of "if ___" out in release?)
 
-      - Added log_calls_wrapper method to decorated methods
-        so that they can easily access their log_calls-added attributes,
-        in particular `log_message` and `log_exprs`, without having to jump
-        through all kinds of special-case hoops as in versions of log_calls < 0.3
+        Ditto `record_history_omit`, `record_history_only` (TODO: test if not done; document)
 
+      - Added log_calls_wrapper (and record_history_wrapper) method to decorated classes,
+        so that the methods can access their decorated-added attributes
+        (in particular `log_message` and `log_exprs`) in a uniform way,
+        without having to jump through all kinds of special-case hoops
+        as in versions of log_calls < 0.3
+
+        Added log_calls_wrapper() functionality (call with no args)     # TODO may change API
+        so that a method can even more easily get its own wrapper
+        without having to pass its name (DRY)
 
         TODO test for record_history
         TODO document this
@@ -108,14 +114,14 @@ VERSIONS
         TODO document
 
       - add `mute` setting: 3-valued:
-        log_calls.mute.NOTHING  (default -- all output produced)
+        log_calls.Mute.NOTHING  (default -- all output produced)
         alias False
-        log_calls.mute.CALLS    (mute output from decorated functions & methods & properties,
+        log_calls.Mute.CALLS    (mute output from decorated functions & methods & properties,
                                  but log_message and log_exprs produce output;
                                  call # recording, history recording continue if enabled)
         alias True
-        log_calls.mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
-        alias -1
+        log_calls.Mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
+        alias 2
 
         mutable, AND allow_indirect
         log_* adjusts for calls not being logged:

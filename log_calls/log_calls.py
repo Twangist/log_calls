@@ -40,27 +40,6 @@ from .used_unused_kwds import used_unused_keywords
 __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 
 
-#------------------------------------------------------------------------------
-# log_calls
-#------------------------------------------------------------------------------
-CallRecord = namedtuple(
-    "CallRecord",
-    (
-        'call_num',
-        'argnames', 'argvals',
-        'varargs',
-        'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
-        'retval',
-        'elapsed_secs', 'CPU_secs',
-        'timestamp',
-        'prefixed_func_name',
-        # caller_chain: list of fn names, possibly "prefixed".
-        # From most-recent (immediate caller) to least-recent if len > 1.
-        'caller_chain',
-    )
-)
-
-
 #-----------------------------------------------------------------------------
 # DecoSetting subclasses with pre-call handlers.
 # The `context` arg for pre_call_handler methods has these keys:
@@ -301,9 +280,9 @@ class DecoSettingHistory(DecoSetting_bool):
         return None
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#-----------------------------------------------------------------------------
 # DecoSetting subclasses overriding value_from_str and has_acceptable_type
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#-----------------------------------------------------------------------------
 
 class DecoSettingFile(DecoSetting):
     def value_from_str(self, s):
@@ -341,6 +320,28 @@ class DecoSettingLogger(DecoSetting):
 
 
 #-----------------------------------------------------------------------------
+# CallRecord namedtuple, for history
+#-----------------------------------------------------------------------------
+
+CallRecord = namedtuple(
+    "CallRecord",
+    (
+        'call_num',
+        'argnames', 'argvals',
+        'varargs',
+        'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
+        'retval',
+        'elapsed_secs', 'CPU_secs',
+        'timestamp',
+        'prefixed_func_name',
+        # caller_chain: list of fn names, possibly "prefixed".
+        # From most-recent (immediate caller) to least-recent if len > 1.
+        'caller_chain',
+    )
+)
+
+
+#-----------------------------------------------------------------------------
 # useful lil lookup tables
 #-----------------------------------------------------------------------------
 
@@ -358,6 +359,9 @@ PROPERTY_ATTRS_to_USER_SUFFIXES = OrderedDict(
      ('fset', 'setter'),
      ('fdel', 'deleter')) )
 
+# Name of *** local variable *** of f_log_calls_wrapper_,
+# accessed by callstack-chaseback routine and (0.3.0) _get_own_deco_wrapper
+STACKFRAME_HACK_DICT_NAME = '_deco_base__active_call_items__'
 
 #-----------------------------------------------------------------------------
 # _get_underlying_function
@@ -380,6 +384,72 @@ def _get_underlying_function(item, actual_item):
 
 
 #-----------------------------------------------------------------------------
+# _get_own_deco_wrapper
+#-----------------------------------------------------------------------------
+def _get_own_deco_wrapper(deco_class, cls) -> "function":
+    """Return deco wrapper of  caller of caller of caller,
+    IFF
+    caller of caller is deco'd   # return *that*
+    Note:
+    cls is deco'd, otherwise it wouldn't have a <clsname> + '_wrapper' attr
+    through which to call _get_deco_wrapper :)
+
+    Raise ValueError on error
+    """
+    # Error messages. We append a code to better determine cause of error.
+    ERR_NOT_DECORATED = "'%s' is not decorated [%d]"
+    ERR_BYPASSED_OR_NOT_DECORATED = "'%s' is true-bypassed (enabled < 0) or not decorated [%d]"
+    ERR_INCONSISTENT_DECO = "inconsistent %s decorator object for '%s' [%d]"
+    # caller is _get_deco_wrapper
+    # its caller is function whose wrapper we want
+    # ITs caller should be the wrapper
+    func_frame = sys._getframe(2)
+    code = func_frame.f_code
+    funcname = code.co_name
+
+    wrapper_frame = func_frame.f_back
+    wrapper_funcname = wrapper_frame.f_code.co_name
+
+    # wrapper_funcname should be 'f_log_calls_wrapper_'
+    if wrapper_funcname != 'f_log_calls_wrapper_':
+        raise ValueError(ERR_NOT_DECORATED % (funcname, 1))
+
+    # look in its f_locals :) [stackframe hack] for STACKFRAME_HACK_DICT_NAME
+    hack_dict = wrapper_frame.f_locals.get(STACKFRAME_HACK_DICT_NAME, None)
+    if not hack_dict:
+        raise ValueError(ERR_BYPASSED_OR_NOT_DECORATED % (funcname, 2))
+    # value for key '_wrapper_deco' is the deco object
+    try:
+        deco_obj = hack_dict['_wrapper_deco']
+    except (TypeError, KeyError):
+        deco_obj = None
+    if not (deco_obj and type(deco_obj) == deco_class):
+        raise ValueError(ERR_NOT_DECORATED % (funcname, 3))
+
+    # we've almost surely found a true wrapper
+    try:
+        wrapped_f = deco_obj.f
+    except AttributeError:
+        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 4))
+    # more consistency checks:
+    # wrapped_f nonempty and has same name and identical code to our function
+    if not wrapped_f:
+        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 5))
+    if not (funcname == wrapped_f.__name__ and
+            wrapped_f.__code__ is code):
+        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 6))
+
+    # access its attr deco_obj._sentinels['WRAPPER_FN_OBJ'] --
+    # THAT, at long last, is (alllmost surely) the wrapper
+    wrapper = getattr(wrapped_f, deco_obj._sentinels['WRAPPER_FN_OBJ'], None)
+    # if wrapper is None then getattr returns None, so != deco_obj
+    if deco_obj != getattr(wrapper, deco_obj._sentinels['DECO_OF'], None):
+        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 7))
+
+    return wrapper
+
+
+#-----------------------------------------------------------------------------
 # _get_deco_wrapper
 # classmethod(partial(_get_deco_wrapper, deco_class))
 # added as attribute '<deco_name>_wrapper' to decorated classes,
@@ -387,7 +457,10 @@ def _get_underlying_function(item, actual_item):
 # of methods and properties.
 # <deco_name> = 'log_calls', 'record_history', ...
 #-----------------------------------------------------------------------------
-def _get_deco_wrapper(deco_class, cls, fname: str):
+
+# @used_unused_keywords()
+# TODO: Temporarily this nutty default value (None, 1729)
+def _get_deco_wrapper(deco_class, cls, fname: str=(None, 1729)) -> "function":
     """
     deco_class: log_calls, record_history, ...
     cls is (supposed to be) a decorated class.
@@ -407,43 +480,56 @@ def _get_deco_wrapper(deco_class, cls, fname: str):
     No need for qualnames. If A is decorated and has an inner class I,
     then I is decorated too, so use A.I.log_calls_wrapper(fname)
 
+    TODO/IN-PROGRESS: if fname is NOT PASSED at all,
+    defer to _get_own_deco_wrapper - so that methods don't have to pass
+    their own name (which is kinda idiotic/unDRY)
+    _get_own_deco_wrapper has its own error-checking to do,
+    just a little, and it's nothing like what's done here.
+
     Return wrapper if fname is decorated, None if it isn't;
     raise exception if fname is crazy or doesn't exist in cls or etc.
+
+    Raise ValueError or TypeError on error:
+    ValueError
+    Raised when a built-in operation or function receives an argument
+    that has the right type but an inappropriate value, and the situation
+    is not described by a more precise exception such as IndexError.
     """
-    # Is cls decorated? Raise AttributeError if not.
     sentinel = deco_class._sentinels['DECO_OF']
-    ###  NEVER HAPPENS
-    # if not getattr(cls, sentinel, None):
-    #     raise AttributeError("AttributeError: class '%s' is not decorated by %s"
-    #                          % (cls.__name__, deco_class.__name__))
+    # if 'fname' not in _get_deco_wrapper.get_unused_keywords():
+    #     return _get_own_deco_wrapper(deco_class, cls, _sentinel=sentinel)
+    if fname == (None, 1729):     # TODO: temporarily this nutty value
+        return _get_own_deco_wrapper(deco_class, cls)
+
     if not isinstance(fname, str):
         raise TypeError("TypeError: expecting str for argument 'fname', got %r of type %s"
                         % (fname, type(fname).__name__))
 
     parts = fname.split('.')
     if len(parts) > 2:
-        raise AttributeError("AttributeError: no such method specifier '%s'" % fname)
+        raise ValueError("ValueError: no such method specifier '%s'" % fname)
     prop_suffix = None
     if len(parts) == 2:
         fname, prop_suffix = parts
         if not (fname and prop_suffix):
-            raise AttributeError("AttributeError: bad method specifier '%s.%s'" % (fname, prop_suffix))
+            raise ValueError("ValueError: bad method specifier '%s.%s'"
+                             % (fname, prop_suffix))
 
     cls_dict = cls.__dict__     # = vars(cls) but faster
     if fname not in cls_dict:
-        raise AttributeError("AttributeError: class '%s' has no such attribute as '%s'"
-                             % (cls.__name__, fname))
+        raise ValueError("ValueError: class '%s' has no such attribute as '%s'"
+                         % (cls.__name__, fname))
     item = cls_dict[fname]
     # Guard against '.getter' etc appended to non-properties,
     # unknown things appended to property names
     # surely these deserves complaints (exceptions)
     if prop_suffix:
         if type(item) != property:
-            raise AttributeError("AttributeError: %s.%s -- '%s' is not a property of class '%s'"
-                                 % (fname, prop_suffix, fname, cls.__name__))
+            raise ValueError("ValueError: %s.%s -- '%s' is not a property of class '%s'"
+                             % (fname, prop_suffix, fname, cls.__name__))
         if prop_suffix not in PROPERTY_USER_SUFFIXES_to_ATTRS:
-            raise AttributeError("AttributeError: %s.%s -- unknown qualifier '%s'"
-                                 % (fname, prop_suffix, prop_suffix))
+            raise ValueError("ValueError: %s.%s -- unknown qualifier '%s'"
+                             % (fname, prop_suffix, prop_suffix))
     actual_item = getattr(cls, fname)
     func = _get_underlying_function(item, actual_item)
     if func:
@@ -466,10 +552,12 @@ def _get_deco_wrapper(deco_class, cls, fname: str):
         return func if getattr(func, sentinel, None) else None
     else:
         # property has no such attribute (no 'setter', for example)
-        raise AttributeError("AttributeError: property '%s' has no '%s' in class '%s'"
-                             % (fname, prop_suffix, cls.__name__))
+        raise ValueError("ValueError: property '%s' has no '%s' in class '%s'"
+                         % (fname, prop_suffix, cls.__name__))
+
 
 #-----------------------------------------------------------------------------
+# _deco_base
 # Fat base class for log_calls and record_history decorators
 #-----------------------------------------------------------------------------
 
@@ -515,12 +603,12 @@ class _deco_base():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # constants for the `mute` setting
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    class mute():
+    class Mute():
         NOTHING = False     # (default -- all output produced)
         CALLS = True        # (mute output from decorated functions & methods & properties,
                             #  but log_message and thus log_exprs produce output;
                             #  call # recording, history recording continue if enabled)
-        ALL = -1            # (no output at all; but call # recording, history recording continue if enabled)
+        ALL = 2             # (no output at all; but call # recording, history recording continue if enabled)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # sentinels, for identifying functions on the calls stack
@@ -580,6 +668,13 @@ class _deco_base():
         'clear_history',
     )
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # virtual classmethods
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    @classmethod
+    def get_logging_fn(cls, _get_final_value_fn):
+        return print
+
     # 0.3.0
     @classmethod
     def allow_repr(cls) -> bool:
@@ -592,6 +687,15 @@ class _deco_base():
         """Default: do nothing"""
         return
 
+    # 0.3.0
+    @classmethod
+    def global_mute(cls) -> bool:
+        """Default: False (never globally muted)"""
+        return False
+
+    #----------------------------------------------------------------
+    # history stuff
+    #----------------------------------------------------------------
     # A few generic properties, internal logging, and exposed
     # as descriptors on the stats (ClassInstanceAttrProxy) obj
     @property
@@ -751,6 +855,9 @@ class _deco_base():
                     caller_chain=caller_chain)
         )
 
+    #----------------------------------------------------------------
+    # log_* output methods
+    #----------------------------------------------------------------
     # 0.3.0
     LoggingState = namedtuple("LoggingState",
                               ('logging_fn',
@@ -845,13 +952,14 @@ class _deco_base():
         # 0.3.0
         logging_state = self.logging_state_stack[-1]
         # Write nothing if output is stifled (caller is NOT f_log_calls_wrapper_)
-        mute = logging_state.mute
-        if mute == self.mute.ALL:
+        # NOTE: only check global_mute() IN REALTIME, like so:
+        mute = max(logging_state.mute, self.global_mute())
+        if mute == self.Mute.ALL:
             return
         # adjust for calls not being logged -- don't indent an extra level
         #  (no 'log_calls frame', no 'arguments:' to align with),
         #  and prefix with display name cuz there's no log_calls "frame"
-        if mute == self.mute.CALLS:
+        if mute == self.Mute.CALLS:
             extra_indent_level -= 1
             prefix_with_name = True
 
@@ -867,6 +975,10 @@ class _deco_base():
         if _prefix:
             the_msg = _prefix + the_msg
         logging_state.logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
+
+    #----------------------------------------------------------------
+    # settings
+    #----------------------------------------------------------------
 
     def _read_settings_file(self, settings_path=''):
         """If settings_path names a file that exists,
@@ -946,6 +1058,7 @@ class _deco_base():
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # __init__, __call__
+    # & helpers
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
                  settings=None,
@@ -1157,7 +1270,6 @@ class _deco_base():
         otherwise, (a non-wrapped function that will be an instance method)
             we already have the function.
 
-        <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO TODO TODO TODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         Properties are different:
             if type(item) == property,
             getattr(item, '__get__').__self__ is a property object,
@@ -1535,7 +1647,7 @@ class _deco_base():
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # if nothing to do, hurry up & don't do it.
                 # NOTE: call_chain_to_next_log_calls_fn looks in stack frames
-                # to find (0.2.4) _log_calls__active_call_items__ (really!)
+                # to find (0.2.4) STACKFRAME_HACK_DICT_NAME (really!)
                 # It and its values (the following _XXX variables)
                 # must be set before calling f.
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1575,12 +1687,15 @@ class _deco_base():
                 prefixed_fname = _get_final_value('prefix') + self.f_display_name
 
                 # Stackframe hack:
-                _log_calls__active_call_items__ = {
+                assert '_deco_base__active_call_items__' == STACKFRAME_HACK_DICT_NAME
+                _deco_base__active_call_items__ = {
                     '_enabled': _enabled,
                     '_log_call_numbers': _log_call_numbers,
                     '_prefixed_fname': prefixed_fname,          # Hack alert (Pt 1)
                     '_active_call_number': _active_call_number,
-                    '_extra_indent_level': _extra_indent_level
+                    '_extra_indent_level': _extra_indent_level,
+                    # 0.3.0 for _get_own_deco_wrapper
+                    '_wrapper_deco': self
                 }
 
                 # Get logging function IF ANY.
@@ -1598,6 +1713,10 @@ class _deco_base():
                 output_fname = prefixed_fname + call_number_str
 
                 # 0.3.0
+                # Note: DON'T combine with global_mute(),
+                # cuz this value will be pushed,
+                # and when popped any realtime changes to global mute
+                # made during call to f would be ignored.
                 mute = _get_final_value('mute')
 
                 # 0.2.2 -- self._log_message() will use
@@ -1665,7 +1784,8 @@ class _deco_base():
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # Call pre-call handlers, collect nonempty return values
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                if not mute:        # 0.3.0
+                # only consult global mute in r/t
+                if not (mute or self.global_mute()):        # 0.3.0
                     pre_msgs = []
                     for setting_name in self._settings_mapping._pre_call_handlers:  # keys
                         if _get_final_value(setting_name):
@@ -1700,7 +1820,8 @@ class _deco_base():
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # Call post-call handlers, collect nonempty return values
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                if not mute:        # 0.3.0
+                # only consult global mute in r/t
+                if not (mute or self.global_mute()):        # 0.3.0
                     post_msgs = []
                     for setting_name in self._settings_mapping._post_call_handlers:  # keys
                         if _get_final_value(setting_name):
@@ -1765,10 +1886,6 @@ class _deco_base():
             #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             # end else (case "f_or_cls is a function")
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-
-    @classmethod
-    def get_logging_fn(cls, _get_final_value_fn):
-        return print
 
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
@@ -1836,11 +1953,11 @@ class _deco_base():
 
             # If found, then call_list[-1] is log_calls-wrapped
             if found:
-                # Look in stack frame (!) for (0.2.4) _log_calls__active_call_items__
+                # Look in stack frame (!) for (0.2.4) STACKFRAME_HACK_DICT_NAME
                 # and use its values
                 #   _enabled, _log_call_numbers, _active_call_number, _extra_indent_level, _prefixed_fname
-                if wrapper_frame.f_locals.get('_log_calls__active_call_items__'):
-                    active_call_items = wrapper_frame.f_locals['_log_calls__active_call_items__']
+                if wrapper_frame.f_locals.get(STACKFRAME_HACK_DICT_NAME):
+                    active_call_items = wrapper_frame.f_locals[STACKFRAME_HACK_DICT_NAME]
                     enabled = active_call_items['_enabled']     # it's >= 0
                     log_call_numbers = active_call_items['_log_call_numbers']
                     active_call_number = active_call_items['_active_call_number']
@@ -1921,15 +2038,15 @@ class log_calls(_deco_base):
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         mute:              setting. 3-valued:
-                            log_calls.mute.NOTHING  (default -- all output produced)
+                            log_calls.Mute.NOTHING  (default -- all output produced)
                             alias False
-                            log_calls.mute.CALLS    (mute output from decorated functions
+                            log_calls.Mute.CALLS    (mute output from decorated functions
                                                      & methods & properties, but log_message
                                                      and log_exprs produce output;
                                                      call # recording, history recording continue
                                                      if enabled)
                             alias True
-                            log_calls.mute.ALL      (no output at all; but call # recording,
+                            log_calls.Mute.ALL      (no output at all; but call # recording,
                                                      history recording continue if enabled)
                             alias -1
 
@@ -2090,6 +2207,13 @@ class log_calls(_deco_base):
     @classmethod
     def fixup_for_init(cls, some_settings: dict):
         some_settings['log_retval'] = False
+
+    mute = False        # CLASS level attribute
+
+    # 0.3.0
+    @classmethod
+    def global_mute(cls) -> bool:
+        return cls.mute
 
     @classmethod
     def get_logging_fn(cls, _get_final_value_fn):
