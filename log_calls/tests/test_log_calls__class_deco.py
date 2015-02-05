@@ -1,5 +1,7 @@
-from log_calls import log_calls
+__author__ = "Brian O'Neill"
+__version__ = '0.3.0'
 
+from log_calls import log_calls
 import doctest
 
 
@@ -775,9 +777,9 @@ Without the fixup, these tests would (or, could) fail.
 
 The method is NOT decorated:
 
-    >>> XX.log_calls_wrapper('xx.setter') is None
+    >>> XX.get_log_calls_wrapper('xx.setter') is None
     True
-    >>> XX.log_calls_wrapper('setxx') is None
+    >>> XX.get_log_calls_wrapper('setxx') is None
     True
 
     >>> XX.log_calls_omit
@@ -799,12 +801,12 @@ The method is NOT decorated:
 
 Wrappers found for 'sety' and 'y.setter' are identical:
 
-    >>> Y.log_calls_wrapper('sety') is Y.log_calls_wrapper('y.setter')
+    >>> Y.get_log_calls_wrapper('sety') is Y.get_log_calls_wrapper('y.setter')
     True
 
 and the method IS decorated:
 
-    >>> bool( Y.log_calls_wrapper('sety') )
+    >>> bool( Y.get_log_calls_wrapper('sety') )
     True
 
     >>> Y.log_calls_only
@@ -839,9 +841,9 @@ in `_deco_base._add_property_method_names`
 
 The method is NOT decorated:
 
-    >>> XX.log_calls_wrapper('xx.setter') is None
+    >>> XX.get_log_calls_wrapper('xx.setter') is None
     True
-    >>> XX.log_calls_wrapper('setxx') is None
+    >>> XX.get_log_calls_wrapper('setxx') is None
     True
 
     >>> XX.log_calls_omit
@@ -863,12 +865,12 @@ The method is NOT decorated:
 
 Wrappers found for 'setxxx' and 'xxx.setter' are identical:
 
-    >>> XXX.log_calls_wrapper('setxxx') is XXX.log_calls_wrapper('xxx.setter')
+    >>> XXX.get_log_calls_wrapper('setxxx') is XXX.get_log_calls_wrapper('xxx.setter')
     True
 
 and the method IS decorated:
 
-    >>> bool( XXX.log_calls_wrapper('setxxx') )
+    >>> bool( XXX.get_log_calls_wrapper('setxxx') )
     True
 
     >>> XXX.log_calls_only
@@ -917,9 +919,9 @@ Nevertheless, :
 
 
 #-----------------------------------------------------------------------------
-# main__test__log_calls_wrapper__from_outside
+# main__test__get_log_calls_wrapper__from_outside
 #-----------------------------------------------------------------------------
-def main__test__log_calls_wrapper__from_outside():
+def main__test__get_log_calls_wrapper__from_outside():
     """
     >>> @log_calls(omit='*_nodeco delx')
     ... class A():
@@ -965,7 +967,7 @@ First, the method names that work
     ...     'x.setter',
     ...     'setx',
     ... )
-    >>> all(a.log_calls_wrapper(name) for name in decorated_A)
+    >>> all(a.get_log_calls_wrapper(name) for name in decorated_A)
     True
 
     >>> not_decorated_A = (
@@ -975,11 +977,11 @@ First, the method names that work
     ...     'x.deleter',
     ...     'delx',
     ... )
-    >>> all((a.log_calls_wrapper(name) is None) for name in not_decorated_A)
+    >>> all((a.get_log_calls_wrapper(name) is None) for name in not_decorated_A)
     True
-    >>> a.log_calls_wrapper('x.setter') == a.log_calls_wrapper('setx')
+    >>> a.get_log_calls_wrapper('x.setter') == a.get_log_calls_wrapper('setx')
     True
-    >>> a.log_calls_wrapper('x.deleter') == a.log_calls_wrapper('delx')
+    >>> a.get_log_calls_wrapper('x.deleter') == a.get_log_calls_wrapper('delx')
     True
 
 Stuff that fails - deco'd class
@@ -1008,23 +1010,23 @@ Stuff that fails - deco'd class
     ... )
     >>> for name in bad_names:
     ...     try:
-    ...         wrapper = a.log_calls_wrapper(name)
-    ...     except AttributeError as e:
-    ...         print(e)
+    ...         wrapper = a.get_log_calls_wrapper(name)
+    ...     except ValueError as e:
+    ...         print("%s: %s" % (type(e).__name__, e))
     ...     except TypeError as e:
-    ...         print(e)
-    AttributeError: class 'A' has no such attribute as 'no_such_method'
-    AttributeError: no such method specifier 'foo.bar.baz'
-    AttributeError: bad method specifier 'foo.'
-    AttributeError: bad method specifier 'prop.'
-    AttributeError: prop.foo -- unknown qualifier 'foo'
-    AttributeError: property 'prop' has no 'deleter' in class 'A'
-    AttributeError: property 'x' has no 'getter' in class 'A'
-    AttributeError: property 'x' has no 'getter' in class 'A'
-    AttributeError: method.getter -- 'method' is not a property of class 'A'
-    AttributeError: bad method specifier '.uvwxyz'
-    AttributeError: class 'A' has no such attribute as 'not an identifier'
-    AttributeError: class 'A' has no such attribute as '88 < x**2'
+    ...         print("%s: %s" % (type(e).__name__, e))
+    ValueError: class 'A' has no such attribute as 'no_such_method'
+    ValueError: no such method specifier 'foo.bar.baz'
+    ValueError: bad method specifier 'foo.'
+    ValueError: bad method specifier 'prop.'
+    ValueError: prop.foo -- unknown qualifier 'foo'
+    ValueError: property 'prop' has no 'deleter' in class 'A'
+    ValueError: property 'x' has no 'getter' in class 'A'
+    ValueError: property 'x' has no 'getter' in class 'A'
+    ValueError: method.getter -- 'method' is not a property of class 'A'
+    ValueError: bad method specifier '.uvwxyz'
+    ValueError: class 'A' has no such attribute as 'not an identifier'
+    ValueError: class 'A' has no such attribute as '88 < x**2'
     TypeError: item '__doc__' of class 'A' is of type 'NoneType' and can't be decorated
     TypeError: expecting str for argument 'fname', got 17 of type int
     TypeError: expecting str for argument 'fname', got False of type bool
@@ -1040,14 +1042,14 @@ Now, stuff that fails - non-deco'd class
     ...     pass
 
     >>> nd = NoDeco()
-    >>> # 'NoDeco' object has no attribute 'log_calls_wrapper'
-    >>> print(nd.log_calls_wrapper)             # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> # 'NoDeco' object has no attribute 'get_log_calls_wrapper'
+    >>> print(nd.get_log_calls_wrapper)             # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
     AttributeError: ...
 
-    >>> # 'NoDeco' object has no attribute 'log_calls_wrapper'
-    >>> print(nd.log_calls_wrapper('__init__'))  # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> # 'NoDeco' object has no attribute 'get_log_calls_wrapper'
+    >>> print(nd.get_log_calls_wrapper('__init__'))  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
     AttributeError: ...
@@ -1055,48 +1057,52 @@ Now, stuff that fails - non-deco'd class
     pass
 
 # SURGERY:
-main__test__log_calls_wrapper__from_outside.__doc__ = \
-    main__test__log_calls_wrapper__from_outside.__doc__.replace("__main__", __name__)
+main__test__get_log_calls_wrapper__from_outside.__doc__ = \
+    main__test__get_log_calls_wrapper__from_outside.__doc__.replace("__main__", __name__)
 
 #-----------------------------------------------------------------------------
-# main__test__log_calls_wrapper__from_inside
-# test methods accessing their OWN wrappers
+# main__test__get_log_calls_wrapper__from_inside
+# test methods accessing their OWN wrappers, the hard way
+# Note: for tests of cls.get_own_log_calls_wrapper(), see:
+#   log_calls/tests/test_get_own_log_calls_wrapper.py
 #-----------------------------------------------------------------------------
-def main__test__log_calls_wrapper__from_inside():
+def main__test__get_log_calls_wrapper__from_inside():
     """
-    >>> @log_calls(mute=True)
+    >>> @log_calls(omit='no_deco', mute=True)
     ... class B():
     ...     def __init__(self):
-    ...         wrapper = self.log_calls_wrapper('__init__')
+    ...         wrapper = self.get_log_calls_wrapper('__init__')
     ...         wrapper.log_message('Hi')
     ...     def method(self):
-    ...         wrapper = self.log_calls_wrapper('method')
+    ...         wrapper = self.get_log_calls_wrapper('method')
     ...         wrapper.log_message('Hi')
-    ...
+    ...     def no_deco(self):
+    ...         wrapper = self.get_log_calls_wrapper('no_deco')
+    ...         wrapper.log_message('Hi')
     ...     @staticmethod
     ...     def statmethod():
-    ...         wrapper = B.log_calls_wrapper('statmethod')
+    ...         wrapper = B.get_log_calls_wrapper('statmethod')
     ...         wrapper.log_message('Hi')
     ...
     ...     @classmethod
     ...     def clsmethod(cls):
-    ...         wrapper = B.log_calls_wrapper('clsmethod')
+    ...         wrapper = B.get_log_calls_wrapper('clsmethod')
     ...         wrapper.log_message('Hi')
     ...
     ...     @property
     ...     def prop(self):
-    ...         wrapper = self.log_calls_wrapper('prop.getter')
+    ...         wrapper = self.get_log_calls_wrapper('prop.getter')
     ...         wrapper.log_message('Hi')
     ...     @prop.setter
     ...     def prop(self, val):
-    ...         wrapper = self.log_calls_wrapper('prop.setter')
+    ...         wrapper = self.get_log_calls_wrapper('prop.setter')
     ...         wrapper.log_message('Hi from prop.setter')
     ...
     ...     def setx(self, val):
-    ...         wrapper = self.log_calls_wrapper('setx')
+    ...         wrapper = self.get_log_calls_wrapper('setx')
     ...         wrapper.log_message('Hi from setx alias x.setter')
     ...     def delx(self):
-    ...         wrapper = self.log_calls_wrapper('x.deleter')
+    ...         wrapper = self.get_log_calls_wrapper('x.deleter')
     ...         wrapper.log_message('Hi from delx alias x.deleter')
     ...
     ...     x = property(None, setx, delx)
@@ -1116,6 +1122,16 @@ def main__test__log_calls_wrapper__from_inside():
     B.setx: Hi from setx alias x.setter
     >>> del b.x
     B.delx: Hi from delx alias x.deleter
+
+`no_deco` is not decorated, so `get_log_calls_wrapper` returns None,
+but the method tries to access its `log_message` attribute --
+hence this error message:
+
+    >>> b.no_deco()         # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'NoneType' object has no attribute 'log_message'
+
     """
     pass
 
@@ -1136,5 +1152,4 @@ def load_tests(loader, tests, ignore):
 if __name__ == "__main__":
 
     doctest.testmod()   # (verbose=True)
-
     # unittest.main()

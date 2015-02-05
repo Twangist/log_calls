@@ -1,6 +1,7 @@
 __author__ = "Brian O'Neill"
-__version__ = '0.2.1'
+__version__ = '0.3.0'
 
+from log_calls import record_history
 import doctest
 
 
@@ -82,25 +83,25 @@ This will call `RecordThem.__repr__` once:
     False
 
 ---------------------------------------------------------
-## `record_history_wrapper` method of a decorated class
+## `get_record_history_wrapper` method of a decorated class
 
 Attributes of properties defined by the @property decorator can be accessed
-using the `record_history_wrapper` classmethod:
+using the `get_record_history_wrapper` classmethod:
 
-    >>> RecordThem.record_history_wrapper('a.getter').stats.num_calls_logged
+    >>> RecordThem.get_record_history_wrapper('a.getter').stats.num_calls_logged
     10
 
-We could have also used `rt.record_history_wrapper('a.getter')`. You pass
-`record_history_wrapper` the name of a method, or a property suffixed with
+We could have also used `rt.get_record_history_wrapper('a.getter')`. You pass
+`get_record_history_wrapper` the name of a method, or a property suffixed with
 `.getter`, '.setter' or '.deleter'. If you pass just the name of a property,
 `.getter` is assumed:
 
-    >>> RecordThem.record_history_wrapper('a').stats.num_calls_logged
+    >>> RecordThem.get_record_history_wrapper('a').stats.num_calls_logged
     10
 
-`record_history_wrapper` returns None if the method exists but isn't decorated:
+`get_record_history_wrapper` returns None if the method exists but isn't decorated:
 
-    >>> print(rt.record_history_wrapper('h'))
+    >>> print(rt.get_record_history_wrapper('h'))
     None
 
 and raises an exception for other arguments (see tests and description for `log_calls_wrapper`).
@@ -111,6 +112,24 @@ and raises an exception for other arguments (see tests and description for `log_
     >>> rt.record_history_omit
     ('h',)
 
+---------------------------------------------------------
+## Methods can also use the `get_own_record_history_wrapper` classmethod
+of a decorated class to access their `record_history` wrappers,
+without having to pass their own names as a string.
+
+    >>> @record_history()
+    ... class XYZ():
+    ...     def __init__(self, a):
+    ...         self.a = a
+    ...     def f(self, x):
+    ...         wrapper = self.get_own_record_history_wrapper()
+    ...         wrapper.log_exprs('x', 'self.a * x')
+    ...         return self.a * x
+
+    >>> xyz = XYZ(7)
+    >>> xyz.f(3)
+    XYZ.f [1]: x = 3, self.a * x = 21
+    21
 
     """
     pass
@@ -147,6 +166,20 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
+
+
+    @record_history()
+    class XYZ():
+        def __init__(self, a):
+            self._a = a
+
+        def f(self, x):
+            self.get_own_record_history_wrapper().log_exprs('x', 'self.a * x')
+            return self.a * x
+
+    xyz = XYZ(7)
+    xyz.f(3)
+
 
     doctest.testmod()   # (verbose=True)
 

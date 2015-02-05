@@ -2,6 +2,7 @@ __author__ = "Brian O'Neill"
 _version__ = '0.3.0'
 
 from log_calls import log_calls
+import doctest
 
 
 #-------------------------------------------------------------------
@@ -49,6 +50,10 @@ def test__omit_property_attr__repr_with_init_active():
     pair.deleter called -- wouldn't know what to do.
     """
     pass
+
+# SURGERY:
+test__omit_property_attr__repr_with_init_active.__doc__ = \
+    test__omit_property_attr__repr_with_init_active.__doc__.replace("__main__", __name__)
 
 
 #-------------------------------------------------------------------
@@ -103,6 +108,10 @@ The instance's __init__ is not active so the class's `__repr__` is used:
     """
     pass
 
+# SURGERY:
+test__repr_with_init_active_2.__doc__ = \
+    test__repr_with_init_active_2.__doc__.replace("__main__", __name__)
+
 
 #-------------------------------------------------------------------
 # MORE __repr__ handling for objects still in construction
@@ -132,6 +141,11 @@ def test__repr_with_init_active_3():
         arguments: obj=Y('arg')
     g ==> returning to method
     """
+    pass
+
+# SURGERY:
+test__repr_with_init_active_3.__doc__ = \
+    test__repr_with_init_active_3.__doc__.replace("__main__", __name__)
 
 
 #-------------------------------------------------------------------
@@ -149,14 +163,14 @@ log_calls produces output as do `log_message` and `log_exprs`, which uses `log_m
         Hello, world!
     f ==> returning to <module>
 
-When `mute` is `True` ( == `log_calls.mute.CALLS`),
+When `mute` is `True` ( == `log_calls.MUTE.CALLS`),
 no extra indent level, and messages are prefixed with function's display name:
     >>> f.log_calls_settings.mute = True
     >>> f()
     f: Hello, world!
 
-When `mute` is `log_calls.mute.ALL`, log_message produces no output:
-    >>> f.log_calls_settings.mute = log_calls.mute.ALL
+When `mute` is `log_calls.MUTE.ALL`, log_message produces no output:
+    >>> f.log_calls_settings.mute = log_calls.MUTE.ALL
     >>> f()     # (no output)
     """
     pass
@@ -266,7 +280,7 @@ def test__log_message__indirect_mute():
     f ==> returning to <module>
     '''
     print('-----------------------')
-    f(mute_=True)                   # True == log_calls.mute.CALLS
+    f(mute_=True)                   # True == log_calls.MUTE.CALLS
     '''
     f: before g
         g: before h
@@ -275,7 +289,7 @@ def test__log_message__indirect_mute():
     f: after g
     '''
     print('-----------------------')
-    f(mute_=True, extra_mute_val=log_calls.mute.ALL)    # shut up h
+    f(mute_=True, extra_mute_val=log_calls.MUTE.ALL)    # shut up h
     '''
     f: before g
         g: before h
@@ -283,9 +297,131 @@ def test__log_message__indirect_mute():
     f: after g
     '''
     print('-----------------------')
-    f(mute_=log_calls.mute.ALL)
+    f(mute_=log_calls.MUTE.ALL)
     # (no output)
 
+    """
+    pass
+
+
+#-------------------------------------------------------------------
+# test__global_mute
+#-------------------------------------------------------------------
+def test__global_mute():
+    """
+Mute setting applied for a function's log_calls output
+and within a function for log_message and log_expr output
+is
+    `max(`*function's mute setting*`, `*global mute*`)`
+
+### Basic examples/tests
+
+    >>> @log_calls(indent=True)
+    ... def f(): f.log_message("Hi"); g()
+    >>> @log_calls(indent=True)
+    ... def g(): g.log_message("Hi")
+
+
+    >>> assert log_calls.mute == False  # default
+    >>> f()
+    f <== called by <module>
+        Hi
+        g <== called by f
+            Hi
+        g ==> returning to f
+    f ==> returning to <module>
+
+    >>> log_calls.mute = True
+    >>> f()
+    f: Hi
+        g: Hi
+
+    >>> log_calls.mute = log_calls.MUTE.ALL
+    >>> f()     # (no output)
+
+    >>> log_calls.mute = False
+    >>> g.log_calls_settings.mute = log_calls.MUTE.CALLS
+    >>> f()
+    f <== called by <module>
+        Hi
+        g: Hi
+    f ==> returning to <module>
+
+    >>> log_calls.mute = log_calls.MUTE.CALLS
+    >>> g.log_calls_settings.mute = log_calls.MUTE.ALL
+    >>> f()
+    f: Hi
+
+### Dynamic examples/tests
+
+Global mute is always checked realtime
+
+    >>> @log_calls(indent=True)
+    ... def f(mute=False):
+    ...     f.log_message("before g")
+    ...     g(mute=mute)
+    ...     f.log_message("after g")
+
+    >>> @log_calls(indent=True)
+    ... def g(mute=False):
+    ...     g.log_message("entering g")
+    ...     log_calls.mute = mute
+    ...     g.log_message("leaving g")
+
+    >>> log_calls.mute = False
+
+Calls to f(), with default arg False, in effect turn off global mute midway through g:
+
+    >>> f()
+    f <== called by <module>
+        arguments: <none>
+        defaults:  mute=False
+        before g
+        g <== called by f
+            arguments: mute=False
+            entering g
+            leaving g
+        g ==> returning to f
+        after g
+    f ==> returning to <module>
+
+    >>> log_calls.mute = log_calls.MUTE.CALLS
+    >>> f()
+    f: before g
+        g: entering g
+            leaving g
+        g ==> returning to f
+        after g
+    f ==> returning to <module>
+
+    >>> log_calls.mute = log_calls.MUTE.ALL
+    >>> f()
+            leaving g
+        g ==> returning to f
+        after g
+    f ==> returning to <module>
+
+    >>> log_calls.mute = log_calls.MUTE.CALLS
+    >>> g.log_calls_settings.mute = log_calls.MUTE.ALL
+    >>> f()
+    f: before g
+        after g
+    f ==> returning to <module>
+
+    >>> log_calls.mute = False
+
+`g` is still completely muted
+    >>> f(mute=log_calls.MUTE.CALLS)
+    f <== called by <module>
+        arguments: mute=True
+        before g
+    f: after g
+
+`g` is still completely muted, and `log_calls.mute == log_calls.MUTE.CALLS`
+    >>> f(mute=log_calls.MUTE.ALL)
+    f: before g
+
+    >>> log_calls.mute = False  # restore default!
     """
     pass
 
@@ -341,9 +477,21 @@ Another:
     """
     pass
 
+##############################################################################
+# end of tests.
+##############################################################################
+
+
+#-----------------------------------------------------------------------------
+# For unittest integration
+#-----------------------------------------------------------------------------
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocTestSuite())
+    return tests
+
+
 if __name__ == '__main__':
 
-    import doctest
     doctest.testmod()
 
 
