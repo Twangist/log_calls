@@ -359,7 +359,7 @@ PROPERTY_ATTRS_to_USER_SUFFIXES = OrderedDict(
      ('fset', 'setter'),
      ('fdel', 'deleter')) )
 
-# Name of *** local variable *** of f_log_calls_wrapper_,
+# Name of *** local variable *** of _deco_base_f_wrapper_,
 # accessed by callstack-chaseback routine and (0.3.0) _get_own_deco_wrapper
 STACKFRAME_HACK_DICT_NAME = '_deco_base__active_call_items__'
 
@@ -410,8 +410,8 @@ def _get_own_deco_wrapper(deco_class, cls) -> "function":
     wrapper_frame = func_frame.f_back
     wrapper_funcname = wrapper_frame.f_code.co_name
 
-    # wrapper_funcname should be 'f_log_calls_wrapper_'
-    if wrapper_funcname != 'f_log_calls_wrapper_':
+    # wrapper_funcname should be '_deco_base_f_wrapper_'
+    if wrapper_funcname != '_deco_base_f_wrapper_':
         raise ValueError(ERR_NOT_DECORATED % (funcname, 1))
 
     # look in its f_locals :) [stackframe hack] for STACKFRAME_HACK_DICT_NAME
@@ -603,7 +603,7 @@ class _deco_base():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # constants for the `mute` setting
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    class Mute():
+    class MUTE():
         NOTHING = False     # (default -- all output produced)
         CALLS = True        # (mute output from decorated functions & methods & properties,
                             #  but log_message and thus log_exprs produce output;
@@ -951,15 +951,15 @@ class _deco_base():
 
         # 0.3.0
         logging_state = self.logging_state_stack[-1]
-        # Write nothing if output is stifled (caller is NOT f_log_calls_wrapper_)
+        # Write nothing if output is stifled (caller is NOT _deco_base_f_wrapper_)
         # NOTE: only check global_mute() IN REALTIME, like so:
         mute = max(logging_state.mute, self.global_mute())
-        if mute == self.Mute.ALL:
+        if mute == self.MUTE.ALL:
             return
         # adjust for calls not being logged -- don't indent an extra level
         #  (no 'log_calls frame', no 'arguments:' to align with),
         #  and prefix with display name cuz there's no log_calls "frame"
-        if mute == self.Mute.CALLS:
+        if mute == self.MUTE.CALLS:
             extra_indent_level -= 1
             prefix_with_name = True
 
@@ -1628,7 +1628,7 @@ class _deco_base():
             CPU_time_fn = time.process_time
 
             @wraps(f)
-            def f_log_calls_wrapper_(*args, **kwargs):
+            def _deco_base_f_wrapper_(*args, **kwargs):
                 """Wrapper around the wrapped function f.
                 When this runs, f has been called, so we can now resolve
                 any indirect values for the settings/keyword-params
@@ -1839,10 +1839,10 @@ class _deco_base():
 
                 return retval
 
-            # Add a sentinel as an attribute to f_log_calls_wrapper_
+            # Add a sentinel as an attribute to _deco_base_f_wrapper_
             # so we can in theory chase back to any previous log_calls-decorated fn
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 self._sentinels['SENTINEL_ATTR'],
                 self._sentinels['SENTINEL_VAR']
             )
@@ -1850,39 +1850,39 @@ class _deco_base():
             setattr(
                 f,
                 self._sentinels['WRAPPER_FN_OBJ'],
-                f_log_calls_wrapper_
+                _deco_base_f_wrapper_
             )
             # 0.3.0 -- pointer to self
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 self._sentinels['DECO_OF'],
                 self
             )
             # stats objects (attr of wrapper)
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 'stats',
                 self._stats
             )
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 self.__class__.__name__ + '_settings',
                 self._settings_mapping
             )
             # 0.2.1a
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 'log_message',
                 self._log_message,
             )
             # 0.3.0
             setattr(
-                f_log_calls_wrapper_,
+                _deco_base_f_wrapper_,
                 'log_exprs',
                 self._log_exprs,
             )
 
-            return f_log_calls_wrapper_
+            return _deco_base_f_wrapper_
             #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             # end else (case "f_or_cls is a function")
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
@@ -1904,9 +1904,9 @@ class _deco_base():
         while not found_enabled and not hit_bottom:
             while 1:    # until found a deco'd fn or <module> reached
                 curr_funcname = curr_frame.f_code.co_name
-                if curr_funcname == 'f_log_calls_wrapper_':
-                    # Previous was decorated inner fn; overwrite 'f_log_calls_wrapper_'
-                    # print("**** found f_log_calls_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
+                if curr_funcname == '_deco_base_f_wrapper_':
+                    # Previous was decorated inner fn; overwrite '_deco_base_f_wrapper_'
+                    # print("**** found _deco_base_f_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
                     # Fixup: get name of wrapped function
                     inner_fn = curr_frame.f_locals['f']
                     call_list[-1] = inner_fn.__name__       # ~ placeholder
@@ -1928,7 +1928,7 @@ class _deco_base():
                     curr_fn = globs[curr_funcname]
                 # If curr_funcname is a decorated inner function,
                 # then it's not in globs. If it's called from outside
-                # it's enclosing function, it's caller is 'f_log_calls_wrapper_'
+                # its enclosing function, its caller is '_deco_base_f_wrapper_'
                 # so we'll see that on next iteration.
                 else:
                     try:
@@ -2038,15 +2038,15 @@ class log_calls(_deco_base):
                            (instead of the print function) to write all messages.
         loglevel:          logging level, if logger != None. (Default: logging.DEBUG)
         mute:              setting. 3-valued:
-                            log_calls.Mute.NOTHING  (default -- all output produced)
+                            log_calls.MUTE.NOTHING  (default -- all output produced)
                             alias False
-                            log_calls.Mute.CALLS    (mute output from decorated functions
+                            log_calls.MUTE.CALLS    (mute output from decorated functions
                                                      & methods & properties, but log_message
                                                      and log_exprs produce output;
                                                      call # recording, history recording continue
                                                      if enabled)
                             alias True
-                            log_calls.Mute.ALL      (no output at all; but call # recording,
+                            log_calls.MUTE.ALL      (no output at all; but call # recording,
                                                      history recording continue if enabled)
                             alias -1
 
@@ -2054,7 +2054,7 @@ class log_calls(_deco_base):
                             to get the value, and then doesn't have access to the args to f
                             (if f is not enabled, and only kludgily, if f is enabled)
 
-                            When `mute` is True (log_calls.mute.CALLS,
+                            When `mute` is True (log_calls.MUTE.CALLS,
                             log_expr and log_message adjust for calls not being logged:
                             because there's no log_calls "frame",
                             -- they don't indent an extra level no 'arguments:' to align with), and

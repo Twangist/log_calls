@@ -114,13 +114,13 @@ VERSIONS
         TODO document
 
       - add `mute` setting: 3-valued:
-        log_calls.Mute.NOTHING  (default -- all output produced)
+        log_calls.MUTE.NOTHING  (default -- all output produced)
         alias False
-        log_calls.Mute.CALLS    (mute output from decorated functions & methods & properties,
+        log_calls.MUTE.CALLS    (mute output from decorated functions & methods & properties,
                                  but log_message and log_exprs produce output;
                                  call # recording, history recording continue if enabled)
         alias True
-        log_calls.Mute.ALL      (no output at all; but call # recording, history recording continue if enabled)
+        log_calls.MUTE.ALL      (no output at all; but call # recording, history recording continue if enabled)
         alias 2
 
         mutable, AND allow_indirect
@@ -158,13 +158,9 @@ VERSIONS
         This is true for all objects, instances of classes whether they're deco'd OR NOT
         TODO illustrate with example/test..... (there's one (more?) in test_log_calls_v30_minor_features_fixes.py.py)
 
-      - you cannot decorate repr with log_calls or record_history
+      - you cannot decorate repr with log_calls
         related to the above __repr__ handling
-
-        TODO TEST/example that it's impossible with log_calls (already have >= 1? test_log_calls_v30_minor_features_fixes.py?)
-        TODO show [not] possible with record_history either
-
-        TODO make it possible to deco it with record_history (possible? TODO figure out)
+        BUT you can with record_history
 
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
         to apply to already-deco'd methods :)
@@ -178,6 +174,10 @@ VERSIONS
         explicit "log_retval=True" on method overrides that.
 
       - prefix works for inner classes too (Outer.Inner.foo)    [TODO why shouldn't it? unclear. Delete this?]
+
+      - (worth mentioning?) renamed wrapper function of decorator
+        from `f_log_calls_wrapper_` to `_deco_base_f_wrapper_`
+        cuz it is in _deco_base
 
       - record_history wasn't using @used_unused_keywords for
         __init__, and wasn't passing its used_keywords, so prefix was

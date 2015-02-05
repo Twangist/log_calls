@@ -1236,23 +1236,23 @@ if __name__ == "__main__":
 
 # TODO induce more errors
 
-    def f_log_calls_wrapper_():     # note name -- fake out log_calls_wrapper for a few clauses
+    def _deco_base_f_wrapper_():     # note name -- fake out log_calls_wrapper for a few clauses
         # No local named _deco_base__active_call_items__
         try:
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # 'no_deco' appears to be true-bypassed (enabled < 0) or undecorated
+    _deco_base_f_wrapper_()  # 'no_deco' appears to be true-bypassed (enabled < 0) or undecorated
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper longer
         _deco_base__active_call_items__ = 17    # exists but isn't a dict
         try:
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # 'no_deco' appears to not be decorated
+    _deco_base_f_wrapper_()  # 'no_deco' appears to not be decorated
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper still longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper still longer
         _deco_base__active_call_items__ = {    # exists, is a dict, no key '_wrapper_deco'
             'a': 45
         }
@@ -1260,9 +1260,9 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # 'no_deco' appears to not be decorated
+    _deco_base_f_wrapper_()  # 'no_deco' appears to not be decorated
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper even longer
         _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
             '_wrapper_deco': 45
         }
@@ -1270,9 +1270,9 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # 'no_deco' is not decorated
+    _deco_base_f_wrapper_()  # 'no_deco' is not decorated
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper even longer
         _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
             '_wrapper_deco': log_calls()    # correct type, but not hooked up properly
         }
@@ -1280,9 +1280,9 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # log_calls decorator object for 'no_deco' missing an attribute (internal error or external damage)
+    _deco_base_f_wrapper_()  # log_calls decorator object for 'no_deco' missing an attribute (internal error or external damage)
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper even longer
         lc = log_calls()    # correct type, but still not hooked up properly
         lc.f = None
         _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
@@ -1293,9 +1293,9 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
+    _deco_base_f_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper even longer
         lc = log_calls()    # correct type, but still not hooked up properly
         lc.f = None
         _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
@@ -1306,9 +1306,9 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
+    _deco_base_f_wrapper_()  # inconsistent log_calls decorator object for 'no_deco'
 
-    def f_log_calls_wrapper_():         # note name -- fake out log_calls_wrapper even longer
+    def _deco_base_f_wrapper_():         # note name -- fake out log_calls_wrapper even longer
         lc = log_calls()    # correct type, lc.f correct, but STILL not hooked up properly
         lc.f = B.no_deco
         _deco_base__active_call_items__ = {    # exists, is a dict, has key '_wrapper_deco', but type != log_calls
@@ -1319,7 +1319,7 @@ if __name__ == "__main__":
             b.no_deco()
         except ValueError as e:
             print(e)
-    f_log_calls_wrapper_()  # couldn't find log_calls wrapper of 'no_deco'
+    _deco_base_f_wrapper_()  # couldn't find log_calls wrapper of 'no_deco'
 
 
 #    exit(89)
