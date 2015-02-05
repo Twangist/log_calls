@@ -56,11 +56,25 @@ class record_history(_deco_base):
     def allow_repr(cls) -> bool:
         return True
 
+    # 0.3.0
     @classmethod
-    def get_logging_fn(cls, _get_final_value_fn):
-        """Return None: no output.
-        cls: unused.."""
-        return None
+    def log_message_auto_prefix_threshold(cls) -> int:
+        """:return: one of the "constants" of _deco_base.MUTE
+        The log_* functions will automatically prefix their output
+        with the function's display name if max of
+            the function's mute setting, global_mute()
+        is this mute level or higher.
+        Returning _deco_base.MUTE.NOTHING means, always prefix.
+        """
+        return cls.MUTE.NOTHING
+
+
+    #### 0.3.0.beta12+ try letting record_history use log_* functions
+    # @classmethod
+    # def get_logging_fn(cls, _get_final_value_fn):
+    #     """Return None: no output.
+    #     cls: unused.."""
+    #     return None
 
     # def __call__(self, f):
     #     return super().__call__(f)

@@ -132,6 +132,9 @@ VERSIONS
         tests/examples in test_log_calls_v30_minor_features_fixes.py
         TODO document
 
+      - record_history can (now) use log_message and log_exprs
+        Output is always via print.
+
       - Little fix: if f is disabled, log_message would (/could) blow up.
         log_message now produces no output if f is not enabled.
         TODO Test/example in test_log_calls_v30_minor_features_fixes.py
