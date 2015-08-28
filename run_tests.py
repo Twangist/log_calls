@@ -11,7 +11,8 @@ def usage():
               Use . if running it from its own directory.
        -v     Verbose output, each test that's run is listed.
        -q     Quiet(est) output.
-       -h     Display this message."""
+       -h     Display this message.
+    """
     exit(usage.__doc__)
 
 verbosity = 1

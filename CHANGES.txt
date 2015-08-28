@@ -6,16 +6,14 @@ VERSIONS
         all inner classes and properties too.
         settings given for the class decorator (via settings= and/or
         keyword parameters) apply to every method.
-        If a method of the class is already deco'd, the settings it
-        supplies override those given at the class level :)
+        If a method of the class is itself deco'd, the settings it
+        supplies override those given at the class level.
 
         Works for *** inner classes *** too, in the same fashion:
         If an inner class is already deco'd, the settings it
-        supplies override those given at the outer class level :)
+        supplies override those given at the outer class level.
 
-        Methods and properties DON'T get doubly decorated :)
-
-        TODO Test record_history as a class deco
+        Methods and properties DON'T get doubly decorated.
 
       - New keyword parameters (NOT "settings")
         omit
@@ -75,15 +73,16 @@ VERSIONS
       - Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
         (mostly for testing & debugging -- TODO : comment out of "if ___" out in release?)
 
-        Ditto `record_history_omit`, `record_history_only` (TODO: test if not done; document)
+        Ditto `record_history_omit`, `record_history_only`
+        (TODO; document)
 
-      - Added log_calls_wrapper (and record_history_wrapper) method to decorated classes,
+      - Added get_log_calls_wrapper (and get_record_history_wrapper) method to decorated classes,
         so that the methods can access their decorated-added attributes
         (in particular `log_message` and `log_exprs`) in a uniform way,
         without having to jump through all kinds of special-case hoops
         as in versions of log_calls < 0.3
 
-        Added log_calls_wrapper() functionality (call with no args)     # TODO may change API
+        Added get_own_log_calls_wrapper() method (call with no args)
         so that a method can even more easily get its own wrapper
         without having to pass its name (DRY)
 
@@ -132,6 +131,8 @@ VERSIONS
         tests/examples in test_log_calls_v30_minor_features_fixes.py
         TODO document
 
+      - added global mute `log_calls.mute`, possible values as above
+
       - record_history can (now) use log_message and log_exprs
         Output is always via print.
 
@@ -142,20 +143,18 @@ VERSIONS
 
       - TODO DOCUMENT that we REQUIRE Python 3.3+ (__qualname__ now,
              and already we used inspect.signature so in fact we already required 3.3+)
-        TODO can we check Py version in setup.py AND FAIL if version too low?
+        We check Py version in setup.py AND FAIL if version < 3.3
 
       - TODO Change docs to reflect that we always use perf_counter and process_time,
              cuz we assume Py3.3+ so they're "available"
 
-      - `prefix` mutable in record_history deco (done? -- it was)
-
-      - changes to repr handling in "Arguments: ..."
+      - changes to repr handling in "arguments: ..."
         objects that are still in construction (active __init__) use object.__repr__
         otherwise straightup repr.
         See "class Point" example for illustration.
 
-        when displaying object arguments, log_calls (and record_history)
-        use the stock __repr__ method of `object` for objects still in
+        when displaying object arguments, log_calls
+        uses the stock __repr__ method of `object` for objects still in
         construction, i.e. whose __init__ methods are still running/
         /still active/haven't yet returned/still on call stack.
         This is true for all objects, instances of classes whether they're deco'd OR NOT
@@ -168,6 +167,8 @@ VERSIONS
       - prefix is now "mutable" -- it's how we got "prefix='C.'" at class level
         to apply to already-deco'd methods :)
         [prefix is now a lot less useful, too, lol]
+
+      - `prefix` mutable in record_history deco (done? -- it was)
 
         TODO document that / update docs to reflect
         TODO test it -- dynamically change 'prefix' in various ways, test    (isn't there a test? where?)

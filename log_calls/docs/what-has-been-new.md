@@ -4,11 +4,39 @@ This document collects the full **What's New** sections of all `log_calls` relea
 
 ---
 
+* **0.3.0**</br>
+	* `log_calls` and `record_history` can decorate classes	– that is, all methods within a class – and inner classes</br>
+		* Properly decorates instance methods, classmethods, staticmethods and properties (whether defined with the @property decorator or with the property constructor)
+		* Settings provided in the class-level decorator apply to all decorated members (and inner classes). Members can be individually decorated, and their settings override those given at the class level.
+		* decorated classes have methods `get_log_calls_wrapper(methodname)` and `get_own_log_calls_wrapper()` which provide easy and uniform ways to obtain the wrapper of a decorated method, without the special-case handling otherwise required for classmethods and property methods.</br>
+`record_history` provides the analogous methods `get_record_history_wrapper(methodname)` and `get_own_record_history_wrapper()`
+	</br>// MORE/TODO ?
+	* `omit` and `only` keyword parameters to `log_calls` as as class decorator let you specify which methods get decorated. Each is a sequence of "method specifiers", which allow class prefixes, wildcards and character range inclusion and exclusion (the same as in "globs").</br>
+	
+	* `log_exprs` method allows a decorated function or method to write values of variables and expressions. You simply pass it one or more expressions, as strings; it prints the expressions together with their current values.</br>
+	
+	* new keyword parameter and setting `mute`, 3-valued: mute nothing (default), mute output about calls but allow `log_message` and `log_exprs` output; mute everything.
+	* global mute, `log_calls.mute`, which takes on the same values as  the `mute` setting.</br>
+
+	* By default, the display name for a function or method is now its `__qualname__`, which in the case of methods includes class name. This makes unnecessary what was probably the main use case of `prefix`.
+	* new keyword parameter `name`, a string or old-style format string that lets you specify a custom name for a function or method.
+	
+	* `record_history` can now use `log_message` and `log_exprs`. Output is always via print.
+
+    * Fix: `log_message` would blow up if called on a function or method for which logging is disabled. It now produces no output in that situation.
+	* `prefix` is mutable in `log_calls` and `record_history`.</br>
+	
+	* Change to `__repr__` handling in `arguments: ...` –<br>
+use `object.__repr__` for objects still in construction (i.e. whose `__init__` methods are still active), otherwise use straightup `repr`.
+`log_calls` cannot (won't) decorate __repr__; `record_history` can.</br>
+	* Removed deprecated `settings_path` keyword parameter.</br>
+    * Officially, explicitly requires Python 3.3+ – the package won't install on earlier versions.</br>
+
 * 0.2.5.post3
     * later binding for `prefix`, though it's still not dynamically changeable
 * *0.2.5.post1* & *0.2.5.post2*
     * silly fixups
-* **0.2.5** through 0.2.5.post2</br>
+* **0.2.5**</br>
 Performance timing/profiling enhancements & additions.</br>
     * Both elapsed (wall) and CPU (process) time are now both reported.</br>
     Python 3.3+ enhances the `time` module (*see [PEP 418](https://www.python.org/dev/peps/pep-0418/); also see the Python 3 docs for the new functions [`perf_counter`](https://docs.python.org/3/library/time.html?highlight=time#time.perf_counter) and [`process_time`](https://docs.python.org/3/library/time.html?highlight=time#time.process_time)*), and we take advantage of the new functionaility when it's available.</br> (*Under Py < 3.3 `log_calls` reports elapsed and CPU times as the same number, so as not to further complicate user experience, docs and tests with special appearance and behavior for older Python versions.*)</br>

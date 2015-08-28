@@ -438,7 +438,7 @@ def test__log_exprs():
     ... def fn(num_files):
     ...     order_of_magnitude = round(math.log10(num_files), 2)
     ...     fn.log_exprs('num_files', 'order_of_magnitude')
-    ...     files_per_CPU = math.ceil(num_files/os.cpu_count())
+    ...     files_per_CPU = math.ceil(num_files/8)
     ...     username = "Joe Doe"
     ...     fn.log_exprs('files_per_CPU', 'username')
     ...     # ...
@@ -449,7 +449,7 @@ def test__log_exprs():
 
     >>> fn(10000)
     fn: num_files = 10000, order_of_magnitude = 4.0
-    fn: files_per_CPU = 2500, username = 'Joe Doe'
+    fn: files_per_CPU = 1250, username = 'Joe Doe'
     fn: 16- = '<** unexpected EOF while parsing (<string>, line 1) **>'
         no_such_variable = "<** name 'no_such_variable' is not defined **>"
         "some bum string = '<** EOL while scanning string literal (<string>, line 1) **>'
