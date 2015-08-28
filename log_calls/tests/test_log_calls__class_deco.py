@@ -1136,6 +1136,64 @@ hence this error message:
     pass
 
 
+#-----------------------------------------------------------------------------
+# main__test__log_calls_as_functor_applied_to_lambda
+#-----------------------------------------------------------------------------
+def main__test___repr__log_calls_as_functor_applied_to_lambda():
+    """
+    >>> import math
+
+    >>> @log_calls(indent=True)
+    ... class Point():
+    ...     def __init__(self, x, y):
+    ...         self.x = x
+    ...         self.y = y
+    ...
+    ...     @property
+    ...     def pair(self):
+    ...         return (self.x, self.y)
+    ...
+    ...     @pair.setter
+    ...     @log_calls(prefix='set:')
+    ...     def pair(self, pr):
+    ...         self.x, self.y = pr
+    ...
+    ...     @staticmethod
+    ...     def distance(pt1, pt2):
+    ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
+    ...
+    ...     # `log_calls` as functor applied to lambda
+    ...     length_ = log_calls(log_retval=True)(
+    ...         lambda self: self.distance(Point(0, 0), self)
+    ...     )
+    ...
+    ...     def __repr__(self):
+    ...         return "Point" + str((self.x, self.y))
+
+    >>> p = Point(1, 2)                         # doctest: +ELLIPSIS
+    Point.__init__ <== called by <module>
+        arguments: self=<__main__.Point object at 0x...>, x=1, y=2
+    Point.__init__ ==> returning to <module>
+
+    >>> print("p.length_() =", p.length_())     # doctest: +ELLIPSIS
+    Point.<lambda> <== called by <module>
+        arguments: self=Point(1, 2)
+        Point.__init__ <== called by Point.<lambda>
+            arguments: self=<__main__.Point object at 0x...>, x=0, y=0
+        Point.__init__ ==> returning to Point.<lambda>
+        Point.distance <== called by Point.<lambda>
+            arguments: pt1=Point(0, 0), pt2=Point(1, 2)
+        Point.distance ==> returning to Point.<lambda>
+        Point.<lambda> return value: 2.236...
+    Point.<lambda> ==> returning to <module>
+    p.length_() = 2.236...
+
+    >>> hasattr(p.__repr__, 'log_calls_settings')
+    False
+    """
+    pass
+
+
 ##############################################################################
 # end of tests.
 ##############################################################################
