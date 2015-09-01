@@ -21,7 +21,8 @@ import doctest
 class C():
     clsmember = 17
 
-    @log_calls(log_retval=False)
+    ## Not needed, log_retval defaults to False for __init__, unless explicit `log_retval=True` given:
+    # @log_calls(log_retval=False)
     def __init__(self, x):
         self.x = x
 
@@ -492,10 +493,8 @@ Property specified via decorator:
     ... class A():
     ...     def f(self): pass
     ...     @property
-    ...     @log_calls()
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().f(); A().prop; A().prop = 17
     A.f <== called by <module>
@@ -504,10 +503,8 @@ Property specified via decorator:
     >>> @log_calls(omit='prop')
     ... class A():
     ...     @property
-    ...     @log_calls()
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().prop; A().prop = 17     # (no output)
 
@@ -623,7 +620,6 @@ Property specified via decorator:
     ...     @property
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().prop; A().prop = 17
     A.prop <== called by <module>
@@ -636,7 +632,7 @@ Property specified via decorator:
     ...     @log_calls(name='A.%s.getter')
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
+    ...     @log_calls()        # outer `omit` overrides this
     ...     def prop(self, val): pass
     >>> A().f(); A().prop; A().prop = 17
     A.f <== called by <module>
@@ -684,11 +680,9 @@ Property specified via property():
         - only [OBSERVE, uses both ways of referring to the property attrs]
     >>> @log_calls(only='prop_get prop.deleter', settings=MINIMAL)
     ... class A():
-    ...     @log_calls()
     ...     def prop_get(self): pass
-    ...     @log_calls()
+    ...     # @log_calls()    would have no effect
     ...     def prop_set(self, val): pass
-    ...     @log_calls()
     ...     def prop_del(self): pass
     ...     prop = property(prop_get, prop_set, prop_del)
     >>> A().prop; A().prop = 17; del A().prop
@@ -699,14 +693,12 @@ Property specified via property():
     ('prop_get', 'prop.deleter', 'prop_del')
 
         - omit
-        Referring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
+        Referring to 'prop_get' rather than 'prop.getter' works too
 
     >>> @log_calls(omit='prop_get', settings=MINIMAL)
     ... class A():
     ...     def f(self): pass
-    ...     @log_calls()
     ...     def prop_get(self): pass
-    ...     @log_calls()
     ...     def prop_del(self): pass
     ...     prop = property(prop_get, None, prop_del)
     >>> A().f(); A().prop; del A().prop
@@ -1170,12 +1162,12 @@ def main__test___repr__log_calls_as_functor_applied_to_lambda():
     ...     def __repr__(self):
     ...         return "Point" + str((self.x, self.y))
 
-    >>> p = Point(1, 2)                         # doctest: +ELLIPSIS
+    >>> p = Point(1, 2)                             # doctest: +ELLIPSIS
     Point.__init__ <== called by <module>
         arguments: self=<__main__.Point object at 0x...>, x=1, y=2
     Point.__init__ ==> returning to <module>
 
-    >>> print("p.length_() =", p.length_())     # doctest: +ELLIPSIS
+    >>> print("p.length_() =", p.length_())         # doctest: +ELLIPSIS
     Point.<lambda> <== called by <module>
         arguments: self=Point(1, 2)
         Point.__init__ <== called by Point.<lambda>
@@ -1193,6 +1185,66 @@ def main__test___repr__log_calls_as_functor_applied_to_lambda():
     """
     pass
 
+# SURGERY:
+main__test___repr__log_calls_as_functor_applied_to_lambda.__doc__ = \
+    main__test___repr__log_calls_as_functor_applied_to_lambda.__doc__.replace("__main__", __name__)
+
+#-----------------------------------------------------------------------------
+# main__test__decorate_hierarchy
+#-----------------------------------------------------------------------------
+def main__test__decorate_hierarchy():
+    """
+    >>> class Base():
+    ...     def __init__(self, x):
+    ...         self.x = x
+    ...
+    ...     def template_method(self):
+    ...         print("**** callout returns", self.callout())
+    ...
+    ...     def callout(self):
+    ...         pass
+
+    >>> @log_calls(omit='callout')      # IGNORED; similarly, `only` ignored
+    ... class A(Base):
+    ...     def callout(self):  self.helper_A(); return 2 * self.x
+    ...     def helper_A(self): pass
+
+    >>> @log_calls(log_retval=False)    # overrides setting passed to `decorate_hierarchy`
+    ... class B(Base):
+    ...     def callout(self):  self.helper_B(); return 5 * self.x
+    ...     def helper_B(self): pass
+
+    >>> log_calls.decorate_hierarchy(Base, only="template_method callout", indent=True, log_retval=True)
+
+    >>> a = A(5)
+    >>> a.template_method()                             # doctest: +ELLIPSIS
+    Base.template_method <== called by <module>
+        arguments: self=<__main__.A object at 0x...>
+        A.callout <== called by Base.template_method
+            arguments: self=<__main__.A object at 0x...>
+            A.callout return value: 10
+        A.callout ==> returning to Base.template_method
+    **** callout returns 10
+        Base.template_method return value: None
+    Base.template_method ==> returning to <module>
+
+    >>> b = B(100)
+    >>> b.template_method()                             # doctest: +ELLIPSIS
+    Base.template_method <== called by <module>
+        arguments: self=<__main__.B object at 0x...>
+        B.callout <== called by Base.template_method
+            arguments: self=<__main__.B object at 0x...>
+        B.callout ==> returning to Base.template_method
+    **** callout returns 500
+        Base.template_method return value: None
+    Base.template_method ==> returning to <module>
+
+    """
+    pass
+
+# SURGERY:
+main__test__decorate_hierarchy.__doc__ = \
+    main__test__decorate_hierarchy.__doc__.replace("__main__", __name__)
 
 ##############################################################################
 # end of tests.
@@ -1206,7 +1258,7 @@ def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests
 
-
+#-----------------------------------------------------------------------------
 if __name__ == "__main__":
 
     doctest.testmod()   # (verbose=True)

@@ -36,10 +36,22 @@ def no_duplicates(seq):
             yield(x)
     return
 
+def restrict_keys(d: dict, domain) -> dict:
+    """Remove from d all items whose key is not in domain; return d.
+    >>> d = {'a': 1, 'b': 2}
+    >>> dr = restrict_keys(d, {'a', 'c'})
+    >>> dr
+    {'a': 1}
+    >>> d == dr
+    True
+    """
+    for k in set(d):
+        if k not in domain: del d[k]
+    return d
 
-def difference_update(d, d_remove):
+def difference_update(d: dict, remove) -> dict:
     """Change and return d.
-    d: mutable mapping, d_remove: iterable.
+    d: mutable mapping, remove: iterable.
     There is such a method for sets, but unfortunately not for dicts.
 
     >>> d = {'a': 1, 'b': 2, 'c': 3}
@@ -50,7 +62,7 @@ def difference_update(d, d_remove):
     >>> d == {'a': 1, 'c': 3}
     True
     """
-    for k in d_remove:
+    for k in remove:
         if k in d:
             del(d[k])
     return d    # so that we can pass a call to this fn as an arg, or chain

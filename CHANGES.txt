@@ -29,7 +29,7 @@ VERSIONS
                 [!seq] 	matches any character not in seq
             * and ? can match dots
 
-            Can be class-prefixed e.g. D.DI.foo
+            Can be class-prefixed e.g. D.DI.foo, D.DI.*_handler, *.*.* (any inner-class method)
             or unprefixed (and then any matching method/inner class will be omitted)
             Ignored when decorating a function.
 
@@ -104,7 +104,7 @@ VERSIONS
         TODO document
 
       - added 'log_exprs(*exprs, sep=', ',
-                     extra_indent_level=1, prefix_with_name=False)
+                         extra_indent_level=1, prefix_with_name=False)
         method, callable just like log_message -- it's an attribute of deco'd function.
         Intention is, provide an easy way to print out variables & expressions + their values
         log_exprs evaluates each expr in the context of the caller,
@@ -132,6 +132,26 @@ VERSIONS
         TODO document
 
       - added global mute `log_calls.mute`, possible values as above
+
+      - Added classmethod
+            def decorate_hierarchy(cls, baseclass: type, namespace=globals(), **settings):
+                """Decorate baseclass and, recursively, all of its descendants.
+                If any subclasses are directly decorated, their explicitly given settings
+                override those in `settings` EXCEPT `omit` and `only`.
+                """
+        For situations where you have too many subclasses to decorate them all manually.
+        Useful with `only` and/or `omit` settings to limit volume of output.
+
+        See test/example main__test__decorate_hierarchy in log_calls/tests/test_log_calls__class_deco.py.
+
+      - A "kill switch" -- a "pseudo-setting" for production:
+            _DONT_DECORATE_=<bool>
+        default False.
+        If _NO_DECO_=True is given, a function or class is not decorated at all (__call__ just returns
+        its argument, unchanged not wrapped). SO: put this pseudo-setting in a settings file or dict,
+        use those settings everywhere, and you can disable all decoration with one switch.
+        This is a "pseudo"-setting because there's no such entry in `log_calls_settings`:
+            if it (has been) true then there are no log_calls_settings attributes!, and conversely.
 
       - record_history can (now) use log_message and log_exprs
         Output is always via print.
@@ -174,10 +194,8 @@ VERSIONS
         TODO test it -- dynamically change 'prefix' in various ways, test    (isn't there a test? where?)
         todo    at both ends of call chains
 
-      - suppress return value on __init__, by default;
+      - suppress return value on __init__, by default, regardless of outer (class-level) setting;
         explicit "log_retval=True" on method overrides that.
-
-      - prefix works for inner classes too (Outer.Inner.foo)    [TODO why shouldn't it? unclear. Delete this?]
 
       - (worth mentioning?) renamed wrapper function of decorator
         from `f_log_calls_wrapper_` to `_deco_base_f_wrapper_`

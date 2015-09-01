@@ -1,11 +1,11 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b14'
+__version__ = '0.3.0b15'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
 number of call, to stdout or to a logger. log_calls can track
 call history and provide it in CSV format and Pandas DataFrame format.
-NOTE: CPython only -- this uses internals of stack frames
+NOTE: for CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
 See docs/log_calls.md for details, usage info and examples.
 
@@ -30,7 +30,7 @@ from .deco_settings import (DecoSetting,
                             DecoSetting_bool, DecoSetting_int, DecoSetting_str,
                             DecoSettingsMapping)
 from .helpers import (no_duplicates, get_args_pos, get_args_kwargs_param_names,
-                      difference_update,
+                      difference_update, restrict_keys,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str,
                       is_quoted_str, any_match)
@@ -63,7 +63,7 @@ __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 #-----------------------------------------------------------------------------
 
 # TODO 0.3.x, possible `context` setting:  - - - - - - - - - - - - - - - - - -
-# todo  context key/vals that would be of interest to wrapped functions:
+# todo  context key/vals that might be of interest to wrapped functions:
 #     settings
 #     stats
 #     explicit_kwargs
@@ -986,6 +986,8 @@ class _deco_base():
               so this function can't use it, e.g. to test for valid settings,
                     if setting in self._settings_mapping: ...
               won't work.
+
+        v0.3.0 -- special-case handling for pseudo-setting `_DONT_DECORATE_`
         """
         if not settings_path:
             return {}
@@ -1005,6 +1007,7 @@ class _deco_base():
         settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
         for line in lines:
             line = line.strip()
+            # Allow blank lines & comments
             if not line or line[0] == '#':
                 continue
 
@@ -1079,44 +1082,45 @@ class _deco_base():
         #--------------------------------------------------------------------
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # Set up defaults_dict with log_calls's defaults - the static ones:
+        # Initialize effective_settings_dict with log_calls's defaults - the static ones:
         #   self.__class__.__name__ is name *of subclass*, clsname,
         #   which we trust has already called
         #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
         #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
         #   has .default = False, for "technical" reasons
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
-        defaults_dict = {k: od[k].default for k in od}
-        defaults_dict['enabled'] = True
+        deco_settings_map = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        effective_settings_dict = {k: deco_settings_map[k].default for k in deco_settings_map}
+        effective_settings_dict['enabled'] = True
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # get settings from dict | read settings from file
         # if given, as a dict settings_dict
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         settings_dict = {}
         if isinstance(settings, dict):
-            settings_dict = settings
+            settings_dict = restrict_keys(settings, deco_settings_map)
         elif isinstance(settings, str):
             settings_dict = self._read_settings_file(settings_path=settings)
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # 0.3.0 Save settings_dict updated with _used_keywords_dict
-        # so that these can be reapplied by any outer class deco --
+        # as self._changed_settings, so that these can be reapplied
+        # by any outer class deco --
         # (class deco's _effective_settings (copy of) updated with these --
-        # in class case of __call__
+        #  in class case of __call__)
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict.update(_used_keywords_dict)   # settings_dict is now no longer *that*
+        settings_dict.update(_used_keywords_dict)   # settings_dict is now no longer only *that*
         self._changed_settings = settings_dict
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # update defaults_dict with settings *explicitly* passed to caller
+        # update effective_settings_dict with settings *explicitly* passed to caller
         # of subclass's __init__, and save *that* (used in __call__)
         # as self._effective_settings, which are the final settings used
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        defaults_dict.update(self._changed_settings)    # defaults_dict is now no longer *that*
-        self._effective_settings = defaults_dict
+        effective_settings_dict.update(self._changed_settings)
+        self._effective_settings = effective_settings_dict
 
-        def _make_sequence(names) -> tuple:
+        def _make_token_sequence(names) -> tuple:
             """names is either a string of space- and/or comma-separated umm tokens,
             or is already a sequence of tokens.
             Return tuple of tokens."""
@@ -1124,8 +1128,8 @@ class _deco_base():
                 names = names.replace(',', ' ').split()
             return tuple(map(str, names))
 
-        self._omit_ex = self._omit = _make_sequence(_omit)
-        self._only_ex = self._only = _make_sequence(_only)
+        self._omit_ex = self._omit = _make_token_sequence(_omit)
+        self._only_ex = self._only = _make_token_sequence(_only)
 
         self.prefix = prefix                # special case
         self._name_param = _name_param
@@ -1287,7 +1291,7 @@ class _deco_base():
             actual_item = getattr(cls, name)
             # If item is a staticmethod or classmethod,
             # actual_item is the underlying function;
-            # if item is a function or class, actual_item is item.
+            # if item is a function (instance method) or class, actual_item is item.
             # In all these cases, actual_item is callable.
             # If item is a property, it's not callable, and actual_item is item.
             if not (callable(actual_item) or type(item) == property):
@@ -1424,7 +1428,7 @@ class _deco_base():
 
             #-------------------------------------------------------
             # Handle instance, static, class methods
-            # All we know it, actual_item is callable
+            # All we know is, actual_item is callable
             #-------------------------------------------------------
             # Filter with self._only and self._omit.
             dont_decorate = False
@@ -1488,9 +1492,21 @@ class _deco_base():
         So, this method *returns* the decorator proper.
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
+
+
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
-        # 0.3.0 -- handle decorating both functions and classes
+        # 0.3.0
+        # -- implement "kill switch", _DONT_DECORATE_
+        # -- handle decorating both functions and classes
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
+        if self._effective_settings.get('_DONT_DECORATE_'):
+            return f_or_cls     # don't decorate :)
+        # else, delete that item wherever it might be
+        if '_DONT_DECORATE_' in self._effective_settings:
+            del self._effective_settings['_DONT_DECORATE_']
+        if '_DONT_DECORATE_' in self._changed_settings:           # probably not but doesn't hurt
+            del self._changed_settings['_DONT_DECORATE_']
+
         f = f_or_cls if inspect.isfunction(f_or_cls) else None
         cls = f_or_cls if inspect.isclass(f_or_cls) else None
 
@@ -1982,6 +1998,19 @@ class _deco_base():
             call_list = call_list[:1]
         return call_list, prev_indent_level
 
+    @classmethod
+    def decorate_hierarchy(cls, baseclass: type, namespace=globals(), **settings):
+        """Decorate baseclass and, recursively, all of its descendants.
+        If any subclasses are directly decorated, their explicitly given settings
+        override those in `settings` EXCEPT `omit` and `only`.
+        """
+        assert isinstance(baseclass, type)
+        # decorate baseclass
+        namespace[baseclass.__name__] = cls(**settings)(baseclass)
+        # decorate all descendants of baseclass
+        for subclass in baseclass.__subclasses__():
+            cls.decorate_hierarchy(subclass, namespace=namespace, **settings)
+
 
 #----------------------------------------------------------------------------
 # log_calls
@@ -2139,6 +2168,7 @@ class log_calls(_deco_base):
         DecoSettingHistory('record_history'),
         DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
                         allow_indirect=False, mutable=False),
+        DecoSetting_bool('_DONT_DECORATE_',  bool,           False,         allow_falsy=True, mutable=False),
     )
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
@@ -2164,6 +2194,7 @@ class log_calls(_deco_base):
                  mute=False,
                  record_history=False,
                  max_history=0,
+                 _DONT_DECORATE_=False,
     ):
         """(See base class docstring)
         """
@@ -2195,6 +2226,7 @@ class log_calls(_deco_base):
             mute=mute,
             record_history=record_history,
             max_history=max_history,
+            _DONT_DECORATE_=_DONT_DECORATE_,
         )
 
     # 0.3.0
