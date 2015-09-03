@@ -1562,7 +1562,12 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # 0.3.0 -- case "f_or_cls is a function" -- namely, f
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
+            # 0.3.0.15b f may not have a .__qualname__
+            try:
+                self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
+            except AttributeError as e:
+                print("%s has no qualname: %s" % (f, str(e)))               # <<<<<<<<< TODO DELETE DEBUG; don't deco???
+                self._classname_of_f = ''
 
             # Refuse to decorate '__repr__' if deco subclass doesn't allow it.
             if f.__name__ == '__repr__' and self._classname_of_f and not self.allow_repr():
@@ -1999,18 +2004,84 @@ class _deco_base():
         return call_list, prev_indent_level
 
     @classmethod
-    def decorate_hierarchy(cls, baseclass: type, namespace=globals(), **settings):
+    def decorate_hierarchy(cls, baseclass: type, **setting_kwds):
         """Decorate baseclass and, recursively, all of its descendants.
-        If any subclasses are directly decorated, their explicitly given settings
-        override those in `settings` EXCEPT `omit` and `only`.
+        If any subclasses are directly decorated, their explicitly given setting_kwds
+        override those in `setting_kwds` EXCEPT `omit` and `only`.
         """
         assert isinstance(baseclass, type)
         # decorate baseclass
-        namespace[baseclass.__name__] = cls(**settings)(baseclass)
+        _ = cls(**setting_kwds)(baseclass)
+        # assert _ == baseclass
+
         # decorate all descendants of baseclass
         for subclass in baseclass.__subclasses__():
-            cls.decorate_hierarchy(subclass, namespace=namespace, **settings)
+            cls.decorate_hierarchy(subclass, **setting_kwds)
 
+    #############
+    # v0.3.0.15b
+    #############
+
+    @classmethod
+    def decorate_class(cls, klass: type, subclasses_too=False, **setting_kwds):
+        """Decorate baseclass and, optionally, all of its descendants recursively.
+        (If any subclasses are directly decorated, their explicitly given setting_kwds
+         override those in `setting_kwds` EXCEPT `omit` and `only`.)
+        """
+        assert isinstance(klass, type)
+        _ = cls(**setting_kwds)(klass)
+        # assert _ == klass
+
+        if subclasses_too:
+            for subclass in klass.__subclasses__():
+                cls.decorate_class(subclass, subclasses_too=True, **setting_kwds)
+
+    @classmethod
+    def decorate_external_function(cls, f: 'Callable', **setting_kwds):
+        """Wrap f with decorator `cls` using settings, replace definition of f.__name__
+        with that decorated function in the __dict__ of the module of f.
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, qualified with module, e.g. mymodule.myfunc,
+                  however it would be referred to in code at the point of a call to `decorate_external_function`.
+        :param setting_kwds: settings for decorator
+        """
+        namespace = vars(inspect.getmodule(f))
+        namespace[f.__name__] = cls(**setting_kwds)(f)
+
+    @classmethod
+    def decorate_function(cls, f: 'Callable', **setting_kwds):
+        """Wrap f with decorator `cls` using settings, replace definition of f.__name__
+        with that decorated function in the global namespace OF THE CALLER.
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, myfunc, no package/module qualifier.
+                  However it would be referred to in code at the point of the call
+                  to `decorate_function`.
+        :param setting_kwds: settings for decorator
+        """
+        caller_frame = sys._getframe(1)           # caller's frame
+        namespace = caller_frame.f_globals
+        namespace[f.__name__] = cls(**setting_kwds)(f)
+
+    @classmethod
+    def decorate_module(cls, module: 'module',
+                        functions=True, classes=True,
+                        **setting_kwds):
+        """
+        Can't decorate builtins, attempting
+            log_calls.decorate_class(dict, only='update')
+        gives:
+            TypeError: can't set attributes of built-in/extension type 'dict'
+        """
+        # Functions
+        if functions:
+            for name, f in inspect.getmembers(module, inspect.isfunction):
+                vars(module)[name] = cls(**setting_kwds)(f)
+
+        # Classes
+        if classes:
+            for name, kls in inspect.getmembers(module, inspect.isclass):
+                _ = cls(**setting_kwds)(kls)
+                # assert _ == kls
 
 #----------------------------------------------------------------------------
 # log_calls

@@ -1192,7 +1192,7 @@ main__test___repr__log_calls_as_functor_applied_to_lambda.__doc__ = \
 #-----------------------------------------------------------------------------
 # main__test__decorate_hierarchy
 #-----------------------------------------------------------------------------
-def main__test__decorate_hierarchy():
+def main__test__decorate_class__hierarchy():
     """
     >>> class Base():
     ...     def __init__(self, x):
@@ -1214,7 +1214,8 @@ def main__test__decorate_hierarchy():
     ...     def callout(self):  self.helper_B(); return 5 * self.x
     ...     def helper_B(self): pass
 
-    >>> log_calls.decorate_hierarchy(Base, only="template_method callout", indent=True, log_retval=True)
+    >>> log_calls.decorate_class(Base, subclasses_too=True,
+    ...                          only="template_method callout", indent=True, log_retval=True)
 
     >>> a = A(5)
     >>> a.template_method()                             # doctest: +ELLIPSIS
@@ -1238,13 +1239,12 @@ def main__test__decorate_hierarchy():
     **** callout returns 500
         Base.template_method return value: None
     Base.template_method ==> returning to <module>
-
     """
     pass
 
 # SURGERY:
-main__test__decorate_hierarchy.__doc__ = \
-    main__test__decorate_hierarchy.__doc__.replace("__main__", __name__)
+main__test__decorate_class__hierarchy.__doc__ = \
+    main__test__decorate_class__hierarchy.__doc__.replace("__main__", __name__)
 
 ##############################################################################
 # end of tests.
