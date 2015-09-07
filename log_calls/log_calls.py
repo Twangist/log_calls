@@ -575,7 +575,7 @@ class _deco_base():
                           (Default: False)
         indent:            if true, log messages for each level of log_calls-decorated
                            functions will be indented by 4 spaces, when printing
-                           and not using a logger (default: False)
+                           and not using a logger (default: True (0.3.0))
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
@@ -586,7 +586,9 @@ class _deco_base():
                            function name.(Default: False)
         max_history:       An int. value >  0 --> store at most value-many records,
                                                   oldest records overwritten;
-                                   value <= 0 --> unboundedly many records are stored.
+                                   value <= 0 --> unboundedly many records are stored
+
+        <<<<<<< TODO -- more............. >>>>>>>
     """
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # constants for the `mute` setting
@@ -1060,7 +1062,7 @@ class _deco_base():
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
-                 indent=False,
+                 indent=True,               # 0.3.0 changed default
                  prefix='',
                  mute=False,
                  ** other_values_dict):
@@ -2125,7 +2127,7 @@ class log_calls(_deco_base):
                           in seconds. (Default: False)
         indent:            if true, log messages for each level of log_calls-decorated
                            functions will be indented by 4 spaces, when printing
-                           and not using a logger (default: False)
+                           and not using a logger (default: True (0.3.0))
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
@@ -2225,7 +2227,7 @@ class log_calls(_deco_base):
         DecoSettingRetval('log_retval'),
         DecoSettingElapsed('log_elapsed'),
         DecoSettingExit('log_exit'),
-        DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
+        DecoSetting_bool('indent',           bool,           True,         allow_falsy=True),
         DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
                         allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False
@@ -2256,7 +2258,7 @@ class log_calls(_deco_base):
                  log_retval=False,
                  log_elapsed=False,
                  log_exit=True,
-                 indent=False,         # probably better than =True
+                 indent=True,            # 0.3.0, this seems the better default
                  log_call_numbers=False,
                  prefix='',
                  file=None,    # detectable value so we late-bind to sys.stdout

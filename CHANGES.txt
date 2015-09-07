@@ -132,29 +132,19 @@ VERSIONS
         TODO document
 
       - added global mute `log_calls.mute`, possible values as above
+      - Changed `indent` setting default to True, changed tests accordingly.
+        TODO - update docs accordingly too. Recommend `indent=False` for use with loggers
+                unless logging format str (sic?) is "minimal".
 
-      - Added classmethod
-            def decorate_hierarchy(cls, baseclass: type, namespace=globals(), **setting_kwds):
-                """Decorate baseclass and, recursively, all of its descendants.
-                If any subclasses are directly decorated, their explicitly given settings
-                override those in `setting_kwds` EXCEPT `omit` and `only`.
-                """
+      - Added classmethods
+            decorate_module
+            decorate_function
+            decorate_external_function
+            decorate_class
         For situations where you have too many subclasses to decorate them all manually.
         Useful with `only` and/or `omit` settings to limit volume of output.
 
-        See test/example main__test__decorate_hierarchy in log_calls/tests/test_log_calls__class_deco.py.
-
-        TODO -- change to: log_calls.decorate_class(klass: type, subclasses=True, namespace=globals(), **setting_kwds)
-
-
-      -- TODO:
-            log_calls.decorate_function(fn, **setting_kwds)
-
-            # TODO: name? of module? BETTER would be the module itself, as then it would have to be successfully imported
-            log_calls.decorate_module(name, functions=True, classes=True, subclasses=True, **setting_kwds)
-
-            TODO: tests for THESE
-
+        See tests/.....
 
       - A "kill switch" -- a "pseudo-setting" for production:
             _DONT_DECORATE_=<bool>

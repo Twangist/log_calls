@@ -164,14 +164,14 @@ separator '\\n'):
             y=2
             z=3
             [**]kwargs={...}
-    DEBUG:mylogger:r <== called by s <== t
-    DEBUG:mylogger:    arguments:
-            x=1
-            y=2
-            z=3
-            [**]kwargs={...}
+    DEBUG:mylogger:    r <== called by s <== t
+    DEBUG:mylogger:        arguments:
+                x=1
+                y=2
+                z=3
+                [**]kwargs={...}
     5
-    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
 #### Test of logger with indirect str value (name of logger)
@@ -184,14 +184,14 @@ Same output as above, with logger_=logger:
             y=2
             z=3
             [**]kwargs={...}
-    DEBUG:mylogger:r <== called by s <== t
-    DEBUG:mylogger:    arguments:
-            x=1
-            y=2
-            z=3
-            [**]kwargs={...}
+    DEBUG:mylogger:    r <== called by s <== t
+    DEBUG:mylogger:        arguments:
+                x=1
+                y=2
+                z=3
+                [**]kwargs={...}
     5
-    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
 
@@ -236,19 +236,19 @@ def main__logging_with_indent__minimal_formatters():
 Now the same example as in test_log_calls [the *indent* parameter]
 has the same expected output:
 
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g1():
     ...     pass
-    >>> @log_calls(logger=another_logger)    # no extra indentation for g1
+    >>> @log_calls(indent=False, logger=another_logger)    # no extra indentation for g1
     ... def g2():
     ...     g1()
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g3():
     ...     g2()
-    >>> @log_calls(logger=another_logger)    # no extra indentation for g3
+    >>> @log_calls(indent=False, logger=another_logger)    # no extra indentation for g3
     ... def g4():
     ...     g3()
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g5():
     ...     g4()
     >>> g5()
@@ -502,7 +502,7 @@ Let's examine the settings:
      'log_retval': True,
      'log_elapsed': 'elapsed_',
      'log_exit': True,
-     'indent': False,
+     'indent': True,
      'log_call_numbers': True,
      'prefix': '',
      'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
@@ -583,7 +583,7 @@ Let's use this troubled settings file and examine the resulting settings:
      'log_retval': False,
      'log_elapsed': False,
      'log_exit': True,
-     'indent': False,
+     'indent': True,
      'log_call_numbers': False,
      'prefix': '',
      'file': None,
@@ -672,8 +672,8 @@ Call it:
 
     >>> inn()
     outer.<locals>.inner <== called by <module>
-    f <== called by g <== outer.<locals>.inner
-    f ==> returning to g ==> outer.<locals>.inner
+        f <== called by g <== outer.<locals>.inner
+        f ==> returning to g ==> outer.<locals>.inner
     outer.<locals>.inner ==> returning to <module>
 
     """

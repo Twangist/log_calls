@@ -59,9 +59,9 @@ Adding another decorated function to the call chain gives useful information too
     >>> g(3)
     g <== called by <module>
         arguments: a=3
-    f <== called by g
-        arguments: a=3, b=6, c=9
-    f ==> returning to g
+        f <== called by g
+            arguments: a=3, b=6, c=9
+        f ==> returning to g
     g ==> returning to <module>
 
 ###[The *enabled* parameter (default – *True*)](id:enabled-parameter)
@@ -258,19 +258,19 @@ Here, the even numbered functions don't indent, so the indented functions
 that they call are indented just one level more than their "inherited"
 indentation level:
 
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def g1():
     ...     pass
-    >>> @log_calls()    # no extra indentation for g1
+    >>> @log_calls(indent=False)    # no extra indentation for g1
     ... def g2():
     ...     g1()
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def g3():
     ...     g2()
-    >>> @log_calls()    # no extra indentation for g3
+    >>> @log_calls(indent=False)    # no extra indentation for g3
     ... def g4():
     ...     g3()
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def g5():
     ...     g4()
     >>> g5()
@@ -393,10 +393,10 @@ that logger rather than the `print` function:
     ...     somefunc(17, 19)
     >>> anotherfunc()       # doctest: +NORMALIZE_WHITESPACE
     DEBUG:a_logger:anotherfunc <== called by <module>
-    DEBUG:a_logger:somefunc <== called by anotherfunc
-    DEBUG:a_logger:    arguments: v1=17, v2=19
+    DEBUG:a_logger:    somefunc <== called by anotherfunc
+    DEBUG:a_logger:        arguments: v1=17, v2=19
     DEBUG:a_logger:36
-    DEBUG:a_logger:somefunc ==> returning to anotherfunc
+    DEBUG:a_logger:    somefunc ==> returning to anotherfunc
     DEBUG:a_logger:anotherfunc ==> returning to <module>
 
 The value of `logger` can be either a logger instance (a `logging.Logger`) or a string
@@ -472,10 +472,10 @@ will use the prefixed name:
     ...     g4()
     >>> g5()
     g5 <== called by <module>
-    mid.g3 <== called by g4 <== g5
-    g1 <== called by g2 <== mid.g3
-    g1 ==> returning to g2 ==> mid.g3
-    mid.g3 ==> returning to g4 ==> g5
+        mid.g3 <== called by g4 <== g5
+            g1 <== called by g2 <== mid.g3
+            g1 ==> returning to g2 ==> mid.g3
+        mid.g3 ==> returning to g4 ==> g5
     g5 ==> returning to <module>
 
 In the next example, `g` is `log_calls`-decorated but logging is disabled,
@@ -505,10 +505,10 @@ intermediate decorated function that has logging disabled:
     ... def h(): g()
     >>> h()
     h <== called by <module>
-    f <== called by not_decorated_call_f <== g <== h
-    e <== called by not_decorated_call_e <== f
-    e ==> returning to not_decorated_call_e ==> f
-    f ==> returning to not_decorated_call_f ==> g ==> h
+        f <== called by not_decorated_call_f <== g <== h
+            e <== called by not_decorated_call_e <== f
+            e ==> returning to not_decorated_call_e ==> f
+        f ==> returning to not_decorated_call_f ==> g ==> h
     h ==> returning to <module>
 
 Finally, a test with decorated functions in the call chain for which
@@ -531,10 +531,10 @@ logging is "bypassed":
     ...     h4()
     >>> h5()
     h5 <== called by <module>
-    h3 <== called by h4 <== h5
-    h1 <== called by h2 <== h3
-    h1 ==> returning to h2 ==> h3
-    h3 ==> returning to h4 ==> h5
+        h3 <== called by h4 <== h5
+            h1 <== called by h2 <== h3
+            h1 ==> returning to h2 ==> h3
+        h3 ==> returning to h4 ==> h5
     h5 ==> returning to <module>
 
 
@@ -640,8 +640,8 @@ then the call number of f will be displayed in the call chain:
     ... def g(): not_decorated()
     >>> g()
     g [1] <== called by <module>
-    f <== called by not_decorated <== g [1]
-    f ==> returning to not_decorated ==> g [1]
+        f <== called by not_decorated <== g [1]
+        f ==> returning to not_decorated ==> g [1]
     g [1] ==> returning to <module>
 
 ###[Indentation and call numbers with recursion](id:recursion-example)
@@ -914,9 +914,9 @@ Its keys and items can be iterated through:
     >>> list(f.log_calls_settings.items())              # doctest: +NORMALIZE_WHITESPACE
     [('enabled', False),   ('args_sep', ', '),    ('log_args', True),
      ('log_retval', True), ('log_elapsed', True), ('log_exit', True),
-     ('indent', False),         ('log_call_numbers', False),
-     ('prefix', ''),            ('file', None),
-     ('logger', None),          ('loglevel', 10),
+     ('indent', True),     ('log_call_numbers', False),
+     ('prefix', ''),       ('file', None),
+     ('logger', None),     ('loglevel', 10),
      ('mute', False),
      ('record_history', False), ('max_history', 0)]
 
@@ -1006,7 +1006,7 @@ but using `as_dict()` is sufficient):
     OrderedDict([('enabled', True),           ('args_sep', ', '),
                  ('log_args', True),          ('log_retval', False),
                  ('log_elapsed', False),      ('log_exit', True),
-                 ('indent', False),           ('log_call_numbers', False),
+                 ('indent', True),            ('log_call_numbers', False),
                  ('prefix', ''),              ('file', None),
                  ('logger', None),            ('loglevel', 10),
                  ('mute', False),
@@ -1122,9 +1122,9 @@ will be logged:
     >>> func2(17, enable=True)
     func2 <== called by <module>
         arguments: z=17, [**]func2_kwargs={'enable': True}
-    func1 <== called by func2
-        arguments: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
-    func1 ==> returning to func2
+        func1 <== called by func2
+            arguments: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
+        func1 ==> returning to func2
     func2 ==> returning to <module>
 
 whereas neither of the following two statements will trigger logging:
@@ -1195,15 +1195,15 @@ Without an indirect value for `indent`, `log_calls` displays the calls to
     >>> g(1) #, lc_indent=True)
     g <== called by <module>
         arguments: n=1
-    f [1] <== called by g
-        arguments: n=2
-    f [2] <== called by f [1]
-        arguments: n=1
-    f [3] <== called by f [2]
-        arguments: n=0
-    f [3] ==> returning to f [2]
-    f [2] ==> returning to f [1]
-    f [1] ==> returning to g
+        f [1] <== called by g
+            arguments: n=2
+            f [2] <== called by f [1]
+                arguments: n=1
+                f [3] <== called by f [2]
+                    arguments: n=0
+                f [3] ==> returning to f [2]
+            f [2] ==> returning to f [1]
+        f [1] ==> returning to g
     g ==> returning to <module>
 
 but the call hierarchy is represented visually when you pass the specified
@@ -1573,13 +1573,13 @@ for a function that has all of those fields:
     ... def h(a, *args, **kwargs): g(a, *args, **kwargs)
     >>> h(0)
     h <== called by <module>
-    f [1] <== called by g <== h
+        f [1] <== called by g <== h
     >>> h(10, 17, 19, z=100)
     h <== called by <module>
-    f [2] <== called by g <== h
+        f [2] <== called by g <== h
     >>> h(20, 3, 4, 6, x=5, y='Yarborough', z=100)
     h <== called by <module>
-    f [3] <== called by g <== h
+        f [3] <== called by g <== h
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     call_num|a|extra_args|x|kw_args|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
     1|0|()|1|{}|None|...|...|...|'f'|['g', 'h']
@@ -1981,12 +1981,12 @@ display name will be just `inner` and not `outer.<locals>.inner`:
     outer: Before call to inner:
         its call number (inner.stats.num_calls_logged) = 0
         its elapsed_secs_logged = 0.0
-    inner <== called by outer
-        arguments: y=6
-        inner.log_calls_settings.enabled = 7
-        inner: call number 1
-        inner: elapsed_secs_logged = 0.0
-    inner ==> returning to outer
+        inner <== called by outer
+            arguments: y=6
+            inner.log_calls_settings.enabled = 7
+            inner: call number 1
+            inner: elapsed_secs_logged = 0.0
+        inner ==> returning to outer
     outer: After call to inner:
         its call number = 1
         its elapsed_secs_logged = ...
