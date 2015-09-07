@@ -100,7 +100,7 @@ is appended so that arguments line up nicely:
             a=1
             b=2
             c=3
-            [**]kwargs={'u': 'you'}
+            **kwargs={'u': 'you'}
     6
     f ==> returning to <module>
 
@@ -121,7 +121,7 @@ logged, on a separate line.
     ... def f_a(a, *args, something='that thing', **kwargs): pass
     >>> f_a(1, 2, 3, foo='bar')
     f_a <== called by <module>
-        arguments: a=1, [*]args=(2, 3), [**]kwargs={'foo': 'bar'}
+        arguments: a=1, *args=(2, 3), **kwargs={'foo': 'bar'}
         defaults:  something='that thing'
     f_a ==> returning to <module>
 
@@ -1121,9 +1121,9 @@ will be logged:
 
     >>> func2(17, enable=True)
     func2 <== called by <module>
-        arguments: z=17, [**]func2_kwargs={'enable': True}
+        arguments: z=17, **func2_kwargs={'enable': True}
         func1 <== called by func2
-            arguments: a=17, b=18, c=19, [**]func1_kwargs={'enable': True}
+            arguments: a=17, b=18, c=19, **func1_kwargs={'enable': True}
         func1 ==> returning to func2
     func2 ==> returning to <module>
 
@@ -1166,14 +1166,14 @@ unambiguous and `log_calls` will find and use their names:
             a=1
             b=2
             c=3
-            [*]g_args=(42, 99)
-            [**]g_kwargs={'sep': '\\n'}
+            *g_args=(42, 99)
+            **g_kwargs={'sep': '\\n'}
     f <== called by g
         arguments:
             a=1
             b=2
             c=3
-            [**]kwargs={'sep': '\\n'}
+            **kwargs={'sep': '\\n'}
     f ==> returning to g
     g ==> returning to <module>
 
@@ -1211,15 +1211,15 @@ indirect value:
 
     >>> g(2, lc_indent=True)
     g <== called by <module>
-        arguments: n=2, [**]kwargs={'lc_indent': True}
+        arguments: n=2, **kwargs={'lc_indent': True}
         f [4] <== called by g
-            arguments: n=3, [**]kwargs={'lc_indent': True}
+            arguments: n=3, **kwargs={'lc_indent': True}
             f [5] <== called by f [4]
-                arguments: n=2, [**]kwargs={'lc_indent': True}
+                arguments: n=2, **kwargs={'lc_indent': True}
                 f [6] <== called by f [5]
-                    arguments: n=1, [**]kwargs={'lc_indent': True}
+                    arguments: n=1, **kwargs={'lc_indent': True}
                     f [7] <== called by f [6]
-                        arguments: n=0, [**]kwargs={'lc_indent': True}
+                        arguments: n=0, **kwargs={'lc_indent': True}
                     f [7] ==> returning to f [6]
                 f [6] ==> returning to f [5]
             f [5] ==> returning to f [4]
@@ -1271,7 +1271,7 @@ is perfectly legitimate:
     >>> g.log_calls_settings.enabled = 'enable_log_calls='
     >>> g(1, 2, 3, enable_log_calls=True)
     g <== called by <module>
-        arguments: [*]args=(1, 2, 3), [**]kwargs={'enable_log_calls': True}
+        arguments: *args=(1, 2, 3), **kwargs={'enable_log_calls': True}
     g ==> returning to <module>
     6
     """
@@ -1308,7 +1308,7 @@ Let's call it 2 times:
         defaults:  x=1
     >>> f(1, 100, 101, x=1000, y=1001)
     f [2] <== called by <module>
-        arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
+        arguments: a=1, *args=(100, 101), x=1000, **kwargs={'y': 1001}
 
 and explore its `stats`.
 
@@ -1349,7 +1349,7 @@ value as `f.stats.num_calls_logged` after (and during!) the call:
     >>> f.log_calls_settings.enabled = True
     >>> f(10, 20, z=5000)
     f [3] <== called by <module>
-        arguments: a=10, [*]args=(20,), [**]kwargs={'z': 5000}
+        arguments: a=10, *args=(20,), **kwargs={'z': 5000}
         defaults:  x=1
 
     >>> f.stats.num_calls_total
@@ -1413,10 +1413,10 @@ With logging enabled, let's call `f` three times:
         defaults:  x=1
     >>> f(1, 100, 101, x=1000, y=1001)
     f [2] <== called by <module>
-        arguments: a=1, [*]args=(100, 101), x=1000, [**]kwargs={'y': 1001}
+        arguments: a=1, *args=(100, 101), x=1000, **kwargs={'y': 1001}
     >>> f(10, 20, z=5000)
     f [3] <== called by <module>
-        arguments: a=10, [*]args=(20,), [**]kwargs={'z': 5000}
+        arguments: a=10, *args=(20,), **kwargs={'z': 5000}
         defaults:  x=1
 
 No surprises there. But now, `f` has a call history, which we'll examine next.

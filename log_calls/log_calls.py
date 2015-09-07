@@ -189,12 +189,12 @@ class DecoSettingArgs(DecoSetting_bool):
         args_vals = list(zip(context['argnames'], context['argvals']))
 
         if context['varargs']:
-            args_vals.append( ("[*]%s" % context['varargs_name'], context['varargs']) )
+            args_vals.append( ("*%s" % context['varargs_name'], context['varargs']) )
 
         args_vals.extend( context['explicit_kwargs'].items() )
 
         if context['implicit_kwargs']:
-            args_vals.append( ("[**]%s" % context['kwargs_name'], context['implicit_kwargs']) )
+            args_vals.append( ("**%s" % context['kwargs_name'], context['implicit_kwargs']) )
 
         if args_vals:
             msg += args_sep.join(

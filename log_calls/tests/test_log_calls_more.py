@@ -22,7 +22,7 @@ def main__static_dynamic_parameter_values__dynamic_control__more():
     ...     return x**2
     >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
     f <== called by <module>
-        arguments: x=2, [**]kwargs={'logexit': False}
+        arguments: x=2, **kwargs={'logexit': False}
 
     >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
     f <== called by <module>
@@ -91,7 +91,7 @@ but here we do get output:
     >>> bar(debug=False)  # no output
     >>> bar(debug=True)   # output
     bar <== called by <module>
-        arguments: [**]kwargs={'debug': True}
+        arguments: **kwargs={'debug': True}
     bar ==> returning to <module>
 
     >>> bar()         # no output: enabled=<keyword> overrides enabled=True
@@ -140,7 +140,7 @@ uses the default separator ', '.)
     ...     print(x * y + z)
     >>> r(1, 2, 3, enable=True)
     r <== called by <module>
-        arguments: x=1, y=2, z=3, [**]kwargs={'enable': True}
+        arguments: x=1, y=2, z=3, **kwargs={'enable': True}
     5
     r ==> returning to <module>
 
@@ -163,13 +163,13 @@ separator '\\n'):
             x=1
             y=2
             z=3
-            [**]kwargs={...}
+            **kwargs={...}
     DEBUG:mylogger:    r <== called by s <== t
     DEBUG:mylogger:        arguments:
                 x=1
                 y=2
                 z=3
-                [**]kwargs={...}
+                **kwargs={...}
     5
     DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
@@ -183,13 +183,13 @@ Same output as above, with logger_=logger:
             x=1
             y=2
             z=3
-            [**]kwargs={...}
+            **kwargs={...}
     DEBUG:mylogger:    r <== called by s <== t
     DEBUG:mylogger:        arguments:
                 x=1
                 y=2
                 z=3
-                [**]kwargs={...}
+                **kwargs={...}
     5
     DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
@@ -215,7 +215,7 @@ but now we do get output:
     ...                   logger_=logger,
     ...                   loglevel_=logging.INFO)    # doctest: +ELLIPSIS
     INFO:mylogger:indirect_loglevel <== called by <module>
-    INFO:mylogger:    arguments: a=5, x=3, y=3, [**]kwargs={...}
+    INFO:mylogger:    arguments: a=5, x=3, y=3, **kwargs={...}
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
     """
@@ -319,10 +319,10 @@ or writing to a file with `print`, using the `file` parameter:
     ...     lines = temp.readlines()
     ...     print(''.join(lines))    # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+        arguments: **kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+            arguments: **kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -333,10 +333,10 @@ or with the logger defined above, which can be passed either as the Logger insta
 
     >>> h(logger_=another_logger)       # doctest: +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+        arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+            arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -346,10 +346,10 @@ or as the name of the Logger:
 
     >>> h(logger_='yet_another_logger')       # doctest: +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+        arguments: **kwargs={'logger_': 'yet_another_logger'}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+            arguments: **kwargs={'logger_': 'yet_another_logger'}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -461,9 +461,9 @@ in one order or the other.
 
     >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
     *** f [1] <== called by <module>
-    ***     arguments: n=1 / [**]kwargs={...}
+    ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
-    ***         arguments: n=0 / [**]kwargs={...}
+    ***         arguments: n=0 / **kwargs={...}
     ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
     ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
@@ -523,7 +523,7 @@ Now call the function, supplying a final value for `log_elapsed`:
 
     >>> _ = g(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
     *** g [1] <== called by <module>
-    ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
+    ***     arguments: m=5 | n=7 | **kwargs={'elapsed_': True}
     ***     g [1] return value: 70
     ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     *** g [1] ==> returning to <module>
@@ -637,9 +637,9 @@ in one of the two possible orders.
 
     >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
     *** f [1] <== called by <module>
-    ***     arguments: n=1 / [**]kwargs={...}
+    ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
-    ***         arguments: n=0 / [**]kwargs={...}
+    ***         arguments: n=0 / **kwargs={...}
     ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
     ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
