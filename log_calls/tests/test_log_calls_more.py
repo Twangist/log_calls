@@ -1,12 +1,29 @@
 __author__ = "Brian O'Neill"
 __version__ = '0.3.0'
 
+'''
+Four tests changed because of a Python bug fixed in 3.5:
+    http://bugs.python.org/issue23775
+    Fix pprint of OrderedDict
+
+    Pre-3.5, pprint printed the repr of OrderedDict if it fit on one line,
+    and printed the repr of dict if the output would be wrapped.
+
+The four tests all did
+    pprint.pprint(f.log_calls_settings.as_OrderedDict())
+and expected the output to be multiline & so plain dicts.
+Rather than have separate tests for different versions
+of Python, we just changed the tests to test for equality
+to a constant dict:
+    f.log_calls_settings.as_OrderedDict() == { ... }
+'''
+
 from log_calls import log_calls
 
 import pprint
 import doctest
 import unittest
-
+from log_calls.helpers import OrderedDict_to_dict_str
 
 #############################################################################
 # doctests
@@ -437,22 +454,24 @@ for the decorator.
 
 Verify the settings:
 
-    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
-    {'enabled': 1,
-     'args_sep': ' / ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': None,
-     'logger': 'logger_',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 57}
+    >>> f.log_calls_settings.as_OrderedDict() == {
+    ...     'enabled': 1,
+    ...     'args_sep': ' / ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': 'logger_',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 57
+    ... }
+    True
 
 Finally, call the function. The call supplies final
 values for the indirect values of `log_elapsed` and `logger`.
@@ -493,24 +512,29 @@ and again, we assume that the current directory is `log_calls/tests`.
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
-Let's examine the settings:
+Let's examine the settings. We have to do step carefully around the 'file' setting:
+    >>> od = g.log_calls_settings.as_OrderedDict()
+    >>> od['file']
+    <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>
 
-    >>> pprint.pprint(g.log_calls_settings.as_OrderedDict())
-    {'enabled': True,
-     'args_sep': ' | ',
-     'log_args': True,
-     'log_retval': True,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
-     'logger': 'star3_logger',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 0}
+    >>> del od['file']
+    >>> od == {
+    ...     'enabled': True,
+    ...     'args_sep': ' | ',
+    ...     'log_args': True,
+    ...     'log_retval': True,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'logger': 'star3_logger',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 0
+    ... }
+    True
 
 The settings `args_sep`, `log_retval`, `log_elapsed`, `file` and `logger` have
 values from the settings file. `log_args` is set to `False` in the settings file,
@@ -576,22 +600,24 @@ Let's use this troubled settings file and examine the resulting settings:
     >>> @log_calls(settings='./bad-settings.txt')
     ... def qq(j, k):
     ...     return (j+1) * (k+1)
-    >>> pprint.pprint(qq.log_calls_settings.as_OrderedDict())
-    {'enabled': True,
-     'args_sep': ', ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': False,
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': False,
-     'prefix': '',
-     'file': None,
-     'logger': None,
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 0}
+    >>> qq.log_calls_settings.as_OrderedDict() == {
+    ...     'enabled': True,
+    ...     'args_sep': ', ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': False,
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': False,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': None,
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 0
+    ... }
+    True
 
 ------------------------------------------------------------------------------
 
@@ -615,22 +641,24 @@ Now let's test `settings` as a dict:
 
 Verify that `f`'s settings are as expected:
 
-    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
-    {'enabled': 2,
-     'args_sep': ' / ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': None,
-     'logger': 'logger_',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 57}
+    >>> f.log_calls_settings.as_OrderedDict() == {
+    ...     'enabled': 2,
+    ...     'args_sep': ' / ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': 'logger_',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 57
+    ... }
+    True
 
 Call `f`. Again, `kwargs` is `{'elapsed_': True, 'logger_': 'star3_logger'}`
 in one of the two possible orders.

@@ -136,15 +136,28 @@ VERSIONS
         TODO - update docs accordingly too. Recommend `indent=False` for use with loggers
                 unless logging format str (sic?) is "minimal".
 
+      - Output of "arguments" section of log_calls output: dropped brackets around `*` and `**`
+        for varargs: we now write `*args` and `**kwargs` rather than `[*]args` and `[**]kwargs`
+
       - Added classmethods
             decorate_module
             decorate_function
             decorate_external_function
             decorate_class
+            set_defaults    # TODO
+            reset_defaults  # TODO
+
         For situations where you have too many subclasses to decorate them all manually.
         Useful with `only` and/or `omit` settings to limit volume of output.
 
-        See tests/.....
+        See:
+            tests/test_decorate_module.py
+            tests/test_decorate_things_in_module.py
+            tests/test_log_calls__class_deco.py
+
+      - Added classmethods `set_defaults`, `reset_defaults` to `DecoSettingsMapping`
+        to accomodate respective classmethods of `_deco_base_class`; tweaked `register_class_settings`
+        to accomodate them
 
       - A "kill switch" -- a "pseudo-setting" for production:
             _DONT_DECORATE_=<bool>

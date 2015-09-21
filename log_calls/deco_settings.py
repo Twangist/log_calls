@@ -48,8 +48,9 @@ is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
 from collections import OrderedDict, defaultdict
+from copy import deepcopy
 import pprint
-from .helpers import is_keyword_param, is_quoted_str
+from .helpers import is_keyword_param, is_quoted_str, types_to_prose
 
 
 __all__ = ['DecoSetting', 'DecoSettingsMapping']
@@ -190,6 +191,8 @@ class DecoSettingsMapping():
     as well as 'direct' and 'indirect' values for its keyword params"""
     # Class-level mapping: classname |-> OrderedDict of class's settings (info 'structs')
     _classname2SettingsData_dict = {}
+    _classname2SettingsDataTrueDefaults_dict = {}
+
     # Class-level mapping: classname |-> pair of tuples:
     #                                   (pre-call handler settings names,
     #                                    post-call handler settings names)
@@ -213,6 +216,10 @@ class DecoSettingsMapping():
         cls: this class
         deco_classname: key for dict produced from settings_iter
         settings_iter: iterable of DecoSetting objs"""
+        # Only do once per deco class
+        if deco_classname in cls._classname2SettingsData_dict:
+            return
+
         od = OrderedDict()
         pre_handlers = []
         post_handlers = []
@@ -223,7 +230,9 @@ class DecoSettingsMapping():
             if setting.__class__.__dict__.get('post_call_handler'):
                 post_handlers.append(setting.name)
 
-        cls._classname2SettingsData_dict[deco_classname] = od
+        cls._classname2SettingsData_dict[deco_classname] = deepcopy(od)
+        cls._classname2SettingsDataTrueDefaults_dict[deco_classname] = od
+
         cls._classname2handlers[deco_classname] = (
             tuple(pre_handlers), tuple(post_handlers))
 
@@ -231,6 +240,41 @@ class DecoSettingsMapping():
         for name in od:
             if od[name].visible:
                 setattr(cls, name, cls.make_setting_descriptor(name))
+
+    @classmethod
+    def set_defaults(cls, deco_class, **settings):
+        """Raises TypeError if any value in `settings` is of incorrect type.
+        Keys in settings that aren't actually settings raise KeyError.
+        """
+        deco_classname = deco_class.__name__
+        # Change defaults of items in cls._classname2SettingsData_dict[deco_classname]
+        deco_settings = cls._classname2SettingsData_dict[deco_classname]
+        for setting_name in settings:
+            if setting_name not in deco_settings:
+                raise KeyError("set_defaults: unknown setting '%s'" % setting_name)
+            final_types = deco_settings[setting_name].final_type
+            if not isinstance(final_types, tuple):
+                final_types = (final_types,)
+            setting_val = settings[setting_name]    # new default value
+            # typecheck setting_val
+            if not any(isinstance(setting_val, t) for t in final_types):
+                # Bad type of proposed new value
+                type_names = types_to_prose(final_types)
+                raise TypeError("set_defaults: "
+                                "value of setting '%s' must be an instance of %s;"
+                                "bad value: %r"
+                                % (setting_name, type_names, setting_val))
+            # set working default value = setting_val
+            deco_settings[setting_name].default = setting_val
+
+    @classmethod
+    def reset_defaults(cls, deco_class):
+        """Revert to initial defaults as per documentation & static declarations in code
+        """
+        deco_classname = deco_class.__name__
+        cls._classname2SettingsData_dict[deco_classname] = deepcopy(
+            cls._classname2SettingsDataTrueDefaults_dict[deco_classname]
+        )
 
     # <<<attributes>>>
     @classmethod

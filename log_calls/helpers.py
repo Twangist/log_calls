@@ -8,6 +8,8 @@ __all__ = [
     'get_defaulted_kwargs_OD',
     'get_explicit_kwargs_OD',
     'dict_to_sorted_str',
+    'types_to_prose',
+    'phrase_seq_to_prose',
     'is_quoted_str',
 ]
 
@@ -236,7 +238,7 @@ def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
     )
 
 
-def dict_to_sorted_str(d):
+def dict_to_sorted_str(d, _sort=True):
     """Return a str representation of dict d where keys are in ascending order.
     >>> d = {'c': 3, 'a': 1, 'b': 2}
     >>> print(dict_to_sorted_str(d))
@@ -246,12 +248,79 @@ def dict_to_sorted_str(d):
     {'X': 'alphanumeric', 'Y': 'yomomma', 'Z': 'zebulon'}
     """
     lst = list(d.items())
-    lst.sort(key=lambda p: p[0])
+    if _sort:
+        lst.sort(key=lambda p: p[0])
     ret = ('{' +
            ', '.join(["%s: %s" % (repr(k), repr(v)) for (k, v) in lst ]) +
            '}')
     return ret
 
+
+def OrderedDict_to_dict_str(od):
+    """Return a str representation of OrderedDict od as a dict where keys are in
+    the same order as in od.
+    Useful for doctests & unittests.
+
+    >>> od = OrderedDict(( ('c', 3), ('a', 1), ('b', 2) ))
+    >>> print(OrderedDict_to_dict_str(od))
+    {'c': 3, 'a': 1, 'b': 2}
+    >>> od2 = OrderedDict(( ('Z', 'zebulon'), ('X', 'alphanumeric'), ('Y', 'yomomma') ))
+    >>> print(OrderedDict_to_dict_str(od2))
+    {'Z': 'zebulon', 'X': 'alphanumeric', 'Y': 'yomomma'}
+    """
+    return dict_to_sorted_str(od, _sort=False)
+
+def types_to_prose(type_or_types, final_sep='or'):
+    """
+    :param type_or_types: a type e.g. int, str, io.TextIOBase, etc.
+                          or a sequence of types e.g. (str, logging.Logger)
+    :param final_sep:
+    :return: prose rendition of the type or sequence of types
+    >>> types_to_prose(int)
+    'int'
+    >>> import logging
+    >>> types_to_prose((str, logging.Logger))
+    'str or logging.Logger'
+    >>> import io
+    >>> types_to_prose((str, io.TextIOBase, int))
+    'str, io.TextIOBase or int'
+    """
+    import re
+    if isinstance(type_or_types, type):
+        type_or_types = (type_or_types,)
+    # Example:
+    #   str(logging.Logger) == '<class 'logging.Logger'>'
+    # so
+    #   re.match(r'<class \'([A-Za-z0-9_\.]+)\'>', str(logging.Logger)).group(1) == 'logging.Logger'
+    phrase_seq = [
+        re.match(r'<class \'([A-Za-z0-9_\.]+)\'>', str(t)).group(1)
+        for t in type_or_types
+    ]
+    return phrase_seq_to_prose(phrase_seq, final_sep=final_sep)
+
+def phrase_seq_to_prose(seq, final_sep='or'):
+    """
+    :param seq:
+    :param final_sep:
+    :return:
+
+    >>> phrase_seq_to_prose(['a', 'b', 'c'])
+    'a, b or c'
+    >>> phrase_seq_to_prose(['a', 'b', 'c'], final_sep='and')
+    'a, b and c'
+    >>> phrase_seq_to_prose([])
+    ''
+    >>> phrase_seq_to_prose(['a'])
+    'a'
+    >>> phrase_seq_to_prose(['a', 'b'], final_sep='and possibly')
+    'a and possibly b'
+    """
+    if not seq:
+        return ''
+    if len(seq) == 1: return seq[0]
+    all_but_last = ', '.join(seq[:-1])
+    prose = (' %s ' % final_sep).join((all_but_last, seq[-1]))
+    return prose
 
 def is_quoted_str(s):
     """

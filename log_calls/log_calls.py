@@ -544,10 +544,10 @@ def _get_deco_wrapper(deco_class, cls, fname: str) -> "function":
                          % (fname, prop_suffix, cls.__name__))
 
 
-#-----------------------------------------------------------------------------
+#-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 # _deco_base
 # Fat base class for log_calls and record_history decorators
-#-----------------------------------------------------------------------------
+#-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
 class _deco_base():
     """
@@ -1495,7 +1495,6 @@ class _deco_base():
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
 
-
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         # 0.3.0
         # -- implement "kill switch", _DONT_DECORATE_
@@ -1702,8 +1701,6 @@ class _deco_base():
                 do_indent = _get_final_value('indent')
                 _extra_indent_level = (prev_indent_level +
                                        int(not not do_indent and not not _enabled))
-
-                # Needed 3x:
                 # 0.3.0
                 ########## prefixed_fname = _get_final_value('prefix') + f.__name__
                 prefixed_fname = _get_final_value('prefix') + self.f_display_name
@@ -1990,7 +1987,7 @@ class _deco_base():
                         prev_indent_level = active_call_items['_extra_indent_level']
 
                     if enabled and log_call_numbers:
-                        call_list[-1] += " [" + str(active_call_number) + "]"
+                        call_list[-1] += (' [%d]' % active_call_number)
                     found_enabled = enabled     # done with outer loop too if enabled
                 else:   # bypassed
                     enabled = False

@@ -1,9 +1,9 @@
 __doc__ = """
-log_calls is a Python 3.3+ decorator that can print much useful information
-about calls to a decorated function. It can write to stdout, to another
-stream or file, or to a logger. It can save you from writing, rewriting,
-copying, pasting and tweaking a lot of ad hoc, boilerplate code - and it
-can keep your codebase free of that clutter.
+log_calls is a Python 3.3+ decorator for both functions and classes that can
+print much useful information about calls to decorated functions and methods.
+It can write to stdout, to another stream or file, or to a logger. It can
+save you from writing, rewriting, copying, pasting and tweaking lots of ad hoc,
+boilerplate code - and it can keep your codebase free of that clutter.
 
 For each call to a decorated function, log_calls can show you:
 
@@ -22,8 +22,13 @@ of the decorator. You can also dynamically get and set these settings using
 attributes with the same names as the keywords, or using a dict-like interface
 whose keys are the keywords. In fact, through a mechanism of "indirect
 parameter values", with just a modest amount of cooperation between decorated
-functions a calling function can ensure uniform settings for all log_calls-decorated
+functions a calling function can ensure uniform settings for all decorated
 functions in call chains beneath it.
+
+For situations where altering source code is impractical (too many things to
+decorate) or questionable practice (third-party modules and packages),
+log_calls has methods that let you decorate class hierarchies, even entire
+modules, with a single line of code.
 
 log_calls can also collect profiling data and statistics, accessible dynamically:
 
@@ -80,6 +85,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',

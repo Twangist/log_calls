@@ -11,6 +11,7 @@ from log_calls.log_calls import DecoSettingEnabled, DecoSettingHistory
 from collections import OrderedDict
 import inspect
 import logging  # not to use, just for the logging.Logger type
+import sys
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper
@@ -344,14 +345,39 @@ class TestDecoSettingsMapping(TestCase):
         self.assertNotIn('no_such_key', self._settings_mapping)
 
     def test___repr__(self):
-        the_repr = """
-            DecoSettingsMapping(
-                deco_class=TestDecoSettingsMapping,
-                ** {       'enabled': True,
-                    'folderol': 'bar',
-                    'my_setting': 'eek',
-                    'your_setting': 'Howdy'} )
         """
+        Split into cases because this bug got fixed in Python 3.5:
+
+        http://bugs.python.org/issue23775
+        "Fix pprint of OrderedDict.
+         Currently pprint prints the repr of OrderedDict if it fits in one line,
+         and prints the repr of dict if it is wrapped.
+         Proposed patch makes pprint always produce an output compatible
+         with OrderedDict's repr.
+        "
+        The bugfix also affected tests in test_log_calls_more.py (see docstring there).
+        """
+        if (sys.version_info.major == 3 and sys.version_info.minor >= 5
+           ) or sys.version_info.major > 3:     # :)
+            the_repr = """
+                DecoSettingsMapping(
+                    deco_class=TestDecoSettingsMapping,
+                    ** OrderedDict([
+                        ('enabled', True),
+                        ('folderol', 'bar'),
+                        ('my_setting', 'eek'),
+                        ('your_setting', 'Howdy')]) )
+            """
+        else:   # Py <= 3.4
+            the_repr = """
+                DecoSettingsMapping(
+                    deco_class=TestDecoSettingsMapping,
+                    ** {
+                        'enabled': True,
+                        'folderol': 'bar',
+                        'my_setting': 'eek',
+                        'your_setting': 'Howdy'} )
+            """
         self.assertEqual(
             collapse_whitespace(repr(self._settings_mapping)),
             collapse_whitespace(the_repr),
