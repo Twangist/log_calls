@@ -490,3 +490,76 @@ class TestDecoSettingsMapping(TestCase):
         hparams = inspect.signature(h).parameters
         v = mapping.get_final_value('enabled', fparams=hparams)
         self.assertEqual(v, False)
+
+
+import logging
+
+class TestDecoSettingsMapping_set_reset_defaults(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._settings = (
+            DecoSettingEnabled('enabled'),
+            DecoSetting('number',          (str, int),     '12',          allow_falsy=True,  allow_indirect=False),
+            DecoSetting('my_logger',       (str, logging.Logger), 'nix',  allow_falsy=False, allow_indirect=True),
+            DecoSetting('your_setting',    str,            'off',         allow_falsy=False, allow_indirect=False,
+                        mutable=False),
+            DecoSettingHistory('history', visible=False),
+        )
+        DecoSettingsMapping.register_class_settings('TestDecoSettingsMapping_set_reset_defaults',
+                                                    cls._settings)
+        # # "'enabled' setting default value = False"
+        # print("'enabled' setting default value =",
+        #       cls._settings[0].default)
+
+    def setUp(self):
+        """
+        """
+        pass
+
+    def test_set_reset_defaults(self):
+        clsname = self.__class__.__name__
+
+        settings_map = DecoSettingsMapping.get_deco_class_settings_dict(clsname)
+
+        # try set 'my_logger' = '' ==> no effect (setting doesn't .allow_falsy)
+        DecoSettingsMapping.set_defaults(clsname, {'my_logger': ''})
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+
+        # try setting 'your_setting' = 500 ==> no effect (not acceptable type)
+        DecoSettingsMapping.set_defaults(clsname, {'your_setting': 500})
+        self.assertEqual(settings_map['your_setting'].default, 'off')
+
+        # try setting 'no_such_setting' = 0 ==> KeyError
+        def set_no_such_setting():
+            DecoSettingsMapping.set_defaults(clsname, {'no_such_setting': 0})
+        self.assertRaises(KeyError, set_no_such_setting)
+
+        # try setting 'history' = False ==> KeyError (setting not visible)
+        def set_history():
+            DecoSettingsMapping.set_defaults(clsname, {'history': False})
+        self.assertRaises(KeyError, set_history)
+
+        # set enabled=False, number=17 (int);
+        #    check that .default of things in settings_map reflect this
+        DecoSettingsMapping.set_defaults(clsname, dict(enabled=False, number=17))
+        self.assertEqual(settings_map['enabled'].default, False)
+        self.assertEqual(settings_map['number'].default, 17)
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'off')
+        # self.assertEqual(settings_map['history'].default, 'True')
+
+        # set enabled=True, number='100', your_setting='Howdy';
+        #    check that .default of things in settings_map reflect this
+        DecoSettingsMapping.set_defaults(clsname, dict(enabled=True, number='100', your_setting='Howdy'))
+        self.assertEqual(settings_map['enabled'].default, True)
+        self.assertEqual(settings_map['number'].default, '100')
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'Howdy')
+
+        # reset, see that defaults are correct
+        DecoSettingsMapping.reset_defaults(clsname)
+        self.assertEqual(settings_map['enabled'].default, False)      # the default for DecoSettingEnabled
+        self.assertEqual(settings_map['number'].default, '12')
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'off')

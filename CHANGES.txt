@@ -76,6 +76,29 @@ VERSIONS
         Ditto `record_history_omit`, `record_history_only`
         (TODO; document)
 
+      - Double decoration of functions now works (formerly didn't & raised an exception
+        that users must have found incomprehensible). Class double deco'ing already did work,
+        had to by design. HOWEVER, in the interest of symmetry with how class deco'ing works,
+        the inner deco settings take precedence over the outer settings. That's a little unintuitive.
+        Not that there's much reason to write:
+            @log_calls(<outer-settings>)
+            @log_calls(<inner-settings>)
+            def somefunc(...): ...
+
+        The more typical use-case is:
+            @log_calls(<special-settings>)
+            def somefunc(...): ...
+        in some module M together with mostly undeco'd stuff, and on which decorate_module is called:
+            log_calls.decorate_module(M, **general_settings)
+
+        STILL, TODO: new "directive" parameter
+            existing-settings-have-precedence=True
+        (figure out what to call it)
+        This would be useful for acting on whole hierarchies & modules.
+
+      - Builtins and non-function callables are NOT decorated (and now DON'T raise incomprehensibly).
+        Original thing is returned unchanged.
+
       - Added get_log_calls_wrapper (and get_record_history_wrapper) method to decorated classes,
         so that the methods can access their decorated-added attributes
         (in particular `log_message` and `log_exprs`) in a uniform way,
@@ -144,8 +167,8 @@ VERSIONS
             decorate_function
             decorate_external_function
             decorate_class
-            set_defaults    # TODO
-            reset_defaults  # TODO
+            set_defaults        (settings=None, ** new_defaults)
+            reset_defaults      ()
 
         For situations where you have too many subclasses to decorate them all manually.
         Useful with `only` and/or `omit` settings to limit volume of output.
@@ -156,8 +179,8 @@ VERSIONS
             tests/test_log_calls__class_deco.py
 
       - Added classmethods `set_defaults`, `reset_defaults` to `DecoSettingsMapping`
-        to accomodate respective classmethods of `_deco_base_class`; tweaked `register_class_settings`
-        to accomodate them
+        to accommodate respective classmethods of `_deco_base_class`; tweaked `register_class_settings`
+        to accommodate them
 
       - A "kill switch" -- a "pseudo-setting" for production:
             _DONT_DECORATE_=<bool>
@@ -167,6 +190,10 @@ VERSIONS
         use those settings everywhere, and you can disable all decoration with one switch.
         This is a "pseudo"-setting because there's no such entry in `log_calls_settings`:
             if it (has been) true then there are no log_calls_settings attributes!, and conversely.
+
+TODO Fix _DONT_DECORATE_: It should UNdecorate already deco'd functions, methods in classes and inner classes etc... RIGHT?
+todo This SHOULD also entail REMOVING attributes on deco'd functions classes methods -- investigate
+
 
       - record_history can (now) use log_message and log_exprs
         Output is always via print.

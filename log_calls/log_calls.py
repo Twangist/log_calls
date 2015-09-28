@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b15'
+__version__ = '0.3.0b16'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -971,11 +971,59 @@ class _deco_base():
     # settings
     #----------------------------------------------------------------
 
-    def _read_settings_file(self, settings_path=''):
+    @classmethod
+    def reset_defaults(cls):
+        DecoSettingsMapping.reset_defaults(cls.__name__)
+
+    @classmethod
+    def _get_settings_dict(cls, *,
+                           settings=None,
+                           deco_settings_keys=None,
+                           extra_settings_dict=None
+                          ) -> dict:
+        """Get settings from dict or read settings from file, if given, as a dict;
+        update that dict with any settings from extra_settings_dict, and return the result.
+        :param settings: dict, or str as for _read_settings_file (or None)
+        :param deco_settings_keys: seq or set of keys naming settings for this deco class `cls`
+        :param extra_settings_dict: more settings, restricted to deco_settings_keys (any others ignored)
+        :return:
+        """
+        if not deco_settings_keys:
+            deco_settings_keys = set(DecoSettingsMapping.get_deco_class_settings_dict(cls.__name__))
+
+        settings_dict = {}
+        if isinstance(settings, dict):
+            settings_dict = restrict_keys(settings, deco_settings_keys)
+        elif isinstance(settings, str):
+            settings_dict = cls._read_settings_file(settings_path=settings)
+
+        if extra_settings_dict:
+            settings_dict.update(extra_settings_dict)
+
+        return settings_dict
+
+    @classmethod
+    def set_defaults(cls, settings=None, ** more_defaults):
+        """
+        :param settings: a dict,
+                         or a str specifying a "settings file"
+                            such as _read_settings_file accepts (its `settings_path` parameter):
+                                *  a directory name (dir containing settings file '.' + self.__class__.__name__),
+                                *  or a path to a (text) settings file
+        :param more_defaults: keyword params where every key is a "setting".
+                              These override any default settings provided by `settings` if it's nonempty
+        :return:
+        """
+        d = cls._get_settings_dict(settings=settings,
+                                   extra_settings_dict=more_defaults)
+        DecoSettingsMapping.set_defaults(cls.__name__, d)
+
+    @classmethod
+    def _read_settings_file(cls, settings_path=''):
         """If settings_path names a file that exists,
         load settings from that file.
         If settings_path names a directory, load settings from
-            settings_path + '.' + self.__class__.__name__
+            settings_path + '.' + cls.__name__
             e.g. the file '.log_calls' in directory specified by settings_path.
         If not settings_path or it doesn't exist, return {}.
         Format of settings file - zero or more lines of the form:
@@ -984,18 +1032,13 @@ class _deco_base():
         Blank lines are ok & ignored; lines whose first non-whitespace char is '#'
         are treated as comments & ignored.
 
-        Note: self._settings_mapping doesn't exist yet!
-              so this function can't use it, e.g. to test for valid settings,
-                    if setting in self._settings_mapping: ...
-              won't work.
-
         v0.3.0 -- special-case handling for pseudo-setting `_DONT_DECORATE_`
         """
         if not settings_path:
             return {}
 
         if os.path.isdir(settings_path):
-            settings_path = os.path.join(settings_path, '.' + self.__class__.__name__)
+            settings_path = os.path.join(settings_path, '.' + cls.__name__)
         if not os.path.isfile(settings_path):
             return {}
 
@@ -1006,7 +1049,7 @@ class _deco_base():
         except BaseException:   # FileNotFoundError?!
             return d
 
-        settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(cls.__name__)
         for line in lines:
             line = line.strip()
             # Allow blank lines & comments
@@ -1091,34 +1134,31 @@ class _deco_base():
         #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
         #   has .default = False, for "technical" reasons
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # TODO?: Next 6 lines of code are common to `set_defaults`
         deco_settings_map = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
-        effective_settings_dict = {k: deco_settings_map[k].default for k in deco_settings_map}
-        effective_settings_dict['enabled'] = True
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # get settings from dict | read settings from file
-        # if given, as a dict settings_dict
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict = {}
-        if isinstance(settings, dict):
-            settings_dict = restrict_keys(settings, deco_settings_map)
-        elif isinstance(settings, str):
-            settings_dict = self._read_settings_file(settings_path=settings)
 
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # 0.3.0 Save settings_dict updated with _used_keywords_dict
-        # as self._changed_settings, so that these can be reapplied
-        # by any outer class deco --
-        # (class deco's _effective_settings (copy of) updated with these --
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Get settings from dict | read settings from file, if given, as a dict
+        # Update with _used_keywords_dict, save as self._changed_settings,
+        # so that these can be reapplied by any outer class deco --
+        # (a copy of a class deco's _effective_settings is updated with these
         #  in class case of __call__)
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict.update(_used_keywords_dict)   # settings_dict is now no longer only *that*
-        self._changed_settings = settings_dict
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self._changed_settings = self._get_settings_dict(
+            settings=settings,
+            deco_settings_keys=set(deco_settings_map),
+            extra_settings_dict=_used_keywords_dict
+        )
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Initialize effective_settings_dict with log_calls's defaults - the static ones.
+        #
         # update effective_settings_dict with settings *explicitly* passed to caller
         # of subclass's __init__, and save *that* (used in __call__)
         # as self._effective_settings, which are the final settings used
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        effective_settings_dict = {k: deco_settings_map[k].default for k in deco_settings_map}
+        effective_settings_dict['enabled'] = True
         effective_settings_dict.update(self._changed_settings)
         self._effective_settings = effective_settings_dict
 
@@ -1374,7 +1414,6 @@ class _deco_base():
                         dont_decorate = True
                     if self._only and not _any_match(namelist, self._only_ex):
                         dont_decorate = True
-                        dont_decorate = True
 
                     # get a fresh copy for each attr
                     new_settings = self._changed_settings.copy()    # updated below
@@ -1495,10 +1534,22 @@ class _deco_base():
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
 
+        # 0.3.0b16: if it isn't callable, scram'
+        if not callable(f_or_cls):
+            return f_or_cls
+
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         # 0.3.0
         # -- implement "kill switch", _DONT_DECORATE_
         # -- handle decorating both functions and classes
+        # TODO -- _DONT_DECORATE_ should also UNdecorate deco'd things
+        #  |      This SHOULD entail REMOVING attributes on deco'd functions classes methods -- investigate
+        #
+        # TODO: less sure about THIS:
+        #  |   PROBABLY (MAYBE) it should also work with 'omit' and 'only'
+        #  |   for classes, sorta INVERTING them:
+        #  |     'omit': DON'T UNdecorate these methods,
+        #  |     'only': ONLY UNdecorate these methods
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         if self._effective_settings.get('_DONT_DECORATE_'):
             return f_or_cls     # don't decorate :)
@@ -1559,15 +1610,61 @@ class _deco_base():
 
             return cls
 
-        else:   # f - not a class
+        elif not f:
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            # 0.3.0 -- case "f_or_cls is a callable but not a function"
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            # functools.partial objects are callable, have no __name__ much less __qualname__,
+            # and trying to deco __call__ gets messy.
+            # Callable builtins e.g. len are not functions in the isfunction sense, can't deco anyway.
+            # Just give up (quietly)
+            return f_or_cls
+
+        else:           # not a class, f nonempty is a function of f_or_cls callable
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # 0.3.0 -- case "f_or_cls is a function" -- namely, f
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0.15b f may not have a .__qualname__
+
+            #----------------------------------------------------------------
+            # Don't double-decorate -- don't wanna, & it doesn't work anyway!
+            #----------------------------------------------------------------
+            # Note: As with methods of classes,
+            # .    if f is deco'd, its existing EXPLICITLY GIVEN settings take precedence.
+
+            # # From _class__call__, props & methods cases, w/a few name changes
+            deco_obj = getattr(f, self._sentinels['DECO_OF'], None)
+            # Here, "undecorate" would be "_DONT_DECORATE_ was passed"
+            # if undecorate:
+            #     if deco_obj:
+            #         setattr(cls, name, deco_obj.f)  # Undecorate
+            #     return f
+
+            # get a fresh copy for each attr
+            new_settings = self._changed_settings.copy()    # updated below
+
+            # __init__ fixup, a nicety:
+            # By default, don't log retval for __init__.
+            # If user insists on it with 'log_retval=True' in __init__ deco,
+            # that will override this.
+            if f.__name__ == '__init__':
+                self.fixup_for_init(new_settings)
+
+            if deco_obj:        # f is deco'd by this decorator
+                # Yes. Figure out settings for f,
+                new_settings.update(deco_obj._changed_settings)
+                # update func's settings (_force_mutable=True to handle `max_history` properly)
+                deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
+                return f
+
+            #----------------------------------------------------------------
+            # f is a function & is NOT already deco'd
+            #----------------------------------------------------------------
+
+            # 0.3.0.x -- f may not have a .__qualname__
             try:
                 self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
             except AttributeError as e:
-                print("%s has no qualname: %s" % (f, str(e)))               # <<<<<<<<< TODO DELETE DEBUG; don't deco???
+                # print("%s has no qualname: %s" % (f, str(e)))     # <<<<<<<<< TODO DELETE DEBUG; don't deco???
                 self._classname_of_f = ''
 
             # Refuse to decorate '__repr__' if deco subclass doesn't allow it.
@@ -2224,7 +2321,7 @@ class log_calls(_deco_base):
         DecoSettingRetval('log_retval'),
         DecoSettingElapsed('log_elapsed'),
         DecoSettingExit('log_exit'),
-        DecoSetting_bool('indent',           bool,           True,         allow_falsy=True),
+        DecoSetting_bool('indent',           bool,           True,          allow_falsy=True),
         DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
                         allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False

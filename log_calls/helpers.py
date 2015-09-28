@@ -8,8 +8,6 @@ __all__ = [
     'get_defaulted_kwargs_OD',
     'get_explicit_kwargs_OD',
     'dict_to_sorted_str',
-    'types_to_prose',
-    'phrase_seq_to_prose',
     'is_quoted_str',
 ]
 
@@ -48,7 +46,8 @@ def restrict_keys(d: dict, domain) -> dict:
     True
     """
     for k in set(d):
-        if k not in domain: del d[k]
+        if k not in domain:
+            del d[k]
     return d
 
 def difference_update(d: dict, remove) -> dict:
@@ -269,58 +268,6 @@ def OrderedDict_to_dict_str(od):
     {'Z': 'zebulon', 'X': 'alphanumeric', 'Y': 'yomomma'}
     """
     return dict_to_sorted_str(od, _sort=False)
-
-def types_to_prose(type_or_types, final_sep='or'):
-    """
-    :param type_or_types: a type e.g. int, str, io.TextIOBase, etc.
-                          or a sequence of types e.g. (str, logging.Logger)
-    :param final_sep:
-    :return: prose rendition of the type or sequence of types
-    >>> types_to_prose(int)
-    'int'
-    >>> import logging
-    >>> types_to_prose((str, logging.Logger))
-    'str or logging.Logger'
-    >>> import io
-    >>> types_to_prose((str, io.TextIOBase, int))
-    'str, io.TextIOBase or int'
-    """
-    import re
-    if isinstance(type_or_types, type):
-        type_or_types = (type_or_types,)
-    # Example:
-    #   str(logging.Logger) == '<class 'logging.Logger'>'
-    # so
-    #   re.match(r'<class \'([A-Za-z0-9_\.]+)\'>', str(logging.Logger)).group(1) == 'logging.Logger'
-    phrase_seq = [
-        re.match(r'<class \'([A-Za-z0-9_\.]+)\'>', str(t)).group(1)
-        for t in type_or_types
-    ]
-    return phrase_seq_to_prose(phrase_seq, final_sep=final_sep)
-
-def phrase_seq_to_prose(seq, final_sep='or'):
-    """
-    :param seq:
-    :param final_sep:
-    :return:
-
-    >>> phrase_seq_to_prose(['a', 'b', 'c'])
-    'a, b or c'
-    >>> phrase_seq_to_prose(['a', 'b', 'c'], final_sep='and')
-    'a, b and c'
-    >>> phrase_seq_to_prose([])
-    ''
-    >>> phrase_seq_to_prose(['a'])
-    'a'
-    >>> phrase_seq_to_prose(['a', 'b'], final_sep='and possibly')
-    'a and possibly b'
-    """
-    if not seq:
-        return ''
-    if len(seq) == 1: return seq[0]
-    all_but_last = ', '.join(seq[:-1])
-    prose = (' %s ' % final_sep).join((all_but_last, seq[-1]))
-    return prose
 
 def is_quoted_str(s):
     """

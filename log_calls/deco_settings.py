@@ -50,7 +50,7 @@ by the keyword 'enable_' of the decorated function.
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import pprint
-from .helpers import is_keyword_param, is_quoted_str, types_to_prose
+from .helpers import is_keyword_param, is_quoted_str
 
 
 __all__ = ['DecoSetting', 'DecoSettingsMapping']
@@ -191,7 +191,7 @@ class DecoSettingsMapping():
     as well as 'direct' and 'indirect' values for its keyword params"""
     # Class-level mapping: classname |-> OrderedDict of class's settings (info 'structs')
     _classname2SettingsData_dict = {}
-    _classname2SettingsDataTrueDefaults_dict = {}
+    _classname2SettingsDataOrigDefaults_dict = {}
 
     # Class-level mapping: classname |-> pair of tuples:
     #                                   (pre-call handler settings names,
@@ -230,9 +230,10 @@ class DecoSettingsMapping():
             if setting.__class__.__dict__.get('post_call_handler'):
                 post_handlers.append(setting.name)
 
-        cls._classname2SettingsData_dict[deco_classname] = deepcopy(od)
-        cls._classname2SettingsDataTrueDefaults_dict[deco_classname] = od
-
+        cls._classname2SettingsData_dict[deco_classname] = od
+        cls._classname2SettingsDataOrigDefaults_dict[deco_classname] = {
+            name: od[name].default for name in od
+        }
         cls._classname2handlers[deco_classname] = (
             tuple(pre_handlers), tuple(post_handlers))
 
@@ -242,39 +243,57 @@ class DecoSettingsMapping():
                 setattr(cls, name, cls.make_setting_descriptor(name))
 
     @classmethod
-    def set_defaults(cls, deco_class, **settings):
-        """Raises TypeError if any value in `settings` is of incorrect type.
-        Keys in settings that aren't actually settings raise KeyError.
+    def set_defaults(cls, deco_classname, defaults: dict):
+        """Change global default values for all (subsequent) uses of decorator
+        with name deco_classname.
+        Only settings that are *visible* for cls can be changed.
+
+        Raises KeyError if any key in defaults isn't actually "settings" are is not "visible".
+        In both cases no changes are made.
+        Ignores any items in `defaults` whose values are of incorrect type,
+        or whose value is 'falsy' but the setting has .allow_falsy == False.
+        These behaviors are what __setitem__ & __getitem__ do.
+
+        :param deco_classname: name of decorator class, subclass of _deco_base
+        :param defaults: dict of setting-name keys and new default values
         """
-        deco_classname = deco_class.__name__
         # Change defaults of items in cls._classname2SettingsData_dict[deco_classname]
         deco_settings = cls._classname2SettingsData_dict[deco_classname]
-        for setting_name in settings:
+
+        # Integrity check:
+        # if setting_name is not a "setting" or it's not a "visible" setting for cls,
+        # raise KeyError: that's what __getitem__/__setitem__ do
+        for setting_name in defaults:
             if setting_name not in deco_settings:
-                raise KeyError("set_defaults: unknown setting '%s'" % setting_name)
-            final_types = deco_settings[setting_name].final_type
-            if not isinstance(final_types, tuple):
-                final_types = (final_types,)
-            setting_val = settings[setting_name]    # new default value
-            # typecheck setting_val
-            if not any(isinstance(setting_val, t) for t in final_types):
-                # Bad type of proposed new value
-                type_names = types_to_prose(final_types)
-                raise TypeError("set_defaults: "
-                                "value of setting '%s' must be an instance of %s;"
-                                "bad value: %r"
-                                % (setting_name, type_names, setting_val))
-            # set working default value = setting_val
-            deco_settings[setting_name].default = setting_val
+                raise KeyError(
+                    "set_defaults: no such setting (key) as '%s'" % setting_name)
+            elif not deco_settings[setting_name].visible:
+                raise KeyError(
+                    "set_defaults: setting (key) '%s' is not visible in class %s."
+                    % (setting_name, deco_classname))
+
+        # TODO Disallow? anyway, prevent, 'indirect' values -- somehow.
+        #  |   Perhaps just get rid of any trailing INDIRECT_VALUE_MARKER ('=')
+
+        # Change working default values
+        for setting_name in defaults:
+            deco_setting = deco_settings[setting_name]
+            new_default_val = defaults[setting_name]
+
+            if ((new_default_val or deco_setting.allow_falsy)
+                and deco_setting.has_acceptable_type(new_default_val)
+               ):
+                # set working default value = new_default_val
+                deco_setting.default = new_default_val
 
     @classmethod
-    def reset_defaults(cls, deco_class):
+    def reset_defaults(cls, deco_classname):
         """Revert to initial defaults as per documentation & static declarations in code
         """
-        deco_classname = deco_class.__name__
-        cls._classname2SettingsData_dict[deco_classname] = deepcopy(
-            cls._classname2SettingsDataTrueDefaults_dict[deco_classname]
-        )
+        orig_defaults = cls._classname2SettingsDataOrigDefaults_dict[deco_classname]
+        settings_map = cls._classname2SettingsData_dict[deco_classname]
+        for name in settings_map:
+            settings_map[name].default = orig_defaults[name]
 
     # <<<attributes>>>
     @classmethod
