@@ -3,32 +3,23 @@ __author__ = 'brianoneill'
 import doctest
 from log_calls import log_calls
 
+from log_calls.tests.settings_with_NO_DECO import g_DECORATE, g_settings_dict
 
-DECORATE = False
 
-#-----------------------------------------------------------------------------
-settings_dict = {
-    '_DONT_DECORATE_': not DECORATE,
-    'indent': True,
-    'log_retval': True
-}
-
-#-----------------------------------------------------------------------------
-
-def test_dont_decorate__via_dict():
+def test_no_deco__via_dict():
     """
-    >>> @log_calls(settings=settings_dict)
+    >>> @log_calls(settings=g_settings_dict)
     ... def f(n, m):
     ...     return 3*n*n*m + 4*n*m*m
 
-    >>> @log_calls(log_exit=False, settings=settings_dict)
+    >>> @log_calls(log_exit=False, settings=g_settings_dict)
     ... def g(x, y):
-    ...     if DECORATE:
+    ...     if g_DECORATE:
     ...         g.log_message("Some expressions and their values:")
     ...         g.log_exprs('x', 'y', 'f(x,y)')
     ...     return f(x, y) - 20
 
-    >>> @log_calls(only='method', settings=settings_dict)
+    >>> @log_calls(only='method', settings=g_settings_dict)
     ... class C():
     ...     def __init__(self, prefix=''):
     ...         self.prefix = prefix

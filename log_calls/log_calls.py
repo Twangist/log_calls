@@ -1032,7 +1032,7 @@ class _deco_base():
         Blank lines are ok & ignored; lines whose first non-whitespace char is '#'
         are treated as comments & ignored.
 
-        v0.3.0 -- special-case handling for pseudo-setting `_DONT_DECORATE_`
+        v0.3.0 -- special-case handling for pseudo-setting `NO_DECO`
         """
         if not settings_path:
             return {}
@@ -1540,9 +1540,9 @@ class _deco_base():
 
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         # 0.3.0
-        # -- implement "kill switch", _DONT_DECORATE_
+        # -- implement "kill switch", NO_DECO
         # -- handle decorating both functions and classes
-        # TODO -- _DONT_DECORATE_ should also UNdecorate deco'd things
+        # TODO -- NO_DECO should also UNdecorate deco'd things
         #  |      This SHOULD entail REMOVING attributes on deco'd functions classes methods -- investigate
         #
         # TODO: less sure about THIS:
@@ -1551,13 +1551,13 @@ class _deco_base():
         #  |     'omit': DON'T UNdecorate these methods,
         #  |     'only': ONLY UNdecorate these methods
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
-        if self._effective_settings.get('_DONT_DECORATE_'):
+        if self._effective_settings.get('NO_DECO'):
             return f_or_cls     # don't decorate :)
         # else, delete that item wherever it might be
-        if '_DONT_DECORATE_' in self._effective_settings:
-            del self._effective_settings['_DONT_DECORATE_']
-        if '_DONT_DECORATE_' in self._changed_settings:           # probably not but doesn't hurt
-            del self._changed_settings['_DONT_DECORATE_']
+        if 'NO_DECO' in self._effective_settings:
+            del self._effective_settings['NO_DECO']
+        if 'NO_DECO' in self._changed_settings:           # probably not but doesn't hurt
+            del self._changed_settings['NO_DECO']
 
         f = f_or_cls if inspect.isfunction(f_or_cls) else None
         cls = f_or_cls if inspect.isclass(f_or_cls) else None
@@ -1633,7 +1633,7 @@ class _deco_base():
 
             # # From _class__call__, props & methods cases, w/a few name changes
             deco_obj = getattr(f, self._sentinels['DECO_OF'], None)
-            # Here, "undecorate" would be "_DONT_DECORATE_ was passed"
+            # Here, "undecorate" would be "NO_DECO was passed"
             # if undecorate:
             #     if deco_obj:
             #         setattr(cls, name, deco_obj.f)  # Undecorate
@@ -2335,7 +2335,7 @@ class log_calls(_deco_base):
         DecoSettingHistory('record_history'),
         DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
                         allow_indirect=False, mutable=False),
-        DecoSetting_bool('_DONT_DECORATE_',  bool,           False,         allow_falsy=True, mutable=False),
+        DecoSetting_bool('NO_DECO',  bool,           False,         allow_falsy=True, mutable=False),
     )
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
@@ -2361,7 +2361,7 @@ class log_calls(_deco_base):
                  mute=False,
                  record_history=False,
                  max_history=0,
-                 _DONT_DECORATE_=False,
+                 NO_DECO=False,
     ):
         """(See base class docstring)
         """
@@ -2393,7 +2393,7 @@ class log_calls(_deco_base):
             mute=mute,
             record_history=record_history,
             max_history=max_history,
-            _DONT_DECORATE_=_DONT_DECORATE_,
+            NO_DECO=NO_DECO,
         )
 
     # 0.3.0

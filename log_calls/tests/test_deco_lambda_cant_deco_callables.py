@@ -16,7 +16,7 @@ def test_deco_lambda():
     """
     pass
 
-def test_nodeco_callables():
+def test_cant_deco_callables():
     """
 Builtins aren't / can't be decorated:
 
@@ -82,7 +82,8 @@ Now, instances of Rev have a decorated `__call__` method:
     pass
 
 # SURGERY:
-test_nodeco_callables.__doc__ = test_nodeco_callables.__doc__.replace('__main__', __name__)
+test_cant_deco_callables.__doc__ = \
+    test_cant_deco_callables.__doc__.replace('__main__', __name__)
 
 ##############################################################################
 # end of tests.

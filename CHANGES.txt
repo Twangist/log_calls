@@ -183,7 +183,7 @@ VERSIONS
         to accommodate them
 
       - A "kill switch" -- a "pseudo-setting" for production:
-            _DONT_DECORATE_=<bool>
+            NO_DECO=<bool>
         default False.
         If _NO_DECO_=True is given, a function or class is not decorated at all (__call__ just returns
         its argument, unchanged not wrapped). SO: put this pseudo-setting in a settings file or dict,
@@ -191,7 +191,7 @@ VERSIONS
         This is a "pseudo"-setting because there's no such entry in `log_calls_settings`:
             if it (has been) true then there are no log_calls_settings attributes!, and conversely.
 
-TODO Fix _DONT_DECORATE_: It should UNdecorate already deco'd functions, methods in classes and inner classes etc... RIGHT?
+TODO Fix NO_DECO: It should UNdecorate already deco'd functions, methods in classes and inner classes etc... RIGHT?
 todo This SHOULD also entail REMOVING attributes on deco'd functions classes methods -- investigate
 
 

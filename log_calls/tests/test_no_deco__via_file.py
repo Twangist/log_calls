@@ -7,15 +7,15 @@ from log_calls import log_calls
 
 def test_dont_decorate__via_file():
     """
-    >>> @log_calls(settings='settings-with-_DONT_DECORATE_.txt')
+    >>> @log_calls(settings='settings-with-NO_DECO.txt')
     ... def f(n, m):
     ...     return 3*n*n*m + 4*n*m*m
 
-    >>> @log_calls(log_exit=False, settings='settings-with-_DONT_DECORATE_.txt')
+    >>> @log_calls(log_exit=False, settings='settings-with-NO_DECO.txt')
     ... def g(x, y):
     ...     return f(x, y) - 20
 
-    >>> @log_calls(only='method', settings='settings-with-_DONT_DECORATE_.txt')
+    >>> @log_calls(only='method', settings='settings-with-NO_DECO.txt')
     ... class C():
     ...     def __init__(self, prefix=''):
     ...         self.prefix = prefix

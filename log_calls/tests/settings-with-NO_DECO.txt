@@ -5,4 +5,4 @@ log_elapsed='elapsed_='
 logger='star3_logger'
 
 # Set value to False (or anything falsy) to enable log_calls output:
-_DONT_DECORATE_=True
+NO_DECO=True
