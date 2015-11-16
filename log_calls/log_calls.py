@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b16'
+__version__ = '0.3.0b17'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -46,20 +46,23 @@ __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 #     decorator
 #     settings              # self._deco_settings     (of decorator)
 #     stats                 # self._stats             ("      "    )
-#     indent
 #     prefixed_fname
-#     output_fname          # prefixed_fname + possibly num_calls_logged (if log_call_numbers true)
 #     fparams
+#     call_list
+#     args
+#     kwargs
+#     indent
+#     output_fname          # prefixed_fname + possibly num_calls_logged (if log_call_numbers true)
+#
 #     argcount
 #     argnames              # argcount-long
 #     argvals               # argcount-long
 #     varargs
-#     explicit_kwargs
+#     varargs_name
+#     kwargs_name
 #     defaulted_kwargs
+#     explicit_kwargs
 #     implicit_kwargs
-#     call_list
-#     args
-#     kwargs
 #-----------------------------------------------------------------------------
 
 # TODO 0.3.x, possible `context` setting:  - - - - - - - - - - - - - - - - - -
@@ -622,6 +625,7 @@ class _deco_base():
     # placeholder! _set_class_sentinels called from __init__
     _sentinels = None
 
+
     INDENT = 4      # number of spaces to __ by at a time
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1134,7 +1138,7 @@ class _deco_base():
         #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
         #   has .default = False, for "technical" reasons
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # TODO?: Next 6 lines of code are common to `set_defaults`
+
         deco_settings_map = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1176,6 +1180,12 @@ class _deco_base():
         self.prefix = prefix                # special case
         self._name_param = _name_param
         self._other_values_dict = other_values_dict     # 0.3.0
+
+        # initialize sentinel strings
+        if not self.__class__._sentinels:
+            self.__class__._sentinels = self._set_class_sentinels()
+
+
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
     @property
@@ -1280,12 +1290,12 @@ class _deco_base():
 
         return tuple(no_duplicates(method_specs_ex))
 
-    def _class__call__(self, cls):
+    def _class__call__(self, klass):
         """
-        :param cls: class to decorate ALL the methods of,
+        :param klass: class to decorate ALL the methods of,
                     including properties and methods of inner classes.
-        :return: decorated class (cls - modified/operated on)
-        Operate on each function in cls.
+        :return: decorated class (klass - modified/operated on)
+        Operate on each function in klass.
         Use __getattribute__ to determine whether a function is (/will be)
         an instance method, staticmethod or classmethod;
 
@@ -1299,7 +1309,7 @@ class _deco_base():
                 using sentinel deco_obj = getattr(func, 'DECO_OF')
             get deco_obj._changed_settings of that instance,
 
-            THEN make its settings = self._effective_settings (for this cls)
+            THEN make its settings = self._effective_settings (for this klass)
                 updated with those deco_obj._changed_settings
 
         otherwise, (a non-wrapped function that will be an instance method)
@@ -1320,17 +1330,17 @@ class _deco_base():
         # via propertyname.getter or .setter or .deleter
         # and then the method's name is added to the list too.
         # Otherwise, if the function gets enumerated after the property
-        # in loop through cls.__dict__ below, it won't be recognized
+        # in loop through klass.__dict__ below, it won't be recognized
         # by name as something to omit or decorate-only.
-        self._omit_ex = self._add_property_method_names(cls, self._omit)
-        self._only_ex = self._add_property_method_names(cls, self._only)
+        self._omit_ex = self._add_property_method_names(klass, self._omit)
+        self._only_ex = self._add_property_method_names(klass, self._only)
 
         ## Equivalently,
-        # for name in cls.__dict__:
-        #     item = cls.__getattribute__(cls, name)
+        # for name in klass.__dict__:
+        #     item = klass.__getattribute__(klass, name)
 
-        for name, item in cls.__dict__.items():
-            actual_item = getattr(cls, name)
+        for name, item in klass.__dict__.items():
+            actual_item = getattr(klass, name)
             # If item is a staticmethod or classmethod,
             # actual_item is the underlying function;
             # if item is a function (instance method) or class, actual_item is item.
@@ -1345,12 +1355,12 @@ class _deco_base():
             if inspect.isclass(item):
                 # item is an inner class.
                 # decorate it, using self._changed_settings
-                # Use sentinel 'DECO_OF' attribute on cls to get those
+                # Use sentinel 'DECO_OF' attribute on klass to get those
                 new_settings = self._changed_settings.copy()
                 new_only = self._only
                 new_omit = self._omit
                 deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
-                if deco_obj:    # cls is already decorated
+                if deco_obj:    # klass is already decorated
                     # It IS already deco'd, so we want its settings to be
                     #    (copy of) self._changed_settings updated with its _changed_settings
                     new_settings.update(deco_obj._changed_settings)
@@ -1367,7 +1377,7 @@ class _deco_base():
                     omit=new_omit
                 )(item)
                 # and replace in class dict
-                setattr(cls, name, new_class)
+                setattr(klass, name, new_class)
                 continue    # for name, item in ...
 
             #-------------------------------------------------------
@@ -1406,7 +1416,7 @@ class _deco_base():
                     dont_decorate = False
                     namelist = [pre + fn
                                 for pre in ('',
-                                            cls.__qualname__ + '.')
+                                            klass.__qualname__ + '.')
                                 for fn in {name,                        # varies faster than pre
                                            name + '.' + PROPERTY_ATTRS_to_USER_SUFFIXES[attr],
                                            func_name}]
@@ -1441,28 +1451,28 @@ class _deco_base():
                         new_func = self.__class__(** new_settings)(func)
                         # update property
                         new_funcs[attr] = new_func
-                        # Possibly update cls definition of func with new_func
+                        # Possibly update klass definition of func with new_func
                         # NOTE: if `property` ctor used to create property (item),
                         # then func (its name) is in class dict, ** as a function **,
                         # BUT IT MAY NOT BE DECO'd YET: despite the order of declarations
-                        # in the class body, we get them ~randomly via cls.__dict__.
-                        # SO in that case we ALSO have to update cls with new decorated func,
+                        # in the class body, we get them ~randomly via klass.__dict__.
+                        # SO in that case we ALSO have to update klass with new decorated func,
                         # otherwise we'll create a another, new wrapper for it,
                         # and THAT will be found by log_calls_wrapper(func.__name__)
                         # but log_calls_wrapper(property_name + '.___ter') will find this wrapper,
                         # and bad things can happen (log_message can use "the other" wrapper).
-                        # So: Is func also in class cls dict *** as a function ***?
+                        # So: Is func also in class klass dict *** as a function ***?
                         # NOT the case if @property decorator used to create property (item),
                         # but it IS the case if some random methods (including func)
                         # have been fed to 'property' ctor to create the property.
-                        if self._is_a_function_in_class(func_name, cls):
-                            setattr(cls, func_name, new_func)
+                        if self._is_a_function_in_class(func_name, klass):
+                            setattr(klass, func_name, new_func)
                         change = True
 
                 # Make new property object if anything changed
                 if change:
-                    # Replace property object in cls
-                    setattr(cls,
+                    # Replace property object in klass
+                    setattr(klass,
                             name,
                             property(new_funcs['fget'], new_funcs['fset'], new_funcs['fdel']))
                 continue    # for name, item in ...
@@ -1473,7 +1483,7 @@ class _deco_base():
             #-------------------------------------------------------
             # Filter with self._only and self._omit.
             dont_decorate = False
-            namelist = [name, cls.__qualname__ + '.' + name]
+            namelist = [name, klass.__qualname__ + '.' + name]
             if _any_match(namelist, self._omit_ex):
                 dont_decorate = True
             if self._only and not _any_match(namelist, self._only_ex):
@@ -1492,7 +1502,7 @@ class _deco_base():
             deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
             if dont_decorate:
                 if deco_obj:
-                    setattr(cls, name, deco_obj.f)  # Undecorate
+                    setattr(klass, name, deco_obj.f)  # Undecorate
                 continue
 
             new_settings = self._changed_settings.copy()    # updated below
@@ -1522,11 +1532,11 @@ class _deco_base():
                 elif type(item) == classmethod:
                     new_func = classmethod(new_func)
                 # and replace in class dict
-                setattr(cls, name, new_func)
+                setattr(klass, name, new_func)
 
-        return cls
+        return klass
 
-    def __call__(self, f_or_cls):
+    def __call__(self, f_or_klass):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
         to decorate. The return value of __call__ is called subsequently.
@@ -1534,95 +1544,52 @@ class _deco_base():
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
 
-        # 0.3.0b16: if it isn't callable, scram'
-        if not callable(f_or_cls):
-            return f_or_cls
-
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
         # 0.3.0
         # -- implement "kill switch", NO_DECO
         # -- handle decorating both functions and classes
-        # TODO -- NO_DECO should also UNdecorate deco'd things
-        #  |      This SHOULD entail REMOVING attributes on deco'd functions classes methods -- investigate
-        #
-        # TODO: less sure about THIS:
-        #  |   PROBABLY (MAYBE) it should also work with 'omit' and 'only'
-        #  |   for classes, sorta INVERTING them:
-        #  |     'omit': DON'T UNdecorate these methods,
-        #  |     'only': ONLY UNdecorate these methods
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
+
+        # 0.3.0b16: if it isn't callable, scram'
+        if not callable(f_or_klass):
+            return f_or_klass
+
         if self._effective_settings.get('NO_DECO'):
-            return f_or_cls     # don't decorate :)
+            return f_or_klass
         # else, delete that item wherever it might be
         if 'NO_DECO' in self._effective_settings:
             del self._effective_settings['NO_DECO']
-        if 'NO_DECO' in self._changed_settings:           # probably not but doesn't hurt
+        if 'NO_DECO' in self._changed_settings:
             del self._changed_settings['NO_DECO']
 
-        f = f_or_cls if inspect.isfunction(f_or_cls) else None
-        cls = f_or_cls if inspect.isclass(f_or_cls) else None
+        f = f_or_klass if inspect.isfunction(f_or_klass) else None
+        klass = f_or_klass if inspect.isclass(f_or_klass) else None
 
         self.f = f
-        self.cls = cls
+        self.cls = klass
 
-        # Whether class or function, initialize sentinels (0.3.0 formerly in __init__) TODO why not put it back there lol
-        if not self.__class__._sentinels:
-            self.__class__._sentinels = self._set_class_sentinels()
-
-        if cls:
+        if klass:
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
+            # 0.3.0 -- case "f_or_klass is a class" -- namely, klass
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            self._class__call__(cls)     # modifies cls
-            # add attribute to cls: key is useful as sentinel, value is this deco
-            setattr(
-                cls,
-                self._sentinels['DECO_OF'],
-                self
-            )
-            # Make it easy for user to find the log_calls wrapper of a method,
-            # given its name, via `get_log_calls_wrapper(fname)`
-            # or `get_record_history_wrapper(fname)`
-            # This can be called on a deco'd class or on an instance thereof.
-            this_deco_class = self.__class__
-            setattr(
-                cls,
-                'get_' + this_deco_class.__name__ + '_wrapper',
-                classmethod(partial(_get_deco_wrapper, this_deco_class))
-            )
-            # Make it even easier for methods to find their own log_calls wrappers,
-            # via `get_own_log_calls_wrapper(fname)`
-            # or `get_own_record_history_wrapper(fname)`
-            # This can be called on a deco'd class or on an instance thereof.
-            this_deco_class = self.__class__
-            setattr(
-                cls,
-                'get_own_' + this_deco_class.__name__ + '_wrapper',
-                classmethod(partial(_get_own_deco_wrapper, this_deco_class))
-            )
-
-            # largely for testing (by the time anyone gets to see these,
-            # they're no longer used... 'cept outer class at class level
-            # can manipulate inner classes' omit and only, but so what)
-            setattr(cls, this_deco_class.__name__ + '_omit', self.omit)
-            setattr(cls, this_deco_class.__name__ + '_only', self.only)
-
-            return cls
+            self._class__call__(klass)     # modifies klass (methods & inner classes)
+            self._add_class_attrs(klass)
+            return klass
 
         elif not f:
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0 -- case "f_or_cls is a callable but not a function"
+            # 0.3.0 -- case "f_or_klass is a callable but not a function"
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # functools.partial objects are callable, have no __name__ much less __qualname__,
             # and trying to deco __call__ gets messy.
             # Callable builtins e.g. len are not functions in the isfunction sense, can't deco anyway.
             # Just give up (quietly)
-            return f_or_cls
+            return f_or_klass
 
-        else:           # not a class, f nonempty is a function of f_or_cls callable
+        else:           # not a class, f nonempty is a function of f_or_klass callable
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0 -- case "f_or_cls is a function" -- namely, f
+            # 0.3.0 -- case "f_or_klass is a function" -- namely, f
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
             #----------------------------------------------------------------
@@ -1632,12 +1599,7 @@ class _deco_base():
             # .    if f is deco'd, its existing EXPLICITLY GIVEN settings take precedence.
 
             # # From _class__call__, props & methods cases, w/a few name changes
-            deco_obj = getattr(f, self._sentinels['DECO_OF'], None)
-            # Here, "undecorate" would be "NO_DECO was passed"
-            # if undecorate:
-            #     if deco_obj:
-            #         setattr(cls, name, deco_obj.f)  # Undecorate
-            #     return f
+            deco_obj = getattr(f, self._sentinels['DECO_OF'], None)     # type: _deco_base
 
             # get a fresh copy for each attr
             new_settings = self._changed_settings.copy()    # updated below
@@ -1838,7 +1800,7 @@ class _deco_base():
                 # 0.2.2 -- self._log_message() will use
                 # the logging_fn, indent_len and output_fname at top of these stacks;
                 # thus, verbose functions should use log_message to write their blather.
-                # There are parallel stacks of these,
+                # There's a stack of logging-state ,
                 # used by self._log_message(), maintained in this wrapper.
                 self._logging_state_push(logging_fn, global_indent_len, output_fname, mute)
 
@@ -1865,7 +1827,6 @@ class _deco_base():
                     'kwargs': kwargs,
                     'indent': " " * self.INDENT,              # our unit of indentation
                     'output_fname': output_fname,
-                    'stats': self._stats,
                 }
 
                 # Gather all the things we need (for log output, & for history)
@@ -1955,53 +1916,77 @@ class _deco_base():
 
                 return retval
 
-            # Add a sentinel as an attribute to _deco_base_f_wrapper_
+            self._add_function_attrs(f, _deco_base_f_wrapper_)
+            return _deco_base_f_wrapper_
+
+            #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            # end else (case "f_or_klass is a function")
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+
+    def _add_function_attrs(self, f, f_wrapper):
+            # Add a sentinel as an attribute to f_wrapper
             # so we can in theory chase back to any previous log_calls-decorated fn
             setattr(
-                _deco_base_f_wrapper_,
-                self._sentinels['SENTINEL_ATTR'],
-                self._sentinels['SENTINEL_VAR']
+                f_wrapper, self._sentinels['SENTINEL_ATTR'], self._sentinels['SENTINEL_VAR']
             )
             # A back-pointer
             setattr(
-                f,
-                self._sentinels['WRAPPER_FN_OBJ'],
-                _deco_base_f_wrapper_
+                f, self._sentinels['WRAPPER_FN_OBJ'], f_wrapper
             )
             # 0.3.0 -- pointer to self
             setattr(
-                _deco_base_f_wrapper_,
-                self._sentinels['DECO_OF'],
-                self
+                f_wrapper, self._sentinels['DECO_OF'], self
             )
             # stats objects (attr of wrapper)
             setattr(
-                _deco_base_f_wrapper_,
-                'stats',
-                self._stats
+                f_wrapper, 'stats', self._stats
             )
             setattr(
-                _deco_base_f_wrapper_,
-                self.__class__.__name__ + '_settings',
-                self._settings_mapping
+                f_wrapper, self.__class__.__name__ + '_settings', self._settings_mapping
             )
             # 0.2.1a
             setattr(
-                _deco_base_f_wrapper_,
-                'log_message',
-                self._log_message,
+                f_wrapper, 'log_message', self._log_message,
             )
             # 0.3.0
             setattr(
-                _deco_base_f_wrapper_,
-                'log_exprs',
-                self._log_exprs,
+                f_wrapper, 'log_exprs', self._log_exprs,
             )
 
-            return _deco_base_f_wrapper_
-            #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            # end else (case "f_or_cls is a function")
-            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+    def _add_class_attrs(self, klass):
+        # add attribute to klass: key is useful as sentinel, value is this deco
+        setattr(
+            klass,
+            self._sentinels['DECO_OF'],
+            self
+        )
+        # Make it easy for user to find the log_calls wrapper of a method,
+        # given its name, via `get_log_calls_wrapper(fname)`
+        # or `get_record_history_wrapper(fname)`
+        # This can be called on a deco'd class or on an instance thereof.
+        this_deco_class = self.__class__
+        this_deco_class_name = this_deco_class.__name__
+        setattr(
+            klass,
+            'get_' + this_deco_class_name + '_wrapper',
+            classmethod(partial(_get_deco_wrapper, this_deco_class))
+        )
+        # Make it even easier for methods to find their own log_calls wrappers,
+        # via `get_own_log_calls_wrapper(fname)`
+        # or `get_own_record_history_wrapper(fname)`
+        # This can be called on a deco'd class or on an instance thereof.
+        this_deco_class = self.__class__
+        setattr(
+            klass,
+            'get_own_' + this_deco_class_name + '_wrapper',
+            classmethod(partial(_get_own_deco_wrapper, this_deco_class))
+        )
+
+        # largely for testing (by the time anyone gets to see these,
+        # they're no longer used... 'cept outer class at class level
+        # can manipulate inner classes' omit and only, but so what)
+        setattr(klass, this_deco_class_name + '_omit', self.omit)
+        setattr(klass, this_deco_class_name + '_only', self.only)
 
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
@@ -2159,7 +2144,7 @@ class _deco_base():
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
     @classmethod
-    def decorate_module(cls, module: 'module',
+    def decorate_module(cls, mod: 'module',
                         functions=True, classes=True,
                         **setting_kwds):
         """
@@ -2170,12 +2155,12 @@ class _deco_base():
         """
         # Functions
         if functions:
-            for name, f in inspect.getmembers(module, inspect.isfunction):
-                vars(module)[name] = cls(**setting_kwds)(f)
+            for name, f in inspect.getmembers(mod, inspect.isfunction):
+                vars(mod)[name] = cls(**setting_kwds)(f)
 
         # Classes
         if classes:
-            for name, kls in inspect.getmembers(module, inspect.isclass):
+            for name, kls in inspect.getmembers(mod, inspect.isclass):
                 _ = cls(**setting_kwds)(kls)
                 # assert _ == kls
 
