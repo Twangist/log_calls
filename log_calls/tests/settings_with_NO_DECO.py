@@ -8,4 +8,3 @@ g_settings_dict = {
     'indent': True,
     'log_retval': True
 }
-

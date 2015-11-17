@@ -2090,18 +2090,7 @@ class _deco_base():
         If any subclasses are directly decorated, their explicitly given setting_kwds
         override those in `setting_kwds` EXCEPT `omit` and `only`.
         """
-        assert isinstance(baseclass, type)
-        # decorate baseclass
-        _ = cls(**setting_kwds)(baseclass)
-        # assert _ == baseclass
-
-        # decorate all descendants of baseclass
-        for subclass in baseclass.__subclasses__():
-            cls.decorate_hierarchy(subclass, **setting_kwds)
-
-    #############
-    # v0.3.0.15b
-    #############
+        cls.decorate_class(baseclass, subclasses_too=True, **setting_kwds)
 
     @classmethod
     def decorate_class(cls, klass: type, subclasses_too=False, **setting_kwds):
@@ -2110,12 +2099,22 @@ class _deco_base():
          override those in `setting_kwds` EXCEPT `omit` and `only`.)
         """
         assert isinstance(klass, type)
-        _ = cls(**setting_kwds)(klass)
-        # assert _ == klass
+
+        def _deco_class(kls: type):
+            _ = cls(**setting_kwds)(kls)
+            # assert _ == kls
+
+        def _deco_class_rec(kls: type):
+            _deco_class(kls)
+            for subclass in kls.__subclasses__():
+                _deco_class(subclass)
 
         if subclasses_too:
-            for subclass in klass.__subclasses__():
-                cls.decorate_class(subclass, subclasses_too=True, **setting_kwds)
+            _deco_class_rec(klass)
+        else:
+            _deco_class(klass)
+        # (_deco_class_rec if subclasses_too else _deco_class)(klass)
+
 
     @classmethod
     def decorate_external_function(cls, f: 'Callable', **setting_kwds):

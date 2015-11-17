@@ -292,7 +292,8 @@ def is_quoted_str(s):
 
 # match using match_fn(x, pattern).
 def any_match(match_fn, seq, patterns):
-    """match_fn(s, pat) -> bool
+    """Return True if match_fn(s, pat) is true for some (s, pat) in seq x patterns
+    match_fn: seq x patterns -> bool,
     seq, patterns: iterables, generators.
 
     Equality:
@@ -307,7 +308,7 @@ def any_match(match_fn, seq, patterns):
     >>> patterns = ('pair', )
     >>> any_match(fnmatch.fnmatchcase, names, patterns)
     True
-    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names is now 'spent', list(names) is empty
+    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names generator is now 'spent', list(names) is empty
     False
 
     Regexp

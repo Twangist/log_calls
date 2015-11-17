@@ -191,9 +191,10 @@ VERSIONS
         This is a "pseudo"-setting because there's no such entry in `log_calls_settings`:
             if it (has been) true then there are no log_calls_settings attributes!, and conversely.
 
-TODO Fix NO_DECO: It should UNdecorate already deco'd functions, methods in classes and inner classes etc... RIGHT?
-todo This SHOULD also entail REMOVING attributes on deco'd functions classes methods -- investigate
+TODO Maybe someday for NO_DECO: Should it UNdecorate already deco'd functions, methods in classes and inner classes etc...?
+todo This entails also REMOVING the attributes added by log_calls to deco'd functions classes methods
 
+TODO Maybe: new "directive" parameter existing-settings-have-precedence=True (figure out what to call it) This would be useful for acting on whole hierarchies & modules.
 
       - record_history can (now) use log_message and log_exprs
         Output is always via print.
