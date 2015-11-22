@@ -1214,7 +1214,7 @@ def main__test__decorate_class__hierarchy():
     ...     def callout(self):  self.helper_B(); return 5 * self.x
     ...     def helper_B(self): pass
 
-    >>> log_calls.decorate_class(Base, subclasses_too=True,
+    >>> log_calls.decorate_class(Base, decorate_subclasses=True,
     ...                          only="template_method callout", indent=True, log_retval=True)
 
     >>> a = A(5)

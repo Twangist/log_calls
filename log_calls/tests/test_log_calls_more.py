@@ -512,7 +512,7 @@ and again, we assume that the current directory is `log_calls/tests`.
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
-Let's examine the settings. We have to do step carefully around the 'file' setting:
+Let's examine the settings. We have to step carefully around the 'file' setting:
     >>> od = g.log_calls_settings.as_OrderedDict()
     >>> od['file']
     <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>

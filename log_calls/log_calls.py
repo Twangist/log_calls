@@ -2090,12 +2090,12 @@ class _deco_base():
         If any subclasses are directly decorated, their explicitly given setting_kwds
         override those in `setting_kwds` EXCEPT `omit` and `only`.
         """
-        cls.decorate_class(baseclass, subclasses_too=True, **setting_kwds)
+        cls.decorate_class(baseclass, decorate_subclasses=True, **setting_kwds)
 
     @classmethod
-    def decorate_class(cls, klass: type, subclasses_too=False, **setting_kwds):
-        """Decorate baseclass and, optionally, all of its descendants recursively.
-        (If any subclasses are directly decorated, their explicitly given setting_kwds
+    def decorate_class(cls, klass: type, decorate_subclasses=False, **setting_kwds):
+        """Decorate klass and, optionally, all of its descendants recursively.
+        (If any decorate_subclasses are directly decorated, their explicitly given setting_kwds
          override those in `setting_kwds` EXCEPT `omit` and `only`.)
         """
         assert isinstance(klass, type)
@@ -2107,13 +2107,13 @@ class _deco_base():
         def _deco_class_rec(kls: type):
             _deco_class(kls)
             for subclass in kls.__subclasses__():
-                _deco_class(subclass)
+                _deco_class_rec(subclass)
 
-        if subclasses_too:
+        if decorate_subclasses:
             _deco_class_rec(klass)
         else:
             _deco_class(klass)
-        # (_deco_class_rec if subclasses_too else _deco_class)(klass)
+        # (_deco_class_rec if decorate_subclasses else _deco_class)(klass)
 
 
     @classmethod

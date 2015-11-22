@@ -9,7 +9,7 @@ def decorate_class_use_then_import_use():
     >>> from log_calls.tests import some_module
 
     >>> log_calls.decorate_class(some_module.C,
-    ...                          subclasses_too=True,
+    ...                          decorate_subclasses=True,
     ...                          args_sep='; ', indent=True, omit='__init__')
 
     >>> d = some_module.D("Hello,")
