@@ -512,11 +512,12 @@ and again, we assume that the current directory is `log_calls/tests`.
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
-Let's examine the settings. We have to step carefully around the 'file' setting:
+Let's examine the settings.
     >>> od = g.log_calls_settings.as_OrderedDict()
+
+We have to step carefully around the 'file' setting, to be able to doctest '`od`.
     >>> od['file']
     <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>
-
     >>> del od['file']
     >>> od == {
     ...     'enabled': True,
