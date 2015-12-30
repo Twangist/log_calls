@@ -1112,6 +1112,7 @@ class _deco_base():
                  _omit=tuple(),             # 0.3.0 class deco'ing: str or seq - omit these methods/proper; not a setting
                  _only=tuple(),             # 0.3.0 class deco'ing: str or seq - deco only these (sans any in omit); not a setting
                  _name_param=None,          # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 _override=False,           # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
@@ -1187,10 +1188,11 @@ class _deco_base():
         self._name_param = _name_param
         self._other_values_dict = other_values_dict     # 0.3.0
 
+        self._override = _override                      # 0.3.0b18
+
         # initialize sentinel strings
         if not self.__class__._sentinels:
             self.__class__._sentinels = self._set_class_sentinels()
-
 
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
@@ -1296,6 +1298,13 @@ class _deco_base():
 
         return tuple(no_duplicates(method_specs_ex))
 
+    ### 0.3.0b18
+    def _update_settings(self, new: dict, old: dict, override_existing: bool):
+        new.update({k: v
+                   for (k,v) in old.items()
+                   if (not override_existing or k not in old)
+                  })
+
     def _class__call__(self, klass):
         """
         :param klass: class to decorate ALL the methods of,
@@ -1366,11 +1375,16 @@ class _deco_base():
                 new_only = self._only
                 new_omit = self._omit
                 deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
+
                 if deco_obj:    # klass is already decorated
+
                     # It IS already deco'd, so we want its settings to be
                     #    (copy of) self._changed_settings updated with its _changed_settings
-                    new_settings.update(deco_obj._changed_settings)
-                    # NOTICE WHAT THIS DOES:
+                    ### 0.3.0b18 -- Use self._override
+                    self._update_settings(new=new_settings,
+                                          old=deco_obj._changed_settings,
+                                          override_existing=self._override)
+                    # NOTICE WHAT THIS DOES (if override == False):
                     # inner "only" is what was originally given IF SOMETHING WAS GIVEN
                     #     -- DON'T add outer ones -- otherwise, use the outer ones;
                     # inner "omit" is cumulative, union -- DO add outer ones
@@ -1445,7 +1459,10 @@ class _deco_base():
 
                     if deco_obj:                        # it IS decorated
                         # Tweak its deco settings
-                        new_settings.update(deco_obj._changed_settings)
+                        ### 0.3.0b18 -- Use self._override
+                        self._update_settings(new=new_settings,
+                                              old=deco_obj._changed_settings,
+                                              override_existing=self._override)
                         # update func's settings (_force_mutable=True to handle `max_history` properly)
                         deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
                         # ...
@@ -1522,10 +1539,13 @@ class _deco_base():
 
             if deco_obj:        # is func deco'd by this decorator?
                 # Yes. Figure out settings for func,
-# NOTE, 0.3.0b18 EXPERIMENT
-                new_settings.update(deco_obj._changed_settings)
+                ### 0.3.0b18 -- Use self._override
+                self._update_settings(new=new_settings,
+                                      old=deco_obj._changed_settings,
+                                      override_existing=self._override)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
                 deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
+# NOTE, 0.3.0b18 EXPERIMENT
 # INSTEAD, :
 #                 changed_settings = deco_obj._changed_settings.copy()
 #                 changed_settings.update(new_settings)
@@ -1627,7 +1647,10 @@ class _deco_base():
 
             if deco_obj:        # f is deco'd by this decorator
                 # Yes. Figure out settings for f,
-                new_settings.update(deco_obj._changed_settings)
+                ### 0.3.0b18 -- Use self._override
+                self._update_settings(new=new_settings,
+                                      old=deco_obj._changed_settings,
+                                      override_existing=self._override)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
                 deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
                 return f
@@ -2345,6 +2368,7 @@ class log_calls(_deco_base):
                  omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
                  only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
                  name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 override=False,    # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
@@ -2367,7 +2391,8 @@ class log_calls(_deco_base):
         # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
-        for kwd in ('settings', 'omit', 'only', 'name'):
+        # remove non-"settings"
+        for kwd in ('settings', 'omit', 'only', 'name', 'override'):
             if kwd in used_keywords_dict:
                 del used_keywords_dict[kwd]
 
@@ -2376,6 +2401,7 @@ class log_calls(_deco_base):
             _omit=omit,             # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
             _only=only,             # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (sans omit)
             _name_param=name,       # 0.3.0 name or oldstyle fmt str etc.
+            _override=override,     # 0.3.0b18: new settings override existing ones. NOT a "setting"
             _used_keywords_dict=used_keywords_dict,
             enabled=enabled,
             args_sep=args_sep,
