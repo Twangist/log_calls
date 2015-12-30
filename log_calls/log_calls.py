@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b17'
+__version__ = '0.3.0b18'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -613,6 +613,12 @@ class _deco_base():
         'DECO_OF': '_$_f_%s_wrapper_-or-cls-DECO'       # value = self (0.3.0)
     }
 
+    _version = __version__
+
+    @classmethod
+    def version(cls):
+        return cls._version
+
     @classmethod
     def _set_class_sentinels(cls):
         """ 'virtual', called from __init__
@@ -939,7 +945,7 @@ class _deco_base():
         _prefix: for log_exprs, callers of log_message won't need to use it
                  additional text to prepend to output message
         """
-        # do nothing unless enabled! cuz then the other 'stack' accesses will blow up
+        # do nothing unless enabled! if disabled, the other 'stack' accesses will blow up
         if self._enabled_stack[-1] <= 0:    # disabled
             return
 
@@ -1478,7 +1484,7 @@ class _deco_base():
                 continue    # for name, item in ...
 
             #-------------------------------------------------------
-            # Handle instance, static, class methods
+            # Handle instance, static, class methods.
             # All we know is, actual_item is callable
             #-------------------------------------------------------
             # Filter with self._only and self._omit.
@@ -1516,9 +1522,17 @@ class _deco_base():
 
             if deco_obj:        # is func deco'd by this decorator?
                 # Yes. Figure out settings for func,
+# NOTE, 0.3.0b18 EXPERIMENT
                 new_settings.update(deco_obj._changed_settings)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
                 deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
+# INSTEAD, :
+#                 changed_settings = deco_obj._changed_settings.copy()
+#                 changed_settings.update(new_settings)
+#                 # update func's settings (_force_mutable=True to handle `max_history` properly)
+#                 deco_obj._settings_mapping.update(changed_settings, _force_mutable=True)
+# end NOTE, 0.3.0b18 EXPERIMENT
+
             else:
                 # func is not deco'd.
                 # decorate it, using self._changed_settings
@@ -1539,8 +1553,8 @@ class _deco_base():
     def __call__(self, f_or_klass):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
-        to decorate. The return value of __call__ is called subsequently.
-        So, this method *returns* the decorator proper.
+        or class to decorate. The return value of __call__ is called
+        subsequently. So, this method *returns* the decorator proper.
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
 
@@ -2101,7 +2115,8 @@ class _deco_base():
         assert isinstance(klass, type)
 
         def _deco_class(kls: type):
-            _ = cls(**setting_kwds)(kls)
+            t = cls(**setting_kwds)
+            _ = t(kls)
             # assert _ == kls
 
         def _deco_class_rec(kls: type):

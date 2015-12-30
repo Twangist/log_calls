@@ -625,18 +625,25 @@ The `enabled` setting is in fact an `int`. This can be used advantageously.
 See the section [Using *enabled* as a level of verbosity](http://www.pythonhosted.org/log_calls/index.html#enabling-with-ints) in the full documentation for examples of using different positive values to specify increasing levels of verbosity in `log_calls`-related output.
 
 #### *[Bypass](id:bypass)*
-If you supply a negative integer, that is interpreted as *bypass*: `log_calls` immediately calls the decorated function and returns its value. When the value of `enabled` is false (`False` or `0`), the decorator performs a little more processing before delegating to the decorated function, though of course less than when `enabled` is positive (e.g. `True`).
+If you supply a negative integer, that is interpreted as *bypass*: `log_calls` immediately calls the decorated function and returns its value. When the value of `enabled` is false (`False` or `0`), the decorator performs a little more processing before delegating to the decorated function (it tallies the call to the function), though of course less than when `enabled` is positive (e.g. `True`).
 
 
 ###[Muting *log_calls* output](id:mute-parameter-and-global-mute)
+#### *The* `mute` *parameter* (*default:* `log_calls.MUTE.NOTHING`)
+The `mute` parameter enables `log_calls` to behave like the `record_history` decorator, collecting statistics silently which are accessible via the `stats` attribute of a decorated function. The section [Call history and statistics](#call-history-and-statistics)) describes this use `log_calls`.
 
-#### <p style="background-color: yellow"> TODO TODO TODO TODO TODO</p>
-#### *The* `mute` *parameter* (*default:* `False`)
+The `mute` parameter can be given one of three values:
 
+    log_calls.MUTE.NOTHING
+    log_calls.MUTE.CALLS
+    log_calls.MUTE.ALL
 
-Three-state: log_calls.MUTE.NOTHING, log_calls.MUTE.CALLS, log_calls.MUTE.ALL
+* The default value `log_calls.MUTE.NOTHING` mutes no output. 
+* The value `log_calls.MUTE.CALLS` mtes all logging of function call details, but the output of any calls to the methods [`log_message`](#log_message) and [`log_exprs`](#log_exprs) is not suppressed: that output is logged, to the current logging destination (`sys.stdout`, a file or stream, or a logger.)
+* The value `log_calls.MUTE.ALL` mutes all output of `log_calls`.
 
 #### *The global mute switch* `log_calls.mute`
+#### <p style="background-color: yellow"> TODO TODO TODO TODO TODO</p>
 
 ###[The *settings* parameter (default: *None*)](id:settings-parameter)   
 #### <p style="background-color: yellow"> TODO TODO TODO TODO TODO</p>
@@ -892,6 +899,7 @@ These features are especially useful in recursive and mutually recursive situati
 **NOTE**: *The optional* `key` *parameter is for instructional purposes, so you can see the key that's paired with the value of* `d` *in the caller's dictionary. Typically the signature of this function would be just* `def depth(d)`, *and the recursive case would return* `max(map(depth, d.values())) + 1`.
 
 ## [The indent-aware writing method *log_message()*](id:log_message)
+#### <p style="background-color: yellow"> TODO TODO TODO TODO TODO</p>
 `log_calls` exposes the method it uses to write its messages, `log_message`,
 whose full signature is:
 
@@ -994,6 +1002,9 @@ which illustrates that.
 
 See the full documentation for [the `log_message` method](http://www.pythonhosted.org/log_calls#log_message) for notes 
 and internal links to further examples. 
+
+## [The indent-aware expression-evaluating method *log_exprs()*](id:log_exprs)
+#### <p style="background-color: yellow"> TODO TODO TODO TODO TODO (*section heading is bad, too*)</p>
 
 ## [Advanced Features](id:Advanced-features)
 `log_calls` provides a number of features beyond those already described. We'll only give an overview of them here. For a full account, see [the complete documentation](http://www.pythonhosted.org/log_calls).
