@@ -1,6 +1,5 @@
 __author__ = 'brianoneill'
 
-import doctest
 from log_calls import log_calls
 
 ##############################################################################
@@ -85,12 +84,12 @@ and only h_lc1's settings have changed:
 # end of tests.
 ##############################################################################
 
+import doctest
 
 # For unittest integration
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests
-
 
 if __name__ == "__main__":
 

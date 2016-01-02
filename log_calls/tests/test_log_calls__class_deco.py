@@ -1129,7 +1129,7 @@ hence this error message:
 
 
 #-----------------------------------------------------------------------------
-# main__test__log_calls_as_functor_applied_to_lambda
+# main__test___repr__log_calls_as_functor_applied_to_lambda
 #-----------------------------------------------------------------------------
 def main__test___repr__log_calls_as_functor_applied_to_lambda():
     """
@@ -1180,6 +1180,7 @@ def main__test___repr__log_calls_as_functor_applied_to_lambda():
     Point.<lambda> ==> returning to <module>
     p.length_() = 2.236...
 
+`log_calls` does not decorate `__repr__`:
     >>> hasattr(p.__repr__, 'log_calls_settings')
     False
     """

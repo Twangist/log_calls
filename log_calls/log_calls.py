@@ -103,6 +103,35 @@ class DecoSettingEnabled(DecoSetting_int):
                 return self.default
 
 
+# #### v0.3.0b18
+# def my_recursive_repr(fillvalue='...'):
+#     'Decorator to make a repr function return fillvalue for a recursive call'
+#
+#     def decorating_function(user_function):
+#         repr_running = set()
+#
+#         def wrapper(self):
+#             key = id(self), -1          # -1 == get_ident()
+#             if key in repr_running:
+#                 return fillvalue
+#             repr_running.add(key)
+#             try:
+#                 result = user_function()    # BTO: user_function(self)
+#             finally:
+#                 repr_running.discard(key)
+#             return result
+#
+#         # Can't use functools.wraps() here because of bootstrap issues
+#         wrapper.__module__ = getattr(user_function, '__module__', None)
+#         wrapper.__doc__ = getattr(user_function, '__doc__', '')
+#         wrapper.__name__ = getattr(user_function, '__name__', '')
+#         # BTO: only customization is adding defaults for the above 3 getattr calls
+#         #      so they don't blow up if e.g. user_function has no attr '__module__'
+#         wrapper.__annotations__ = getattr(user_function, '__annotations__', {})
+#         return wrapper
+#
+#     return decorating_function
+
 class DecoSettingArgs(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, True, allow_falsy=True, **kwargs)
@@ -185,8 +214,23 @@ class DecoSettingArgs(DecoSetting_bool):
                 if id(val) in ids_objs_in_progress:
                     arg_eq_val_str = '%s=%s' % (arg, object.__repr__(val))
                 else:
+                    #### Note, formerly:
                     arg_eq_val_str = '%s=%r' % pair
+
+                    #### .  v0.3.0b18 BEGIN Guard against recursive reprs
+
+                    # f = my_recursive_repr()       # f == decorating_function
+                    # method_wrapper = getattr(val, '__repr__')
+                    # g = f(method_wrapper)   # g == decorating_function(user_function)
+                    #                         #   == wrapper(self)
+                    # safe_repr_p1 = g(val)
+                    #
+                    # format_str = '%s=%r' if isinstance(val, str) else '%s=%s'
+                    # arg_eq_val_str = format_str % (arg, safe_repr_p1)
+                    # #### .  v0.3.0b18 END.
+
                 arg_eq_val_strs.append(arg_eq_val_str)
+
             return arg_eq_val_strs
 
         args_vals = list(zip(context['argnames'], context['argvals']))
@@ -2124,16 +2168,18 @@ class _deco_base():
     @classmethod
     def decorate_hierarchy(cls, baseclass: type, **setting_kwds):
         """Decorate baseclass and, recursively, all of its descendants.
-        If any subclasses are directly decorated, their explicitly given setting_kwds
-        override those in `setting_kwds` EXCEPT `omit` and `only`.
+        If any subclasses are directly decorated, their explicitly given setting_kwds,
+        EXCEPT `omit` and `only`, override those in `setting_kwds` UNLESS 'override=True'
+        is in `setting_kwds`.
         """
         cls.decorate_class(baseclass, decorate_subclasses=True, **setting_kwds)
 
     @classmethod
     def decorate_class(cls, klass: type, decorate_subclasses=False, **setting_kwds):
         """Decorate klass and, optionally, all of its descendants recursively.
-        (If any decorate_subclasses are directly decorated, their explicitly given setting_kwds
-         override those in `setting_kwds` EXCEPT `omit` and `only`.)
+       (If decorate_subclasses == True, and if any subclasses are decorated,
+       their explicitly given setting_kwds, EXCEPT `omit` and `only`,
+       override those in `setting_kwds` UNLESS 'override=True' is in `setting_kwds`.)
         """
         assert isinstance(klass, type)
 
@@ -2153,11 +2199,67 @@ class _deco_base():
             _deco_class(klass)
         # (_deco_class_rec if decorate_subclasses else _deco_class)(klass)
 
+    # TODO docstring, docs
 
     @classmethod
-    def decorate_external_function(cls, f: 'Callable', **setting_kwds):
-        """Wrap f with decorator `cls` using settings, replace definition of f.__name__
-        with that decorated function in the __dict__ of the module of f.
+    def decorate_package_function(cls, f: 'Callable', **setting_kwds):
+        """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
+        replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
+        of the module of ``f``.
+
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, qualified with module, e.g. mymodule.myfunc,
+                  however it would be referred to in code at the point of a call to `decorate_external_function`.
+        :param setting_kwds: settings for decorator
+
+        inspect.getmodule(f).__name__
+        'sklearn.cluster.k_means_'
+
+        inspect.getmodulename('sklearn/cluster/k_means_.py')
+        'k_means_'
+
+        SO
+            * fmodname = inspect.getmodule(f).__name__
+                'sklearn.cluster.k_means_'
+            * replace '.' with '/' in fmodname
+              fmodname = 'sklearn/cluster/k_means_'
+
+            * inspect.getmodulename('sklearn/cluster/k_means_.py')
+              'k_means_'
+             VS
+              inspect.getmodulename('sklearn.cluster')
+              None
+
+              So call inspect.getmodulename(fmodname + '.py')
+              If it returns None, leave alone, f was called through module.
+              If it's NOT None, then trim off last bit from path
+              fmodname = '.'.join(fmodname.split('/')[:-1])
+              eval(fmodname + '.' + f.__name__
+
+
+        """
+        f_deco = cls(**setting_kwds)(f)
+
+        namespace = vars(inspect.getmodule(f))
+
+        fmodname = inspect.getmodule(f).__name__
+        # 'sklearn.cluster.k_means_'
+        basic_modname = inspect.getmodulename(fmodname.replace('.', '/') + '.py')
+        # 'k_means_' or 'some_module', or None
+        if basic_modname and '.' in fmodname:
+            fpackagename = namespace['__package__']     # '.'.join(fmodname.split('.')[:-1])
+            exec("import " + fpackagename)
+            package_dict = eval("vars(%s)" % fpackagename)    # TODO - works?
+            package_dict[f.__name__] = f_deco
+
+        namespace[f.__name__] = f_deco
+
+    @classmethod
+    def decorate_module_function(cls, f: 'Callable', **setting_kwds):
+        """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
+        replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
+        of the module of ``f``.
+
         :param cls: decorator class e.g. log_calls
         :param f: a function object, qualified with module, e.g. mymodule.myfunc,
                   however it would be referred to in code at the point of a call to `decorate_external_function`.
@@ -2166,12 +2268,19 @@ class _deco_base():
         namespace = vars(inspect.getmodule(f))
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
+    # TODO temporary alias
+
+    @classmethod
+    def decorate_external_function(cls, f: 'Callable', **setting_kwds):
+        cls.decorate_module_function(f, **setting_kwds)
+
     @classmethod
     def decorate_function(cls, f: 'Callable', **setting_kwds):
         """Wrap f with decorator `cls` using settings, replace definition of f.__name__
         with that decorated function in the global namespace OF THE CALLER.
+
         :param cls: decorator class e.g. log_calls
-        :param f: a function object, myfunc, no package/module qualifier.
+        :param f: a function object, with no package/module qualifier.
                   However it would be referred to in code at the point of the call
                   to `decorate_function`.
         :param setting_kwds: settings for decorator
@@ -2180,10 +2289,13 @@ class _deco_base():
         namespace = caller_frame.f_globals
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
+    # v0.3.0b18 -- Not ready for primetime?
+    # "Hidden" with an initial underscore.
+    # Hard to get this working on real-world examples, e.g. sklearn.cluster.k_means_
     @classmethod
-    def decorate_module(cls, mod: 'module',
-                        functions=True, classes=True,
-                        **setting_kwds):
+    def _decorate_module(cls, mod: 'module',
+                         functions=True, classes=True,
+                         **setting_kwds):
         """
         Can't decorate builtins, attempting
             log_calls.decorate_class(dict, only='update')
@@ -2194,7 +2306,8 @@ class _deco_base():
         if functions:
             for name, f in inspect.getmembers(mod, inspect.isfunction):
                 vars(mod)[name] = cls(**setting_kwds)(f)
-
+                ### todo vars(mod) also has key __package__,
+                ###  |   e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
         # Classes
         if classes:
             for name, kls in inspect.getmembers(mod, inspect.isclass):
