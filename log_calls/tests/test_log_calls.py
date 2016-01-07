@@ -956,7 +956,7 @@ instead of as keywords to the mapping interface; they're equivalent:
     f [1] <== called by <module>
         arguments: <none>
         f [1] return value: 91
-        elapsed time: ... [secs], CPU time: ... [secs]
+        elapsed time: ... [secs], process time: ... [secs]
     f [1] ==> returning to <module>
     >>> f.log_calls_settings.log_args = False
     >>> f.log_calls_settings.log_elapsed = False
@@ -1023,7 +1023,7 @@ use the new settings for `f`:
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
         f [4] return value: 91
-        elapsed time: ... [secs], CPU time: ... [secs]
+        elapsed time: ... [secs], process time: ... [secs]
     f [4] ==> returning to <module>
 
 and restore original settings, this time passing the retrieved settings
@@ -1376,23 +1376,20 @@ Before moving on, we'll restore logging for `f`:
 
 ###The *stats.elapsed_secs_logged* attribute
 The `stats.elapsed_secs_logged` attribute holds the sum of the elapsed times
-("wall time") of all logged calls to a decorated function, in seconds. It's
+of all logged calls to a decorated function, in seconds. It's
 not possible to doctest this so we'll just exhibit its value for the 3 logged
 calls to `f` above:
 
     >>> f.stats.elapsed_secs_logged   # doctest: +SKIP
     1.1463998816907406e-05
 
-###The *stats.CPU_secs_logged* attribute
-The `stats.CPU_secs_logged` attribute holds the sum of the CPU times
-("process time") of all logged calls to a decorated function, in seconds.
+###The *stats.process_secs_logged* attribute
+The `stats.process_secs_logged` attribute holds the sum of the "process times" of all logged calls to a decorated function, in seconds.
 Similarly, we'll just exhibit its value for the 3 logged calls to `f` above:
 
-    >>> f.stats.CPU_secs_logged   # doctest: +SKIP
+    >>> f.stats.process_secs_logged   # doctest: +SKIP
     1.1000000000038757e-05
 
-**NOTE**: *Under Python < 3.3, `stats.elapsed_secs_logged` and `stats.CPU_secs_logged`
-will be the same number.*
 
 ###[The *record_history* parameter (default – *False*)](id:record_history-parameter)
 When the `record_history` setting is true for a decorated function `f`, `log_calls` will
@@ -1432,7 +1429,7 @@ hand-formatted for readability:
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={},
                            retval=None,
                            elapsed_secs=3.0049995984882116e-06,
-                           CPU_secs=2.9999999999752447e-06,
+                           process_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.733763',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=2, argnames=['a'], argvals=(1,), varargs=(100, 101),
@@ -1440,7 +1437,7 @@ hand-formatted for readability:
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={'y': 1001},
                            retval=None,
                            elapsed_secs=3.274002665420994e-06,
-                           CPU_secs=3.0000000000030003e-06,
+                           process_secs=3.0000000000030003e-06,
                            timestamp='10/28/14 15:56:13.734102',
                            prefixed_func_name='f', caller_chain=['<module>'])
     CallRecord(call_num=3, argnames=['a'], argvals=(10,), varargs=(20,),
@@ -1448,7 +1445,7 @@ hand-formatted for readability:
                            defaulted_kwargs=OrderedDict([('x', 1)]), implicit_kwargs={'z': 5000},
                            retval=None,
                            elapsed_secs=2.8769973141606897e-06,
-                           CPU_secs=2.9999999999752447e-06,
+                           process_secs=2.9999999999752447e-06,
                            timestamp='10/28/14 15:56:13.734412',
                            prefixed_func_name='f', caller_chain=['<module>'])
 
@@ -1472,7 +1469,7 @@ For the record, the records that comprise a decorated function's history are
     implicit_kwargs
     retval
     elapsed_secs
-    CPU_secs
+    process_secs
     timestamp
     prefixed_func_name
     caller_chain
@@ -1480,8 +1477,8 @@ For the record, the records that comprise a decorated function's history are
 By now, the significance of each field should be clear.
 
 ####[*stats.elapsed_secs_logged* == sum of *elapsed_secs* "column" of *stats.history*](id:elapsed_secs_logged-equal-sum-etc)
-as you would expect. Similarly, `stats.CPU_secs_logged` ==
-sum of the `CPU_secs` "column" of `stats.history`. This is
+as you would expect. Similarly, `stats.process_secs_logged` ==
+sum of the `process_secs` "column" of `stats.history`. This is
 [demonstrated](./record_history.html#elapsed_secs_logged-equal-sum-etc)
 in the documentation for the `record_history` decorator, a subset of
 `log_calls` which records call history and statistics but writes no messages.
@@ -1513,7 +1510,7 @@ Here's `g`'s call history:
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={},
                            retval=None,
                            elapsed_secs=2.239001332782209e-06,
-                           CPU_secs=2.000000000002e-06,
+                           process_secs=2.000000000002e-06,
                            timestamp='10/28/14 20:51:12.376714',
                            prefixed_func_name='g', caller_chain=['<module>'])
     CallRecord(call_num=3, argnames=['a'], argvals=(2,), varargs=(),
@@ -1521,7 +1518,7 @@ Here's `g`'s call history:
                            defaulted_kwargs=OrderedDict(), implicit_kwargs={},
                            retval=None,
                            elapsed_secs=2.6509987947065383e-06,
-                           CPU_secs=2.000000000002e-06,
+                           process_secs=2.000000000002e-06,
                            timestamp='10/28/14 20:51:12.376977',
                            prefixed_func_name='g', caller_chain=['<module>'])
 
@@ -1554,12 +1551,12 @@ The CSV representation breaks out each argument into its own column,
 throwing away information about whether an argument's value was passed or is a default.
 
     >>> print(g.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    call_num|a|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|a|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     2|1|None|...|...|...|'g'|['<module>']
     3|2|None|...|...|...|'g'|['<module>']
     <BLANKLINE>
 
-Ellipses above are for the `elapsed_secs`, `CPU_secs` and `timestamp` fields.
+Ellipses above are for the `elapsed_secs`, `process_secs` and `timestamp` fields.
 
 The CSV separator is '|' rather than ',' because some of the fields – `args`,  `kwargs`
 and `caller_chain` – use commas intrinsically. Let's examine one more `history_as_csv`
@@ -1581,7 +1578,7 @@ for a function that has all of those fields:
     h <== called by <module>
         f [3] <== called by g <== h
     >>> print(f.stats.history_as_csv)        # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
-    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|a|extra_args|x|kw_args|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|0|()|1|{}|None|...|...|...|'f'|['g', 'h']
     2|10|(17, 19)|1|{'z': 100}|None|...|...|...|'f'|['g', 'h']
     3|20|(3, 4, 6)|5|{'y': 'Yarborough', 'z': 100}|None|...|...|...|'f'|['g', 'h']
@@ -1609,7 +1606,7 @@ which also illustrates its use in an IPython notebook.
 As you might expect, the `stats.clear_history(max_history=0)` method clears
 the call history of a decorated function. In addition, it resets all running sums:
 `num_calls_total` and `num_calls_logged` are reset to 0, and both
-`elapsed_secs_logged` and `CPU_secs_logged` are reset to 0.0.
+`elapsed_secs_logged` and `process_secs_logged` are reset to 0.0.
 
 **It is the only way to change the value of the `max_history` setting**, via
 the optional keyword parameter for which you can supply any (integer) value,
@@ -1626,7 +1623,7 @@ values of all relevant settings and counters:
     3
     >>> f.stats.elapsed_secs_logged     # doctest: +SKIP
     1.3978995411889628e-05
-    >>> f.stats.CPU_secs_logged         # doctest: +SKIP
+    >>> f.stats.process_secs_logged         # doctest: +SKIP
     1.2999999999985246e-05
 
 Now let's clear `f`'s history, setting `max_history` to 33, and check that settings
@@ -1641,7 +1638,7 @@ and `stats` tallies are reset:
     0
     >>> f.stats.elapsed_secs_logged
     0.0
-    >>> f.stats.CPU_secs_logged
+    >>> f.stats.process_secs_logged
     0.0
 
 ### Data descriptors of *stats* are read-only
@@ -1662,7 +1659,7 @@ The data descriptor stats attributes are all read-only:
         ...
     AttributeError: ...
 
-    >>> f.stats.CPU_secs_logged = 0.1    # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> f.stats.process_secs_logged = 0.1    # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
     AttributeError: ...

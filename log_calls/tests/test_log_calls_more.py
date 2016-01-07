@@ -483,9 +483,9 @@ in one order or the other.
     ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
     ***         arguments: n=0 / **kwargs={...}
-    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***         elapsed time: 0.0... [secs], process time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -550,7 +550,7 @@ Now call the function, supplying a final value for `log_elapsed`:
     *** g [1] <== called by <module>
     ***     arguments: m=5 | n=7 | **kwargs={'elapsed_': True}
     ***     g [1] return value: 70
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** g [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -669,9 +669,9 @@ in one of the two possible orders.
     ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
     ***         arguments: n=0 / **kwargs={...}
-    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***         elapsed time: 0.0... [secs], process time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
     """
@@ -781,7 +781,7 @@ Call these methods:
         arguments: x=1 + y=2
         f <== called by g <== Klass.statikmethod
         f ==> returning to g ==> Klass.statikmethod
-        elapsed time: ... [secs], CPU time: 0.0... [secs]
+        elapsed time: ... [secs], process time: 0.0... [secs]
     Klass.statikmethod ==> returning to <module>
 
 Similarly, the stats attribute can be accessed via the class or an instance:
@@ -793,9 +793,9 @@ Similarly, the stats attribute can be accessed via the class or an instance:
     >>> # about 0.0001738
     >>> elapsed > 0.0
     True
-    >>> cpu =  Klass.statikmethod.stats.CPU_secs_logged    # doctest: +ELLIPSIS
+    >>> process =  Klass.statikmethod.stats.process_secs_logged    # doctest: +ELLIPSIS
     >>> # about 0.0001670
-    >>> cpu > 0.0
+    >>> process > 0.0
     True
     """
     pass

@@ -78,7 +78,7 @@ def main__lc_class_deco__all_method_types():
         arguments:
             q=100
         C.statmeth_lc [1] return value: 200
-        elapsed time: ... [secs], CPU time: ... [secs]
+        elapsed time: ... [secs], process time: ... [secs]
     C.statmeth_lc [1] ==> returning to <module>
 
     >>> c = C(1000)                             # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
