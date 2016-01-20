@@ -40,9 +40,10 @@ Class we'll use through this entire set of tests:
     ...         wrapper = self.get_own_log_calls_wrapper()
     ...         wrapper.log_message('Hi')
     ...     @prop.setter
+    ...     @log_calls(name='B.%s.setter')
     ...     def prop(self, val):
     ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi from prop.setter')
+    ...         wrapper.log_message('Hi')
     ...
     ...     def setx(self, val):
     ...         wrapper = self.get_own_log_calls_wrapper()
@@ -67,7 +68,7 @@ Class we'll use through this entire set of tests:
     >>> b.prop
     B.prop: Hi
     >>> b.prop = 17
-    B.prop: Hi from prop.setter
+    B.prop.setter: Hi
     >>> b.x = 13
     B.setx: Hi from setx alias x.setter
     >>> del b.x
