@@ -162,14 +162,14 @@ if __name__ == '__main__':
     # # print(type(log_calls))  # <class 'type'>
 
     ## (C)
-    ## Now try `_decorate_module`
+    ## Now try `decorate_module`
     ## *  create a `KMeans` obj
     ## *  call `fit_predict` on it
     #### THIS DOESN'T WORK --- blows up one way or the other,
     ####                   --- without 'omit=', and with 'omit='
     #### import sklearn.cluster
-    #### # log_calls._decorate_module(sklearn.cluster)
-    #### log_calls._decorate_module(sklearn.cluster.k_means_,
+    #### # log_calls.decorate_module(sklearn.cluster)
+    #### log_calls.decorate_module(sklearn.cluster.k_means_,
     ####                           omit=['get_params']
     ####                          )
     ####

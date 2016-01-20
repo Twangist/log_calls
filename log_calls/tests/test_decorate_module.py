@@ -7,7 +7,7 @@ def test_decorate_module():
     """
     >>> from log_calls.tests import some_module
 
-    >>> log_calls._decorate_module(some_module)
+    >>> log_calls.decorate_module(some_module)
 
 Functions in module:
 

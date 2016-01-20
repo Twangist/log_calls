@@ -2291,12 +2291,11 @@ class _deco_base():
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
     # v0.3.0b18 -- Not ready for primetime?
-    # "Hidden" with an initial underscore.
     # Hard to get this working on real-world examples, e.g. sklearn.cluster.k_means_
     @classmethod
-    def _decorate_module(cls, mod: 'module',
-                         functions=True, classes=True,
-                         **setting_kwds):
+    def decorate_module(cls, mod: 'module',
+                        functions=True, classes=True,
+                        **setting_kwds):
         """
         Can't decorate builtins, attempting
             log_calls.decorate_class(dict, only='update')
