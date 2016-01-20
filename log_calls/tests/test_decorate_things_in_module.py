@@ -50,8 +50,8 @@ def decorate_external_function__use_then_import_use():
     """
     >>> from log_calls.tests import some_other_module
 
-    >>> log_calls.decorate_external_function(some_other_module.make_id,
-    ...                                      args_sep=' | ', log_retval=True)
+    >>> log_calls.decorate_module_function(some_other_module.make_id,
+    ...                                    args_sep=' | ', log_retval=True)
 
     >>> print(some_other_module.make_id(15, 632))
     make_id <== called by <module>
@@ -103,7 +103,7 @@ def decorate_function__function_in_same_module():
 def decorate_external_function__function_in_same_module__doesnt_work():
     """
     >>> def func2(x, y):    return y
-    >>> log_calls.decorate_external_function(func2, args_sep=' ~ ')
+    >>> log_calls.decorate_module_function(func2, args_sep=' ~ ')
 
 `func2` is NOT decorated:
     >>> func2(99, 100)

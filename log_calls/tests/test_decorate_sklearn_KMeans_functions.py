@@ -20,15 +20,15 @@ def test_deco_sklearn_cluster_kmeans_function():
 THIS Doesn't work:
     # import sklearn
     # import sklearn.cluster
-    # log_calls.decorate_external_function(sklearn.cluster.k_means)
+    # log_calls.decorate_module_function(sklearn.cluster.k_means)
     # ret = sklearn.cluster.k_means(X, n_clusters=45)
 
 ### THIS WORKS (import module and call it through module name :| ):
     >>> ## TODO Can this be improved?? It's clunky to require that the module name be known.
     >>> import sklearn.cluster.k_means_
-    >>> log_calls.decorate_external_function(sklearn.cluster.k_means_.k_means,
-    ...                                      args_sep='\\n',
-    ...                                      override=True)
+    >>> log_calls.decorate_module_function(sklearn.cluster.k_means_.k_means,
+    ...                                    args_sep='\\n',
+    ...                                    override=True)
     >>> ret = sklearn.cluster.k_means_.k_means(X, n_clusters=3, random_state=2)     # doctest: +NORMALIZE_WHITESPACE
     k_means <== called by <module>
         arguments:

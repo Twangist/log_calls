@@ -2210,7 +2210,7 @@ class _deco_base():
 
         :param cls: decorator class e.g. log_calls
         :param f: a function object, qualified with module, e.g. mymodule.myfunc,
-                  however it would be referred to in code at the point of a call to `decorate_external_function`.
+                  however it would be referred to in code at the point of a call to `decorate_package_function`.
         :param setting_kwds: settings for decorator
 
         inspect.getmodule(f).__name__
@@ -2263,17 +2263,11 @@ class _deco_base():
 
         :param cls: decorator class e.g. log_calls
         :param f: a function object, qualified with module, e.g. mymodule.myfunc,
-                  however it would be referred to in code at the point of a call to `decorate_external_function`.
+                  however it would be referred to in code at the point of a call to `decorate_module_function`.
         :param setting_kwds: settings for decorator
         """
         namespace = vars(inspect.getmodule(f))
         namespace[f.__name__] = cls(**setting_kwds)(f)
-
-    # TODO temporary alias
-
-    @classmethod
-    def decorate_external_function(cls, f: 'Callable', **setting_kwds):
-        cls.decorate_module_function(f, **setting_kwds)
 
     @classmethod
     def decorate_function(cls, f: 'Callable', **setting_kwds):
