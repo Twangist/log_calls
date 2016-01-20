@@ -14,7 +14,7 @@ def main__test__get_own_log_calls_wrapper():
     """
 Class we'll use through this entire set of tests:
 
-    >>> @log_calls(omit='no_deco', mute=True)
+    >>> @log_calls(omit='no_deco', mute=log_calls.MUTE.CALLS)
     ... class B():
     ...     def __init__(self):
     ...         wrapper = self.get_own_log_calls_wrapper()
@@ -24,7 +24,7 @@ Class we'll use through this entire set of tests:
     ...         wrapper.log_message('Hi')
     ...     def no_deco(self):
     ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         wrapper.log_message('Hi')       # raises ValueError
     ...     @staticmethod
     ...     def statmethod():
     ...         wrapper = B.get_own_log_calls_wrapper()
@@ -56,6 +56,10 @@ Class we'll use through this entire set of tests:
     B.__init__: Hi
     >>> b.method()
     B.method: Hi
+    >>> b.no_deco()     # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    ValueError: ...
     >>> b.statmethod()
     B.statmethod: Hi
     >>> b.clsmethod()

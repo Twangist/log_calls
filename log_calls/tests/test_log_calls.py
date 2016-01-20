@@ -1778,21 +1778,20 @@ A_DBG_INTERNAL = 2
 
 # Demonstrates a few techniques:
 #       * How to get at log_calls_settings methods for a (meta)method
-#         from inside that method
-#       * Use of the (new in 0.2.1a) log_message(msg) method,
+#         from inside that method, using get_own_log_calls_wrapper(),
+#       * Use of the log_message(msg) method,
 #         which handles global indentation for you.
 #         Useful for verbose debugees that want their blather to align nicely
 
 
-@log_calls(args_sep=separator, enabled='A_debug=', omit='_get_wrapper')
+@log_calls(args_sep=separator, enabled='A_debug=')
 class A_meta(type):
     @classmethod
     @log_calls(log_retval=True)
     def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
         if A_debug >= A_DBG_INTERNAL:
-            # TODO .__func__ not needed? anymore?
-            logging_fn = mcs.__prepare__.log_message
+            logging_fn = mcs.get_own_log_calls_wrapper().log_message
             logging_fn("    mro =", mcs.__mro__)
             logging_fn("    dict from super() = %r" % super_dict)
         super_dict = OrderedDict(super_dict)
@@ -1802,13 +1801,13 @@ class A_meta(type):
     def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         cls_members['key-from-__new__'] = "No, Hardy!"
         if A_debug >= A_DBG_INTERNAL:
-            logging_fn = mcs.__new__.log_message
+            logging_fn = mcs.get_own_log_calls_wrapper().log_message
             logging_fn("    calling super() with cls_members =", cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
     def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
         if A_debug >= A_DBG_INTERNAL:
-            logging_fn = A_meta._get_wrapper('__init__').log_message
+            logging_fn = cls.get_own_log_calls_wrapper().log_message
             logging_fn("    cls.__mro__:", cls.__mro__)
             logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
         try:
@@ -1819,9 +1818,6 @@ class A_meta(type):
                 logging_fn("    calling type.__init__ with no kwargs")
             type.__init__(cls, cls_name, bases, cls_members)
 
-    @staticmethod
-    def _get_wrapper(method_name):
-        return A_meta.__dict__[method_name]
 
 
 def main__metaclass_example():
@@ -1831,11 +1827,7 @@ def main__metaclass_example():
 The class `A_meta` is a metaclass: it derives from `type`,
 and defines (overrides) methods `__prepare__`, `__new__` and `__init__`.
 All of these `log_calls`-decorated methods access their `log_calls` wrapper,
-two of them doing so in roundabout ways. The classmethod `__prepare__`
-has to interpose `__func__` in order to get at the `log_calls` wrapper inside
-the classmethod wrapper. The `__init__` method has to jump through a different
-hoop in order to access its wrapper. Nevertheless, all
-the methods succeed at doing so, so that they can write their messages using
+in order to write their messages using
 [the indent-aware method `log_message`](#log_message).
 
 All of `A_meta`'s methods take an explicit keyword parameter `A_debug`,

@@ -936,7 +936,7 @@ class _deco_base():
         makes string from each, expr = val,
         pass those strs to _log_message.
         :param exprs: exprs to evaluate and log with value
-        :param sep: as for _log_message
+        :param sep: default ', '
         :param extra_indent_level: as for _log_message
         :param prefix_with_name: as for _log_message
         :param prefix: additional text to prepend to output message
@@ -1003,6 +1003,7 @@ class _deco_base():
         # adjust for calls not being logged -- don't indent an extra level
         #  (no 'log_calls frame', no 'arguments:' to align with),
         #  and prefix with display name cuz there's no log_calls "frame"
+        # NOTE, In this case we force "prefix_with_name = True" <<<
         ####if mute == self.MUTE.CALLS:
         if mute >= self.log_message_auto_prefix_threshold():
             extra_indent_level -= 1
