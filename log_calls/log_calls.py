@@ -641,6 +641,8 @@ class _deco_base():
     # constants for the `mute` setting
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     class MUTE():
+        assert False == 0 and True == 1     # a friendly reminder
+
         NOTHING = False     # (default -- all output produced)
         CALLS = True        # (mute output from decorated functions & methods & properties,
                             #  but log_message and thus log_exprs produce output;
@@ -1066,8 +1068,7 @@ class _deco_base():
                                 *  a directory name (dir containing settings file '.' + self.__class__.__name__),
                                 *  or a path to a (text) settings file
         :param more_defaults: keyword params where every key is a "setting".
-                              These override any default settings provided by `settings` if it's nonempty
-        :return:
+                              These override any default settings provided by `settings`
         """
         d = cls._get_settings_dict(settings=settings,
                                    extra_settings_dict=more_defaults)
@@ -1271,7 +1272,7 @@ class _deco_base():
         by classname + '.', AND WHICH MAY CONTAIN WILDCARDS AND
         CHARACTER RANGES (to match or reject). Classname can name
         inner classes & so can contain dots; Wildcards can match dot.
-        Wildcards/chart classes are as in "globs" --
+        Wildcards/char classes are as in "globs" --
         matching is done with fnmatch.fnmatchcase.
 
         :param cls: class being deco'd, some of whose methods/fns
@@ -2474,7 +2475,7 @@ class log_calls(_deco_base):
                  settings=None,     # 0.2.4.post2. A dict or a pathname
                  omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
                  only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
-                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 name='',         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  override=False,    # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  enabled=True,
                  args_sep=', ',

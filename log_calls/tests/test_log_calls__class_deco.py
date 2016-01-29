@@ -129,7 +129,7 @@ main__lc_class_deco__all_method_types.__doc__ = \
 #-----------------------
 # data
 #-----------------------
-@log_calls(indent=True, args_sep='\n', log_call_numbers=True, log_retval=True)
+@log_calls(args_sep='\n', log_call_numbers=True, log_retval=True)
 class D():
     def __init__(self):
         pass
@@ -286,6 +286,58 @@ def main__lc_class_deco__omit_only__basic():
 
 
 #=============================================================================
+# main__lc_class_deco__globs
+#=============================================================================
+def main__lc_class_deco__globs():
+    """
+Wildcard '?':
+
+    >>> @log_calls(only='f_ab?', settings=MINIMAL)
+    ... class X():
+    ...     def f_ab(self): pass
+    ...     def f_abc(self): pass
+    ...     def f_abd(self): pass
+    >>> x = X(); x.f_ab(); x.f_abc(); x.f_abd()
+    X.f_abc <== called by <module>
+    X.f_abd <== called by <module>
+
+Character sets and ranges
+
+Match characters in set:
+
+    >>> @log_calls(only='g_ab[cd]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters in range:
+
+    >>> @log_calls(only='g_ab[a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters not in range
+
+    >>> @log_calls(only='g_ab[!a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_ab7_and_more <== called by <module>
+    """
+    pass
+
+#=============================================================================
 # main__lc_class_deco__omit_only__inner_classes
 #=============================================================================
 def main__lc_class_deco__omit_only__inner_classes():
@@ -342,50 +394,6 @@ Only '*_handler' methods:
     >>> ohi2 = O.I2(); ohi2.another_handler(); ohi2.g2()
     O.I2.another_handler <== called by <module>
 
-Wildcard '?':
-
-    >>> @log_calls(only='f_ab?', settings=MINIMAL)
-    ... class X():
-    ...     def f_ab(self): pass
-    ...     def f_abc(self): pass
-    ...     def f_abd(self): pass
-    >>> x = X(); x.f_ab(); x.f_abc(); x.f_abd()
-    X.f_abc <== called by <module>
-    X.f_abd <== called by <module>
-
-Character sets and ranges
-
-Match characters in set:
-
-    >>> @log_calls(only='g_ab[cd]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_abc_or_something <== called by <module>
-    Y.g_abd_perhaps <== called by <module>
-
-Match characters in range:
-
-    >>> @log_calls(only='g_ab[a-z]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_abc_or_something <== called by <module>
-    Y.g_abd_perhaps <== called by <module>
-
-Match characters not in range
-
-    >>> @log_calls(only='g_ab[!a-z]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_ab7_and_more <== called by <module>
 
 When provided and nonempty, inner `only` overrides outer `only`
 In I1, only g1 is decorated, despite the outer class's `only` specifier:
@@ -750,7 +758,8 @@ propertyname.getter, propertyname.setter, propertyname.deleter
 to refer to methods supplied to the 'property' constructor, which are also
 in the class dictionary.
 
-Empirically: In Python 3.4.2, 'xx' is enumerated before 'setxx' in class XX.
+Empirically: In Python 3.4.2 & probably other versions, 'xx' is enumerated
+before 'setxx' in class XX.
 Without the fixup, these tests would (or, could) fail.
 
 - omit
@@ -816,7 +825,7 @@ def main__lc_class_deco__omitonly_with_property_ctor__property_name_only():
 Same class we test omit='xx.setter' with,
 where `xx` is a property created using `property` constructor,
 and `xx` is enumerated by `cls.__dict__` before `setxx` in Py3.4.2.
-This failed in  prior to handling entire properties
+This failed prior to handling entire properties
 in `_deco_base._add_property_method_names`
 
     >>> @log_calls(omit='xx')
@@ -1129,9 +1138,9 @@ hence this error message:
 
 
 #-----------------------------------------------------------------------------
-# main__test___repr__log_calls_as_functor_applied_to_lambda
+# main__test___repr__log_calls_as_functional_applied_to_lambda
 #-----------------------------------------------------------------------------
-def main__test___repr__log_calls_as_functor_applied_to_lambda():
+def main__test___repr__log_calls_as_functional_applied_to_lambda():
     """
     >>> import math
 
@@ -1154,7 +1163,7 @@ def main__test___repr__log_calls_as_functor_applied_to_lambda():
     ...     def distance(pt1, pt2):
     ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
     ...
-    ...     # `log_calls` as functor applied to lambda
+    ...     # `log_calls` as functional applied to lambda
     ...     length_ = log_calls(log_retval=True)(
     ...         lambda self: self.distance(Point(0, 0), self)
     ...     )
@@ -1187,8 +1196,8 @@ def main__test___repr__log_calls_as_functor_applied_to_lambda():
     pass
 
 # SURGERY:
-main__test___repr__log_calls_as_functor_applied_to_lambda.__doc__ = \
-    main__test___repr__log_calls_as_functor_applied_to_lambda.__doc__.replace("__main__", __name__)
+main__test___repr__log_calls_as_functional_applied_to_lambda.__doc__ = \
+    main__test___repr__log_calls_as_functional_applied_to_lambda.__doc__.replace("__main__", __name__)
 
 #-----------------------------------------------------------------------------
 # main__test__decorate_hierarchy

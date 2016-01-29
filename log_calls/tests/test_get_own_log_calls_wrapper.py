@@ -23,8 +23,8 @@ Class we'll use through this entire set of tests:
     ...         wrapper = self.get_own_log_calls_wrapper()
     ...         wrapper.log_message('Hi')
     ...     def no_deco(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')       # raises ValueError
+    ...         wrapper = self.get_own_log_calls_wrapper()         # raises ValueError
+    ...         wrapper.log_message('Hi')
     ...     @staticmethod
     ...     def statmethod():
     ...         wrapper = B.get_own_log_calls_wrapper()
