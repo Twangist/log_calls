@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0'
+__version__ = '0.3.0v19'
 
 from .deco_settings import DecoSetting, DecoSettingsMapping, DecoSetting_bool
 from .log_calls import _deco_base, DecoSettingHistory
@@ -26,6 +26,7 @@ class record_history(_deco_base):
     # 0.2.6 Fix: use decorator:
     @used_unused_keywords()
     def __init__(self,
+                 settings=None,     # 0.3.0b18 added:  A dict or a pathname
                  omit=tuple(),      # 0.3.0 class deco'ing: omit these methods/inner classes
                  only=tuple(),      # 0.3.0 class deco'ing: decorate only these methods/inner classes (minus any in omit)
                  name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
@@ -42,6 +43,7 @@ class record_history(_deco_base):
                 del used_keywords_dict[kwd]
 
         super().__init__(
+            settings=settings, # 0.3.0b18 added:  A dict or a pathname
             _omit=omit,        # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
             _only=only,        # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (minus omit)
             _name_param=name,  # 0.3.0 name or oldstyle fmt str etc.
