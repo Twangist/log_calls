@@ -22,8 +22,29 @@ Builtins aren't / can't be decorated:
 
     >>> len is log_calls()(len)    # No ""wrapper"" around `len` -- not deco'd
     True
-    >>> len('abc')
+    >>> len('abc')  # Redundant check that `len` isn't deco'd
     3
+
+Similarly,
+
+    >>> dict.update is log_calls()(dict.update)
+    True
+
+Builtin classes aren't deco'd (v0.3.0b20 fix to _add_class_attrs() makes it harmless)
+(Best to have a test for this: fix in `_add_class_attrs` looks for a substring
+in TypeError error message, so be able to detect if that changes.)
+
+None of these three lines raise raise TypeError:
+
+    >>> dict is log_calls(only='update')(dict)
+    True
+    >>> dict is log_calls()(dict)
+    True
+    >>> log_calls.decorate_class(dict, only='update')
+
+    >>> d = dict(x=1, y=2)      # no output, dict.__init__ not deco'd
+    >>> d.update(x=500)         # no output, dict.update not deco'd
+
 
 Objects that are callable by virtue of implementing the `__call__` method
 can't themselves be decorated -- anyway, `log_calls` declines to do so:

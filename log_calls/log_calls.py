@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b19'
+__version__ = '0.3.0b20'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -1653,8 +1653,8 @@ class _deco_base():
             # 0.3.0 -- case "f_or_klass is a class" -- namely, klass
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            self._class__call__(klass)     # modifies klass (methods & inner classes)
-            self._add_class_attrs(klass)
+            self._class__call__(klass)      # modifies klass (methods & inner classes) (if not builtin)
+            self._add_class_attrs(klass)    # v0.3.0v20 traps TypeError for builtins
             return klass
 
         elif not f:
@@ -2037,12 +2037,30 @@ class _deco_base():
             )
 
     def _add_class_attrs(self, klass):
-        # add attribute to klass: key is useful as sentinel, value is this deco
-        setattr(
-            klass,
-            self._sentinels['DECO_OF'],
-            self
-        )
+        """Add attribute(s) to klass: key is useful as sentinel, value is this deco
+
+        v0.3.0b20 - trap builtin/extension type failure
+            TypeError: can't set attributes of built-in/extension type 'dict'
+        """
+        # It's only necessary to trap builtin failure for the first `setattr`
+        try:
+            setattr(
+                klass,
+                self._sentinels['DECO_OF'],
+                self
+            )
+        except TypeError as e:
+            # TODO -- this is fragile (if errormessage changes)
+            # TODO -- create a test for this situation
+            # E.g.  log_calls(only='update')(dict)
+            # or    decorate_class(dict, only='update')
+
+            errmsg = "can't set attributes of built-in/extension type"
+            if errmsg in str(e):
+                return
+
+        # klass is not a builtin or extension type
+
         # Make it easy for user to find the log_calls wrapper of a method,
         # given its name, via `get_log_calls_wrapper(fname)`
         # or `get_record_history_wrapper(fname)`
@@ -2168,7 +2186,7 @@ class _deco_base():
         return call_list, prev_indent_level
 
     @classmethod
-    def decorate_hierarchy(cls, baseclass: type, **setting_kwds):
+    def decorate_hierarchy(cls, baseclass: type, **setting_kwds) -> None:
         """Decorate baseclass and, recursively, all of its descendants.
         If any subclasses are directly decorated, their explicitly given setting_kwds,
         EXCEPT `omit` and `only`, override those in `setting_kwds` UNLESS 'override=True'
@@ -2177,7 +2195,7 @@ class _deco_base():
         cls.decorate_class(baseclass, decorate_subclasses=True, **setting_kwds)
 
     @classmethod
-    def decorate_class(cls, klass: type, decorate_subclasses=False, **setting_kwds):
+    def decorate_class(cls, klass: type, decorate_subclasses=False, **setting_kwds) -> None:
         """Decorate klass and, optionally, all of its descendants recursively.
        (If decorate_subclasses == True, and if any subclasses are decorated,
        their explicitly given setting_kwds, EXCEPT `omit` and `only`,
@@ -2204,7 +2222,7 @@ class _deco_base():
     # TODO docstring, docs
 
     @classmethod
-    def decorate_package_function(cls, f: 'Callable', **setting_kwds):
+    def decorate_package_function(cls, f: 'Callable', **setting_kwds) -> None:
         """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
         replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
         of the module of ``f``.
@@ -2257,7 +2275,7 @@ class _deco_base():
         namespace[f.__name__] = f_deco
 
     @classmethod
-    def decorate_module_function(cls, f: 'Callable', **setting_kwds):
+    def decorate_module_function(cls, f: 'Callable', **setting_kwds) -> None:
         """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
         replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
         of the module of ``f``.
@@ -2271,7 +2289,7 @@ class _deco_base():
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
     @classmethod
-    def decorate_function(cls, f: 'Callable', **setting_kwds):
+    def decorate_function(cls, f: 'Callable', **setting_kwds) -> None:
         """Wrap f with decorator `cls` using settings, replace definition of f.__name__
         with that decorated function in the global namespace OF THE CALLER.
 
@@ -2290,7 +2308,7 @@ class _deco_base():
     @classmethod
     def decorate_module(cls, mod: 'module',
                         functions=True, classes=True,
-                        **setting_kwds):
+                        **setting_kwds) -> None:
         """
         Can't decorate builtins, attempting
             log_calls.decorate_class(dict, only='update')
