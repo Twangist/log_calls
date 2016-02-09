@@ -2228,7 +2228,7 @@ class _deco_base():
         of the module of ``f``.
 
         :param cls: decorator class e.g. log_calls
-        :param f: a function object, qualified with module, e.g. mymodule.myfunc,
+        :param f: a function object, qualified with package, e.g. mypackage.myfunc,
                   however it would be referred to in code at the point of a call to `decorate_package_function`.
         :param setting_kwds: settings for decorator
 

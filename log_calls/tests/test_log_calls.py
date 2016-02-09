@@ -1012,13 +1012,13 @@ but using `as_dict()` is sufficient):
                  ('mute', False),
                  ('record_history', False),   ('max_history', 0)])
 
-change settings temporarily:
+Change settings temporarily:
 
     >>> f.log_calls_settings.update(
     ...     log_args=False, log_elapsed=True, log_call_numbers=True,
     ...     log_retval=True)
 
-use the new settings for `f`:
+Use the new settings for `f`:
 
     >>> _ = f()                     # doctest: +ELLIPSIS
     f [4] <== called by <module>
@@ -1026,7 +1026,7 @@ use the new settings for `f`:
         elapsed time: ... [secs], process time: ... [secs]
     f [4] ==> returning to <module>
 
-and restore original settings, this time passing the retrieved settings
+Now restore original settings, this time passing the retrieved settings
 dictionary rather than keywords:
 
     >>> f.log_calls_settings.update(od)
@@ -1770,26 +1770,19 @@ Now set logger level to `INFO` –
 # A_meta, a metaclass
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 from collections import OrderedDict
-
 separator = '\n'    # default ', ' gives rather long lines
 
+A_DBG_NONE = 0
 A_DBG_BASIC = 1
 A_DBG_INTERNAL = 2
-
-# Demonstrates a few techniques:
-#       * How to get at log_calls_settings methods for a (meta)method
-#         from inside that method, using get_own_log_calls_wrapper(),
-#       * Use of the log_message(msg) method,
-#         which handles global indentation for you.
-#         Useful for verbose debugees that want their blather to align nicely
-
 
 @log_calls(args_sep=separator, enabled='A_debug=')
 class A_meta(type):
     @classmethod
     @log_calls(log_retval=True)
-    def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
+    def __prepare__(mcs, cls_name, bases, **kwargs):
         super_dict = super().__prepare__(cls_name, bases, **kwargs)
+        A_debug = kwargs.pop('A_debug', A_DBG_NONE)
         if A_debug >= A_DBG_INTERNAL:
             logging_fn = mcs.get_own_log_calls_wrapper().log_message
             logging_fn("    mro =", mcs.__mro__)
@@ -1798,14 +1791,16 @@ class A_meta(type):
         super_dict['key-from-__prepare__'] = 1729
         return super_dict
 
-    def __new__(mcs, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
+    def __new__(mcs, cls_name, bases, cls_members: dict, **kwargs):
         cls_members['key-from-__new__'] = "No, Hardy!"
+        A_debug = kwargs.pop('A_debug', A_DBG_NONE)
         if A_debug >= A_DBG_INTERNAL:
             logging_fn = mcs.get_own_log_calls_wrapper().log_message
             logging_fn("    calling super() with cls_members =", cls_members)
         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
 
-    def __init__(cls, cls_name, bases, cls_members: dict, *, A_debug=0, **kwargs):
+    def __init__(cls, cls_name, bases, cls_members: dict, **kwargs):
+        A_debug = kwargs.pop('A_debug', A_DBG_NONE)
         if A_debug >= A_DBG_INTERNAL:
             logging_fn = cls.get_own_log_calls_wrapper().log_message
             logging_fn("    cls.__mro__:", cls.__mro__)
@@ -1819,74 +1814,87 @@ class A_meta(type):
             type.__init__(cls, cls_name, bases, cls_members)
 
 
-
 def main__metaclass_example():
     """
 ##[A metaclass example](id:A-metaclass-example)
 
-The class `A_meta` is a metaclass: it derives from `type`,
-and defines (overrides) methods `__prepare__`, `__new__` and `__init__`.
-All of these `log_calls`-decorated methods access their `log_calls` wrapper,
-in order to write their messages using
-[the indent-aware method `log_message`](#log_message).
+The class ``A_meta`` is a metaclass: it derives from ``type``,
+and defines (overrides) methods ``__prepare__``, ``__new__`` and ``__init__``.
+As described in :ref:`log_message_in_class`, all of these `log_calls`-decorated methods
+access their `log_calls` wrapper, so that they can write their messages using the indent-aware
+function :ref:`log_message <log_message_method>`.
 
-All of `A_meta`'s methods take an explicit keyword parameter `A_debug`,
-used as the indirect value of the `log_calls` keyword parameter `enabled`.
-The methods treat it as an integer verbosity level: they write extra messages
-when the value of their parameter `A_debug` is above `A_DBG_INTERNAL`.
-When we include `A_debug=A_DBG_INTERNAL` as a keyword argument to a class that
-uses `A_meta` as its metaclass, that argument gets passed to all of
-`A_meta`'s methods, so not only will calls to them be logged, but those methods
-will also print extra debugging information:
+All of ``A_meta``'s methods look for an implicit keyword parameter ``A_debug``,
+used as the indirect value of the `log_calls` parameter ``enabled``.
+The methods treat its value as an integer verbosity level: they write extra messages
+when the value of ``A_debug`` is at least ``A_DBG_INTERNAL``.
+
+Rather than make ``A_debug`` an explicit keyword parameter of the metaclass methods,
+as in::
+
+    def __prepare__(mcs, cls_name, bases, *, A_debug=0, **kwargs):
+
+instead we have left their signatures agnostic. If ``A_debug`` has been passed
+by a class definition (as below), the methods use the passed value, and remove
+``A_debug`` from ``kwargs``; otherwise they use a default value ``A_DBG_NONE``,
+which is less than their threshold value for writing debug messages.
+
+When we include ``A_debug=A_DBG_INTERNAL`` as a keyword argument to a class that
+uses ``A_meta`` as its metaclass, that argument gets passed to all of
+``A_meta``'s methods, so not only will calls to the metaclass methods be logged,
+but those methods will also print extra debugging information:
 
     >>> class A(metaclass=A_meta, A_debug=A_DBG_INTERNAL):    # doctest: +NORMALIZE_WHITESPACE
     ...     pass
     A_meta.__prepare__ <== called by <module>
         arguments:
-            mcs=<class '__main__.A_meta'>
+            mcs=<class 'test_log_calls.A_meta'>
             cls_name='A'
             bases=()
-            A_debug=2
-        mro = (<class '__main__.A_meta'>, <class 'type'>, <class 'object'>)
-        dict from super() = {}
+            **kwargs={'A_debug': 2}
+            mro = (<class 'test_log_calls.A_meta'>, <class 'type'>, <class 'object'>)
+            dict from super() = {}
         A_meta.__prepare__ return value: OrderedDict([('key-from-__prepare__', 1729)])
     A_meta.__prepare__ ==> returning to <module>
     A_meta.__new__ <== called by <module>
         arguments:
-            mcs=<class '__main__.A_meta'>
+            mcs=<class 'test_log_calls.A_meta'>
             cls_name='A'
             bases=()
             cls_members=OrderedDict([('key-from-__prepare__', 1729),
-                                     ('__module__', '__main__'),
+                                     ('__module__', 'test_log_calls'),
                                      ('__qualname__', 'A')])
-            A_debug=2
-        calling super() with cls_members = OrderedDict([('key-from-__prepare__', 1729),
-                                                        ('__module__', '__main__'),
-                                                        ('__qualname__', 'A'),
-                                                        ('key-from-__new__', 'No, Hardy!')])
+            **kwargs={'A_debug': 2}
+            calling super() with cls_members = OrderedDict([('key-from-__prepare__', 1729),
+                                                            ('__module__', 'test_log_calls'),
+                                                            ('__qualname__', 'A'),
+                                                            ('key-from-__new__', 'No, Hardy!')])
     A_meta.__new__ ==> returning to <module>
     A_meta.__init__ <== called by <module>
         arguments:
-            cls=<class '__main__.A'>
+            cls=<class 'test_log_calls.A'>
             cls_name='A'
             bases=()
             cls_members=OrderedDict([('key-from-__prepare__', 1729),
-                                     ('__module__', '__main__'),
+                                     ('__module__', 'test_log_calls'),
                                      ('__qualname__', 'A'),
                                      ('key-from-__new__', 'No, Hardy!')])
-            A_debug=2
-        cls.__mro__: (<class '__main__.A'>, <class 'object'>)
-        type(cls).__mro__[1] = <class 'type'>
+            **kwargs={'A_debug': 2}
+            cls.__mro__: (<class 'test_log_calls.A'>, <class 'object'>)
+            type(cls).__mro__[1] = <class 'type'>
     A_meta.__init__ ==> returning to <module>
 
 If we had passed `A_debug=A_DBG_BASIC`, then only `log_calls` output would have
 been printed: the metaclass methods would not have printed their extra debugging
 statements.
 
-If we pass `A_debug=0` (or omit it), we get no printed output at all either from
+If we pass `A_debug=0` (or omit it), we get no printed output at all, either from
 `log_calls` or from `A_meta`'s methods:
 
-    >>> class AA(metaclass=A_meta, A_debug=0):    # no output
+    >>> class AA(metaclass=A_meta, A_debug=False):  # no output
+    ...     pass
+
+    >>> class AAA(metaclass=A_meta):                # no output
     ...     pass
     """
 
