@@ -26,11 +26,6 @@ log_calls
         Probably NOT, but think about it.
 
 
-DOC
-------
-
-
-
 
 ==============
 TESTS
