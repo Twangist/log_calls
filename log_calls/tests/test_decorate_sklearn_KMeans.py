@@ -36,7 +36,7 @@ First, let's see the call hierarchy:
         KMeans.fit ==> returning to KMeans.fit_predict
     KMeans.fit_predict ==> returning to <module>
 
-`MiniBatchKMeans` is a subclass of `KMeans` so that class is decorated too.
+`MiniBatchKMeans` is a subclass of `KMeans`, so that class is decorated too.
 
     >>> mbk = MiniBatchKMeans(init='k-means++', n_clusters=2, batch_size=45,
     ...                       n_init=10, max_no_improvement=10)

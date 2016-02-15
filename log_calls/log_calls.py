@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b22'
+__version__ = '0.3.0b23'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -23,6 +23,9 @@ import io   # so we can refer to io.TextIOBase
 import time
 import datetime
 from collections import namedtuple, deque, OrderedDict
+
+# 0.3.0b23
+from reprlib import recursive_repr
 
 import fnmatch  # 0.3.0 for omit, only
 
@@ -214,20 +217,9 @@ class DecoSettingArgs(DecoSetting_bool):
                 if id(val) in ids_objs_in_progress:
                     arg_eq_val_str = '%s=%s' % (arg, object.__repr__(val))
                 else:
-                    #### Note, formerly:
+                    #### Note, the '%r' can trigger indiectly recursive __repr__ calls,
+                    ####  .    which is why we use now reprlib.recursive_repr (v0.3.0b23) :
                     arg_eq_val_str = '%s=%r' % pair
-
-                    #### .  v0.3.0b18 BEGIN Guard against recursive reprs
-
-                    # f = my_recursive_repr()       # f == decorating_function
-                    # method_wrapper = getattr(val, '__repr__')
-                    # g = f(method_wrapper)   # g == decorating_function(user_function)
-                    #                         #   == wrapper(self)
-                    # safe_repr_p1 = g(val)
-                    #
-                    # format_str = '%s=%r' if isinstance(val, str) else '%s=%s'
-                    # arg_eq_val_str = format_str % (arg, safe_repr_p1)
-                    # #### .  v0.3.0b18 END.
 
                 arg_eq_val_strs.append(arg_eq_val_str)
 
@@ -1712,9 +1704,11 @@ class _deco_base():
                 # print("%s has no qualname: %s" % (f, str(e)))     # <<<<<<<<< TODO DELETE DEBUG; don't deco???
                 self._classname_of_f = ''
 
-            # Refuse to decorate '__repr__' if deco subclass doesn't allow it.
+            # Special-case '__repr__' handling, if deco subclass doesn't allow it.
             if f.__name__ == '__repr__' and self._classname_of_f and not self.allow_repr():
-                return f
+                # v0.3.0b23 -- Instead of refusing to deco, use recursive_repr
+                # return f
+                return recursive_repr(fillvalue="...")(f)
 
             # 0.3.0
             # Use __qualname__ ALL the time, unless user provides `name=display_name_str`

@@ -1189,7 +1189,9 @@ def main__test___repr__log_calls_as_functional_applied_to_lambda():
     Point.<lambda> ==> returning to <module>
     p.length_() = 2.236...
 
-`log_calls` does not decorate `__repr__`:
+`log_calls` does not decorate `__repr__` (anyway, not with itself!
+It deco's it with reprlib.recursive_repr):
+
     >>> hasattr(p.__repr__, 'log_calls_settings')
     False
     """
