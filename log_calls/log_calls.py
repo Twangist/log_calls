@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b21'
+__version__ = '0.3.0b22'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -1994,6 +1994,10 @@ class _deco_base():
                     if logging_fn:
                         for msg in post_msgs:
                             self._log_message(msg, extra_indent_level=0)
+                # v0.3.0b22 -- if recording history, add record of call even if we're muted(!)
+                elif _get_final_value('record_history'):
+                    info = self._settings_mapping._get_DecoSetting('record_history')
+                    _ = info.post_call_handler(context)
 
                 self._logging_state_pop(enabled_too=True)
 
