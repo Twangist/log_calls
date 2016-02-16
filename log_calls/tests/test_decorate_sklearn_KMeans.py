@@ -105,13 +105,19 @@ Now let's view arguments too:
 ##############################################################################
 # end of tests.
 ##############################################################################
-import doctest
-
-# For unittest integration
-def load_tests(loader, tests, ignore):
-    tests.addTests(doctest.DocTestSuite())
-    return tests
 
 if __name__ == '__main__':
-    doctest.testmod()
+    try:
+        import sklearn
+    except ImportError:
+        pass
+    else:
+        # For unittest integration
+        def load_tests(loader, tests, ignore):
+            tests.addTests(doctest.DocTestSuite())
+            return tests
+
+        import doctest
+        doctest.testmod()
+
 

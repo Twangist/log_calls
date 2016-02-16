@@ -4,17 +4,7 @@ __author__ = 'brianoneill'
 NOT included in test suite as it messes up the other sklearn tests if/when it runs first.
 """
 
-try:
-    import sklearn
-except ImportError:
-    exit(0)
-
-from sklearn.cluster import KMeans, MiniBatchKMeans
-from sklearn.datasets import make_blobs
-
 from log_calls import log_calls
-
-import doctest
 
 ##############################################################################
 # doctests
@@ -22,6 +12,9 @@ import doctest
 
 def test_decorate_module_sklearn():
     """
+    >>> from sklearn.cluster import KMeans, MiniBatchKMeans
+    >>> from sklearn.datasets import make_blobs
+
     >>> n_samples = 10
     >>> random_state = 170
     >>> X, y = make_blobs(n_samples=n_samples, random_state=random_state)
@@ -393,11 +386,17 @@ def test_decorate_module_sklearn():
 
 ##############################################################################
 
-# # For unittest integration
-# def load_tests(loader, tests, ignore):
-#     tests.addTests(doctest.DocTestSuite())
-#     return tests
-
 if __name__ == '__main__':
-    doctest.testmod()
 
+    try:
+        import sklearn
+    except ImportError:
+        pass
+    else:
+        # For unittest integration
+        def load_tests(loader, tests, ignore):
+            tests.addTests(doctest.DocTestSuite())
+            return tests
+
+        import doctest
+        doctest.testmod()

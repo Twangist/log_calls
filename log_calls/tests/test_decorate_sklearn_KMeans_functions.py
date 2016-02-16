@@ -144,70 +144,17 @@ Call via module -- OUTPUT TOO now :D:D:D :
 ##############################################################################
 import doctest
 
-# For unittest integration
-def load_tests(loader, tests, ignore):
-    tests.addTests(doctest.DocTestSuite())
-    return tests
-
 if __name__ == '__main__':
-    doctest.testmod()
+    try:
+        import sklearn
+    except ImportError:
+        pass
+    else:
+        # For unittest integration
+        def load_tests(loader, tests, ignore):
+            tests.addTests(doctest.DocTestSuite())
+            return tests
 
-    # from sklearn.datasets import make_blobs
-    # n_samples = 1500
-    # random_state = 170
-    # X, y = make_blobs(n_samples=n_samples, random_state=random_state)
-    #
-    # # import log_calls as log_calls_mod
-    # from log_calls import log_calls
-    # # print(type(log_calls))  # <class 'type'>
+        import doctest
+        doctest.testmod()
 
-    ## (C)
-    ## Now try `decorate_module`
-    ## *  create a `KMeans` obj
-    ## *  call `fit_predict` on it
-    #### THIS DOESN'T WORK --- blows up one way or the other,
-    ####                   --- without 'omit=', and with 'omit='
-    #### import sklearn.cluster
-    #### # log_calls.decorate_module(sklearn.cluster)
-    #### log_calls.decorate_module(sklearn.cluster.k_means_,
-    ####                           omit=['get_params']
-    ####                          )
-    ####
-    #### kmeans_obj = sklearn.cluster.k_means_.KMeans(
-    ####                         n_clusters=2, random_state=random_state, n_init=10)
-    #### y_pred = kmeans_obj.fit_predict(X)
-
-    # ## (-1)
-    # import log_calls.tests as pkg
-    # log_calls.decorate_package_function(pkg.f, log_retval=True)
-    # log_calls.decorate_package_function(pkg.g, log_retval=True)
-    # pkg.f(2,3)
-    # # Works for (both f and g) now that we replace the fn with its deco'd wrapper
-    # # in the dicts of **both** the module and the package.
-    # '''
-    # f <== called by <module>
-    #     arguments: a=2, b=3
-    #     g <== called by f
-    #         arguments: a=2, b=3
-    #         g return value: 6
-    #     g ==> returning to f
-    #     f return value: 16
-    # f ==> returning to <module>
-    # '''
-    # ## (0)
-    # ## Try using log_calls.decorate_package_function with a function specified by module
-    # ## TODO  Doesn't work (correctly) -- no output:
-    # import log_calls.tests.some_module as mod
-    # log_calls.decorate_module_function(mod.f, log_retval=True)
-    # log_calls.decorate_module_function(mod.g, log_retval=True)
-    # mod.f(2,3)
-    # '''
-    # f <== called by <module>
-    #     arguments: a=2, b=3
-    #     g <== called by f
-    #         arguments: a=2, b=3
-    #         g return value: 6
-    #     g ==> returning to f
-    #     f return value: 16
-    # f ==> returning to <module>
-    # '''
