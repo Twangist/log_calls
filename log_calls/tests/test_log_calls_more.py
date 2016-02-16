@@ -10,7 +10,7 @@ Four tests changed because of a Python bug fixed in 3.5:
     and printed the repr of dict if the output would be wrapped.
 
 The four tests all did
-    pprint.pprint(f.log_calls_settings.as_OrderedDict())
+    pprint.pprint(f.log_calls_settings.as_OD())
 and expected the output to be multiline & so plain dicts.
 Rather than have separate tests for different versions
 of Python, we just changed the tests to test for equality
@@ -454,7 +454,7 @@ for the decorator.
 
 Verify the settings:
 
-    >>> f.log_calls_settings.as_OrderedDict() == {
+    >>> f.log_calls_settings.as_OD() == {
     ...     'enabled': 1,
     ...     'args_sep': ' / ',
     ...     'log_args': True,
@@ -513,7 +513,7 @@ and again, we assume that the current directory is `log_calls/tests`.
     ...     return 2 * m * n
 
 Let's examine the settings.
-    >>> od = g.log_calls_settings.as_OrderedDict()
+    >>> od = g.log_calls_settings.as_OD()
 
 We have to step carefully around the 'file' setting, to be able to doctest '`od`.
     >>> od['file']
@@ -601,7 +601,7 @@ Let's use this troubled settings file and examine the resulting settings:
     >>> @log_calls(settings='./bad-settings.txt')
     ... def qq(j, k):
     ...     return (j+1) * (k+1)
-    >>> qq.log_calls_settings.as_OrderedDict() == {
+    >>> qq.log_calls_settings.as_OD() == {
     ...     'enabled': True,
     ...     'args_sep': ', ',
     ...     'log_args': True,
@@ -642,7 +642,7 @@ Now let's test `settings` as a dict:
 
 Verify that `f`'s settings are as expected:
 
-    >>> f.log_calls_settings.as_OrderedDict() == {
+    >>> f.log_calls_settings.as_OD() == {
     ...     'enabled': 2,
     ...     'args_sep': ' / ',
     ...     'log_args': True,

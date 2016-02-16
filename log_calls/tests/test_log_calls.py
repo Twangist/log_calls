@@ -978,7 +978,7 @@ But the new attribute still isn't a decorator setting:
     >>> 'new_attr' in f.log_calls_settings
     False
 
-### The *update()*, *as_OrderedDict()* and *as_dict()* methods
+### The *update()*, *as_OD()* and *as_dict()* methods
 The `log_calls_settings` object provides an `update()` method so that
 you can update several settings at once:
 
@@ -991,7 +991,7 @@ you can update several settings at once:
     f ==> returning to <module>
 
 You can retrieve the entire collection of settings as either an `OrderedDict`
-using the `as_OrderedDict()` method, or as a `dict` using `as_dict()`.
+using the `as_OD()` method, or as a `dict` using `as_dict()`.
 Either can serve as a snapshot of the settings, so that you can change settings
 temporarily, use the new settings, and then restore settings from the snapshot.
 in addition to taking keyword arguments, as shown above, the `update()` method
@@ -1001,7 +1001,7 @@ the `as_*` methods. For example:
 Retrieve settings (here, as an `OrderedDict` because it's more doctest-friendly,
 but using `as_dict()` is sufficient):
 
-    >>> od = f.log_calls_settings.as_OrderedDict()
+    >>> od = f.log_calls_settings.as_OD()
     >>> od                      # doctest: +NORMALIZE_WHITESPACE
     OrderedDict([('enabled', True),           ('args_sep', ', '),
                  ('log_args', True),          ('log_retval', False),
@@ -1030,8 +1030,18 @@ Now restore original settings, this time passing the retrieved settings
 dictionary rather than keywords:
 
     >>> f.log_calls_settings.update(od)
-    >>> od == f.log_calls_settings.as_OrderedDict()
+    >>> od == f.log_calls_settings.as_OD()
     True
+
+--------
+You can also update with `log_calls.get_defaults_OD()`:
+
+    >>> f.log_calls_settings.update(log_calls.get_defaults_OD())
+    >>> f.log_calls_settings.as_OD() == log_calls.get_defaults_OD()
+    True
+
+or even with `log_calls.get_factory_defaults_OD()`, though that will be the same `OrderedDict`
+as `log_calls.get_defaults_OD()` unless you have changed defaults using `log_calls.set_defaults(...)`.
 
 **NOTES**:
 

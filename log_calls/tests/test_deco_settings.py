@@ -95,23 +95,24 @@ class TestDecoSetting(TestCase):
 
     def test___repr__1(self):
         plain_repr = "DecoSetting('set_once', int, 15, allow_falsy=True, " \
-                     "allow_indirect=True, mutable=False, visible=True, pseudo_setting=False)"
+                     "allow_indirect=True, mutable=False, visible=True, pseudo_setting=False, indirect_default=15)"
         self.assertEqual(repr(self.info_plain), plain_repr)
 
     def test___repr__2(self):
         hidden_repr = "DecoSetting('hidden', bool, True, allow_falsy=True, " \
-                      "allow_indirect=False, mutable=True, visible=False, pseudo_setting=False)"
+                      "allow_indirect=False, mutable=True, visible=False, pseudo_setting=False, indirect_default=True)"
         self.assertEqual(repr(self.hidden), hidden_repr)
 
     def test___repr__3(self):
         twotype_repr = "DecoSetting('twotype', (Logger, str), None, allow_falsy=True, " \
-                      "allow_indirect=True, mutable=True, visible=True, pseudo_setting=False)"
+                      "allow_indirect=True, mutable=True, visible=True, pseudo_setting=False, indirect_default=None)"
         self.assertEqual(repr(self.twotype), twotype_repr)
 
     def test___repr__4(self):
         ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), " \
                    "allow_falsy=True, allow_indirect=False, " \
                    "mutable=True, visible=True, pseudo_setting=False, " \
+                   "indirect_default=('Joe', 'Schmoe'), " \
                    "extra1='Tom', extra2='Dick', extra3='Harry')"
         self.assertEqual(repr(self.info_extended), ext_repr)
 
@@ -128,7 +129,7 @@ class TestDecoSettingsMapping(TestCase):
     @classmethod
     def setUpClass(cls):
         cls._settings = (
-            DecoSettingEnabled('enabled'),
+            DecoSettingEnabled('enabled', indirect_default=False),
             DecoSetting('folderol',         str,            '',            allow_falsy=True,  allow_indirect=False),
             DecoSetting('my_setting',       str,            'on',          allow_falsy=False, allow_indirect=True),
             DecoSetting('your_setting',     str,            'off',         allow_falsy=False, allow_indirect=False,
@@ -184,11 +185,16 @@ class TestDecoSettingsMapping(TestCase):
         settings_repr = """
             DecoSettingsMapping.register_class_settings(
                 TestDecoSettingsMapping,
-                [DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True, visible=True, pseudo_setting=False),
-                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True, pseudo_setting=False),
-                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True, pseudo_setting=False),
-                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True, pseudo_setting=False),
-                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False, pseudo_setting=False)
+                [DecoSetting('enabled', int, True, allow_falsy=True, allow_indirect=True, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default=False),
+                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default=''),
+                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default='on'),
+                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True,
+                             pseudo_setting=False, indirect_default='off'),
+                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False,
+                             pseudo_setting=False, indirect_default=False)
             ])
         """
         self.assertEqual(
@@ -436,10 +442,10 @@ class TestDecoSettingsMapping(TestCase):
             history=True
         )
 
-    def test_as_OrderedDict(self):
+    def test_as_OD(self):
         self.assertDictEqual(
             OrderedDict([('enabled', True), ('folderol', 'bar'), ('my_setting', 'eek'), ('your_setting', 'Howdy')]),
-            self._settings_mapping.as_OrderedDict()
+            self._settings_mapping.as_OD()
         )
 
     def test_as_dict(self):
@@ -499,7 +505,7 @@ class TestDecoSettingsMapping_set_reset_defaults(TestCase):
     @classmethod
     def setUpClass(cls):
         cls._settings = (
-            DecoSettingEnabled('enabled'),
+            DecoSettingEnabled('enabled', indirect_default=False),
             DecoSetting('number',          (str, int),     '12',          allow_falsy=True,  allow_indirect=False),
             DecoSetting('my_logger',       (str, logging.Logger), 'nix',  allow_falsy=False, allow_indirect=True),
             DecoSetting('your_setting',    str,            'off',         allow_falsy=False, allow_indirect=False,
@@ -559,7 +565,7 @@ class TestDecoSettingsMapping_set_reset_defaults(TestCase):
 
         # reset, see that defaults are correct
         DecoSettingsMapping.reset_defaults(clsname)
-        self.assertEqual(settings_map['enabled'].default, False)      # the default for DecoSettingEnabled
+        self.assertEqual(settings_map['enabled'].default, True)      # the default for DecoSettingEnabled
         self.assertEqual(settings_map['number'].default, '12')
         self.assertEqual(settings_map['my_logger'].default, 'nix')
         self.assertEqual(settings_map['your_setting'].default, 'off')

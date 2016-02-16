@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b23'
+__version__ = '0.3.0b25'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -42,7 +42,6 @@ from .used_unused_kwds import used_unused_keywords
 
 __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 
-
 #-----------------------------------------------------------------------------
 # DecoSetting subclasses with pre-call handlers.
 # The `context` arg for pre_call_handler methods has these keys:
@@ -68,26 +67,20 @@ __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 #     implicit_kwargs
 #-----------------------------------------------------------------------------
 
-# TODO 0.3.x, possible `context` setting:  - - - - - - - - - - - - - - - - - -
-# todo  context key/vals that might be of interest to wrapped functions:
-#     settings
-#     stats
-#     explicit_kwargs
-#     defaulted_kwargs
-#     implicit_kwargs   # ??? maybe
-#     call_list
 # Note: stats (data) attributes are all r/o (but method clear_history isn't!),
-#         so wrapped function can't trash 'em;
-#       settings - could pass settings.as_dict();
-#       the rest (*_kwargs, call_list) could be mucked with,
-#         so we'd have to deepcopy() to prevent that.
-#       OR just document that wrapped functions shouldn't write to these values,
-#          as they're "live" and altering them could cause confusion/chaos/weirdness/crashes.
-#end TODO. - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  .       so wrapped function can't trash 'em;
+#  .     settings - could pass settings.as_dict();
+#  .     the rest (*_kwargs, call_list) could be mucked with,
+#  .       so we'd have to deepcopy() to prevent that.
+#  .     OR just document that wrapped functions shouldn't write to these values,
+#  .        as they're "live" and altering them could cause confusion/chaos/weirdness/crashes.
 
 class DecoSettingEnabled(DecoSetting_int):
     def __init__(self, name, **kwargs):
-        super().__init__(name, int, False, allow_falsy=True, **kwargs)
+        # v0.3.0b25 Let's try default=True, see what tests break.
+        #           It sucks having the real default be False.
+        # super().__init__(name, int, False, allow_falsy=True, **kwargs)
+        super().__init__(name, int, True, allow_falsy=True, **kwargs)
 
     def pre_call_handler(self, context):
         return ("%s <== called by %s"
@@ -1593,14 +1586,6 @@ class _deco_base():
                                       override_existing=self._override)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
                 deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
-# NOTE, 0.3.0b18 EXPERIMENT
-# INSTEAD, :
-#                 changed_settings = deco_obj._changed_settings.copy()
-#                 changed_settings.update(new_settings)
-#                 # update func's settings (_force_mutable=True to handle `max_history` properly)
-#                 deco_obj._settings_mapping.update(changed_settings, _force_mutable=True)
-# end NOTE, 0.3.0b18 EXPERIMENT
-
             else:
                 # func is not deco'd.
                 # decorate it, using self._changed_settings
@@ -2472,7 +2457,8 @@ class log_calls(_deco_base):
 
     # allow indirection for all except prefix and max_history, which also isn't mutable
     _setting_info_list = (
-        DecoSettingEnabled('enabled'),
+        # indirect_default='False': a user attr which constructor knows about
+        DecoSettingEnabled('enabled', indirect_default=False),
         DecoSetting_str('args_sep',          str,            ', ',          allow_falsy=False),
         DecoSettingArgs('log_args'),
         DecoSettingRetval('log_retval'),

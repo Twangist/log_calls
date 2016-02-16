@@ -35,20 +35,19 @@ def test_global_settings():
                  ('file', None),       ('logger', None),           ('loglevel', 10),
                  ('mute', False),      ('record_history', False),  ('max_history', 0)])
 
-Test new log_calls.get_defaults_OD()
+0.3.0b25 -- Test new log_calls.get_defaults_OD()
 
-    >>> # TODO TODO TODO: ``enabled`` is False <<<<<<<<<<<<<<
     >>> log_calls.get_defaults_OD()         # doctest: +NORMALIZE_WHITESPACE
-    OrderedDict([('enabled', False),    ('args_sep', ' $ '),         ('log_args', True),
+    OrderedDict([('enabled', True),     ('args_sep', ' $ '),         ('log_args', True),
                  ('log_retval', True),  ('log_elapsed', False),      ('log_exit', False),
                  ('indent', True),      ('log_call_numbers', True),  ('prefix', ''),
                  ('file', None),        ('logger', None),            ('loglevel', 10),
                  ('mute', False),       ('record_history', False),   ('max_history', 0)])
 
-Test new log_calls.get_factory_defaults_OD()
-    >>> # TODO TODO TODO: ``enabled`` is False <<<<<<<<<<<<<<
+0.3.0b25 -- Test new log_calls.get_factory_defaults_OD()
+
     >>> log_calls.get_factory_defaults_OD() # doctest: +NORMALIZE_WHITESPACE
-    OrderedDict([('enabled', False),    ('args_sep', ', '),          ('log_args', True),
+    OrderedDict([('enabled', True),     ('args_sep', ', '),          ('log_args', True),
                  ('log_retval', False), ('log_elapsed', False),      ('log_exit', True),
                  ('indent', True),      ('log_call_numbers', False), ('prefix', ''),
                  ('file', None),        ('logger', None),            ('loglevel', 10),

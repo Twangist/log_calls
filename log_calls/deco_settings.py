@@ -66,6 +66,12 @@ __all__ = ['DecoSetting', 'DecoSettingsMapping']
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
                          sans any value.
+
+    v0.3.0b25
+    indirect_default: a user attribute which this constructor knows about.
+    If present in kwargs, use the value there; o/w use .default.
+    This is the latest take on how to handle missing indirect value of "enabled".
+
     Callers can add additional fields by passing additional keyword args.
     The additional fields/keys & values are made attributes of this object,
     and a (sorted) list of the keys is saved (_user_attrs).
@@ -122,6 +128,9 @@ class DecoSetting():
         self.visible = visible
         self.pseudo_setting = pseudo_setting    # v0.3.0b24
 
+        # v0.3.0b25
+        self.indirect_default = more_attributes.pop('indirect_default', self.default)
+
         # we need to write fields in repr the same way every time,
         # so even though more_attributes isn't ordered,
         # we need to pick an order & stick to it
@@ -134,10 +143,11 @@ class DecoSetting():
         else:                                       # it's a type
             final_type = self.final_type.__name__
         #default = self.default if final_type != 'str' else repr(self.default)
-        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s, visible=%s, pseudo_setting=%s"
+        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, "
+                  "mutable=%s, visible=%s, pseudo_setting=%r, indirect_default=%r"
                   %
-                  (self.name, final_type, self.default,
-                   self.allow_falsy, self.allow_indirect, self.mutable, self.visible, self.pseudo_setting)
+                  (self.name, final_type, self.default, self.allow_falsy, self.allow_indirect,
+                   self.mutable, self.visible, self.pseudo_setting, self.indirect_default)
         )
         # append user attrs
         for attr in self._user_attrs:
@@ -533,7 +543,7 @@ class DecoSettingsMapping():
                 "    ** %s\n"
                 ")") % \
                (self.deco_class.__name__,
-                pprint.pformat(self.as_OrderedDict(), indent=8)
+                pprint.pformat(self.as_OD(), indent=8)
                )
 
     def __str__(self):
@@ -601,7 +611,6 @@ class DecoSettingsMapping():
                  but it can also be e.g. *(explicit_kwargs, defaulted_kwargs,
                  implicit_kwargs, with fparams=None) of that function f,
         fparams: inspect.signature(f).parameters of that function f
-                 NOTE: it's a mandatory, keyword-ONLY argument
         THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.
@@ -615,7 +624,9 @@ class DecoSettingsMapping():
 
         setting_info = self._deco_class_settings_dict[name]
         final_type = setting_info.final_type
-        default = setting_info.default
+        ## v0.3.0b25
+        # default = setting_info.default
+        default = setting_info.indirect_default
         allow_falsy = setting_info.allow_falsy
 
         # If di_val is in any of the dictionaries, get corresponding value

@@ -60,7 +60,7 @@ attribute of a decorated function.
     ['enabled', 'prefix', 'max_history']
     >>> list(record_me.record_history_settings.items())
     [('enabled', True), ('prefix', ''), ('max_history', 0)]
-    >>> record_me.record_history_settings.as_OrderedDict()  # doctest: +NORMALIZE_WHITESPACE
+    >>> record_me.record_history_settings.as_OD()  # doctest: +NORMALIZE_WHITESPACE
     OrderedDict([('enabled', True), ('prefix', ''), ('max_history', 0)])
 
 ## [Call history and statistics for *record_history*](id:Call-history-and-statistics-record_history)
