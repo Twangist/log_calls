@@ -95,23 +95,23 @@ class TestDecoSetting(TestCase):
 
     def test___repr__1(self):
         plain_repr = "DecoSetting('set_once', int, 15, allow_falsy=True, " \
-                     "allow_indirect=True, mutable=False, visible=True)"
+                     "allow_indirect=True, mutable=False, visible=True, pseudo_setting=False)"
         self.assertEqual(repr(self.info_plain), plain_repr)
 
     def test___repr__2(self):
         hidden_repr = "DecoSetting('hidden', bool, True, allow_falsy=True, " \
-                      "allow_indirect=False, mutable=True, visible=False)"
+                      "allow_indirect=False, mutable=True, visible=False, pseudo_setting=False)"
         self.assertEqual(repr(self.hidden), hidden_repr)
 
     def test___repr__3(self):
         twotype_repr = "DecoSetting('twotype', (Logger, str), None, allow_falsy=True, " \
-                      "allow_indirect=True, mutable=True, visible=True)"
+                      "allow_indirect=True, mutable=True, visible=True, pseudo_setting=False)"
         self.assertEqual(repr(self.twotype), twotype_repr)
 
     def test___repr__4(self):
         ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), " \
                    "allow_falsy=True, allow_indirect=False, " \
-                   "mutable=True, visible=True, " \
+                   "mutable=True, visible=True, pseudo_setting=False, " \
                    "extra1='Tom', extra2='Dick', extra3='Harry')"
         self.assertEqual(repr(self.info_extended), ext_repr)
 
@@ -184,11 +184,11 @@ class TestDecoSettingsMapping(TestCase):
         settings_repr = """
             DecoSettingsMapping.register_class_settings(
                 TestDecoSettingsMapping,
-                [DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True, visible=True),
-                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True),
-                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True),
-                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True),
-                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False)
+                [DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True, visible=True, pseudo_setting=False),
+                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True, pseudo_setting=False),
+                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True, pseudo_setting=False),
+                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True, pseudo_setting=False),
+                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False, pseudo_setting=False)
             ])
         """
         self.assertEqual(

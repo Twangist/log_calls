@@ -1020,6 +1020,16 @@ class _deco_base():
     # settings
     #----------------------------------------------------------------
 
+    # v0.3.0b24
+    @classmethod
+    def get_factory_defaults_OD(cls) -> OrderedDict:
+        return DecoSettingsMapping.get_factory_defaults_OD(cls.__name__)
+
+    # v0.3.0b24
+    @classmethod
+    def get_defaults_OD(cls) -> OrderedDict:
+        return DecoSettingsMapping.get_defaults_OD(cls.__name__)
+
     @classmethod
     def reset_defaults(cls):
         DecoSettingsMapping.reset_defaults(cls.__name__)
@@ -1626,6 +1636,7 @@ class _deco_base():
         if not callable(f_or_klass):
             return f_or_klass
 
+        # Special-case handling for ``NO_DECO``: remove from settings of ``self``
         if self._effective_settings.get('NO_DECO'):
             return f_or_klass
         # else, delete that item wherever it might be
@@ -2481,7 +2492,9 @@ class log_calls(_deco_base):
         DecoSettingHistory('record_history'),
         DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
                         allow_indirect=False, mutable=False),
-        DecoSetting_bool('NO_DECO',  bool,           False,         allow_falsy=True, mutable=False),
+        DecoSetting_bool('NO_DECO',  bool,           False,         allow_falsy=True, mutable=False,
+                         pseudo_setting=True
+                        ),
     )
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
