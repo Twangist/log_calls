@@ -1,316 +1,151 @@
-VERSIONS
---------
-0.2.6beta1
-      - record_history wasn't using @used_unused_keywords for
-      __init__, and wasn't passing its used_keywords, so prefix was
-      getting set to ''. Had to run tests on a weird machine to find
-      this out (TODO why didn't these fail on normal dev machine???)
-      Fixed.
+CHANGES in 0.3.0
+#################
 
-0.2.5.post3
-      - later binding for `prefix`, necessary for a real-world test,
-        and perhaps on the way to making it mutable / allowing indirect values
-0.2.5.post2
-      - same as .post1, but for version string :|
-0.2.5.post1
-      - don't warn about deprecated `settings_path` ALL the time :|
-0.2.5
-      - Timing/profiling enhancements & additions:
-        to take advantage of the Python 3.3+ improvements to the time
-        module, as described in PEP 418 https://www.python.org/dev/peps/pep-0418/
-        and the Python docs https://docs.python.org/3/library/time.html
+This file catalogs the additions and changes in the current release.
+"Appendix II: What Has Been New" in the full documentation contains
+the complete list of what has been new in earlier versions.
 
-        For "elapsed" time i.e. wall time, use the highest-resolution timer,
-        time.perf_counter(), if it's available (Python 3.3+);
-        o/w use time.time().
-        We now also report CPU time (process time: sum of kernel and user CPU time),
-        but in Py < 3.3 it's the same as elapsed time.
-        In Py3.3+, time.process_time() is available, and we use it.
+What's New
+==========
 
-        * stats.CPU_secs_logged attribute added
-        * Added column CPU_secs to CallRecord
-        * `log_elapsed` reports both elapsed and CPU times
-          (they're the same number under Py < 3.3)
+* log_calls and record_history can decorate classes	– all, or some, of the
+  methods and properties within a class – and their inner classes.
 
-      - profiling of wrapper, some speedups & streamlining,
-        see docs/profile_wrapper.ipynb or .html;
-        about 15% faster, comparing docs/history_to_pandas-and-profiling.*
-        and docs/history_to_pandas-and-profiling-0.1.14.*.
-        Not enough to matter in bigger-data situations,
-        e.g. see docs/history_to_pandas-and-profiling.*
+    * The decorators properly decorate instance methods, classmethods, staticmethods
+      and properties (whether defined with the @property decorator or the property
+      function).
 
-      - "true bypass" feature:
-        if `enabled` setting is < 0 then leave wrapper ~immediately;
-        a slight performance gain but insignificant in terms
-        of docs/history_to_pandas-and-profiling.ipynb
+    * Settings provided in the class-level decorator apply to all decorated members
+      and inner classes. Members and inner classes can also be individually decorated,
+      and (by default) their explicitly given settings supplement and override those
+      given at outer levels.
 
-      - issue deprecation warning if `settings_path` parameter is used;
-        visible when interpreter is run with e.g. the "-W default" flag
+    * omit and only keyword parameters to a class decorator let you concisely
+      specify which callables to decorate. Each is a sequence of strings specifying
+      methods and/or properties — by name, with optional class prefixes, with optional
+      suffixes for selecting specific property methods, as well as with wildcards and
+      character-range inclusion and exclusion using "glob" syntax.
 
-      - 0.2.4 "* keeping a stack of logging functions was silly, who needs it..."
-        We do: there are edge cases where it's needed.
-        Restored that behavior.
+    * A decorated class has methods get_log_calls_wrapper(methodname)
+      and get_own_log_calls_wrapper(), the latter for use by methods and
+      properties of the decorated class. These provide easy and uniform ways
+      to obtain the wrapper of a decorated method, without the special-case
+      handling otherwise (and formerly) required for classmethods and properties.
 
-      - made `prefix` setting immutable - it should have been all along.
+      record_history provides the analogous methods
+            get_record_history_wrapper(methodname)
+      and
+            get_own_record_history_wrapper().
 
-      - Updated tests & docs to reflect the above
+* log_calls and record_history have classmethods to programmatically decorate
+  functions, classes and class hierarchies, even modules, for situations where
+  altering source code is impractical (too many things to decorate) or inadvisable
+  (third-party packages and modules). These methods can expedite learning a new
+  codebase:
 
-0.2.4.post4
-      - edited redundant "long description" in setup.py
-0.2.4.post3
-      - never existed
-0.2.4.post2
-      - Renamed the `settings_path` parameter to `settings`
-        as it can now be a dict or a pathname.
-        "settings_path" is still supported but deprecated,
-         to be removed in 0.2.6)
-        If you use both `settings_path` and `settings`
-        then `settings_path` is ignored.
-      - doctest for settings as a dict, & for settings_path :)
-      - Doc fixes (vestigial `settings_loc` at end!) & improvements.
+    * decorate_class(baseclass, decorate_subclasses=False, **setting_kwds)
+      decorates a class and optionally all of its subclasses
 
-0.2.4.post1
-      - Allow for sys.stderr in settings files,
-        under IPython too.
-      - Internals: cleaner parsing of settings files.
-0.2.4
-      - The `settings_path` parameter to log_calls
+    * decorate_hierarchy(baseclass, **setting_kwds)
+      decorates a class and all of its subclasses
 
-      - The `used_unused_keywords` decorator
+    * decorate_function(f, **setting_kwds)
+      decorates a function defined in or imported into the module from which
+      you call this method
 
-      - value of `logger` can be either a logger instance (logging.Logger object)
-        OR the name of a logger.
+    * decorate_package_function(f, **setting_kwds)
+      decorates a function in an imported package
 
-      - Loggers can indent too. Why shouldn't they? It just looks weird. So?
-        "We're all adults here."
-        It looks weird because only the message is indented, and every logged
-        output message typically begins with a clunky left-aligned header,
-        which sometimes you don't need. So:
+    * decorate_module_function(f, **setting_kwds)
+      decorates a function in an imported package or module
 
-      - example: create handlers with formatters that have format strings
-        of just `%(message)s`, which writes just... the message,including
-        possible padding.
-                test_log_calls_more, function:
-                    def main__logging_with_indent__minimal_formatters():
+    * decorate_module(mod: 'module', functions=True, classes=True, **setting_kwds)
+      decorates all functions and classes in a module.
 
-      - loggers can use `log_message` too, which virtualizes the richer
-        interface of msg, *msgs for loggers, makes it available for loggers
-        too, so that loggers can be passed multiple messages.
-        Example where using `log_message` virtualizes between
-        writing to print or writing to a logger.
-               test_log_calls_more, function:
-                    def main__log_message__all_possible_output_destinations():
+* log_calls has classmethods to globally set and reset default values for settings,
+  program-wide:
 
-      - Internals
-        * get_logging_fn returns just a logging function,
-          not a pair of a logging fn and a "can indent" bool:
-          now everyone can indent.
+    * set_defaults(new_default_settings=None, **more_defaults)
 
-        * keeping a stack of logging functions was silly, who needs it -
-          just keep a stack of at most one of those (the other components grow larger)
+    * reset_defaults()
 
-        * DecoSetting `final_type` can now be a type (as before) or a tuple of types.
-          E.g. logger setting has final_type (logging.Logger, str)
-          Added test(s) for this and its repr.
+  as well as classmethods to retrieve the current defaults and the "factory defaults",
+  each as an OrderedDict:
 
-        * prefixed names of staticmethods weren't properly "found",
-          at least not when called by super().
-          Fixed with a(nother) stackframe ~hack in the wrapper
-          (and bundled up all 5 into one dict)
+    * get_defaults_OD()
 
-      - killed `indent_extra` parameter to `log_message`.
+    * get_factory_defaults_OD()
 
-      - increased max reported length of retvals (as strs) to 77 from 60
+* The log_exprs() method, added as an attribute to decorated callables, allows
+  a wrapped callable to easily "dump" values of variables and expressions.
+  Simply pass it one or more expressions, as strings; it prints the expressions
+  together with their current values.
 
-      - Many doc fixes
+* New keyword parameters:
 
-0.2.3.post2 - Doc version-number fixups :| even dumber
-0.2.3.post1 - Doc fixups :|
-0.2.3    - Doc and sync'd test improvements, mostly prose,
-           some doctests improved (log_message).
+    * NO_DECO, a "kill switch". When true, the decorator does nothing, returning
+      the decorated callable or class itself, unwrapped and unaltered. Using this
+      parameter in a settings file or dictionary lets you toggle "true bypass"
+      with a single switch, e.g. for production, without having to comment out
+      every decoration.
 
-           log_message, added keyword parameter
-                prefix_with_name=False
+    * name, a literal string or a format string, lets you specify a custom name
+      for a decorated callable.
 
-           log_message: has the signature
-            `log_message(msg, *msgs, sep=' ',
-                         extra_indent_level=1, prefix_with_name=False)`
-           More print-like.
-           extra_indent_level: number of 4-column indent levels
-               to offset from the left margin of the visual frame
-               established by log_calls' output.
-               Formerly had an any-int parameter indent_extra,
-               a number of cols defaulting to 4.
-               Deprecated, kill soon.
-           Mo' better log_message section, and more examples
-           of its use in subsections on functions accessing their attrs.
+    * override, a boolean, intended mainly for use with log_calls as a functional
+      and with the decorate_* methods, allows updating the explicit settings of
+      already decorated classes and callables.
 
-02.2.2  -  In wrapper of deco'd function:
-           Expose a method log_message(msg)
-           which knows the current indent amount and automatically
-           indents properly.
-           Useful for verbose debugees that want their blather
-           to align properly. Developed for noconflict3,
-           findings transported to the metaclass example
-           in test_log_calls.py and docs log_calls.* and readme.*.
-           Added sections to docs on log_message(),
-           and final section on how functions & methods access
-           their deco'd wrapper & thus the attributes added for them
-           by log_calls. Revised links to full doc in readme
-           to point to htmls on pythonhosted.org.
+    * mute, a three-valued setting:
 
-0.2.1   -  First row of history_as_csv: NO QUOTES.
-           The quotes were part of the column names in Pandas!
-           so that if you made a DataFrame df from the csv,
-           you'd have to access e.g. the retval column as:
-                 df["'retval'"]
-           Further, because 'retval' isn't a valid Python identifier,
-           you couldn't use the column names as attributes
-           of the DataFrame.
-           Added attribute to stats: history_as_DataFrame,
-           returns a DataFrame if Pandas is installed (importable),
-           else returns None.
+        - mute nothing (default)
+        - mute output about calls but allow log_message() and log_exprs() output
+        - mute everything.
 
-0.2.0   -  Renamed "call_history" and "call_history_as_csv"
-           attributes of the stats attribute
-           ->
-           "history", "history_as_csv", as what other kind of
-           history would there be.
+* Global mute, log_calls.mute, which can assume the same values as the new
+  mute setting.
 
-0.1.14  - (*) Factored out a (fat) base class for log_calls,
-              also the base class for new decorator record_history
-          (*) record_history required/inspired "visible" bool
-              attribute for DecoSetting objs
-          (*) added support for it throughout DecoSettingsMapping
-          (*) Tests in test_deco_settings.py expanded/revised
-              accordingly.
-          (*) All tests revised/expanded to reflect the above,
-              & also to cover things not previously tested
-              (e.g. flags args to DecoSettingsMapping.__getitem__;
-              that stats.elapsed_secs_logged = sum of elapsed_secs
-              column of call history, "to within epsilon";
-              call chains and call history; all kinds of methods
-              and log_call_settings and call chains)
-              New files:
-                  record_history.py
-                  tests/test_record_history.py
-                  docs/record_history.md
+* Classmethods log_calls.version() and record_history.version() return
+  the version string.
 
-0.1.13      - Docs and test_log_calls.py reorganized, mere
-              "extra examples" moved to test_log_calls_more.py.
-              Tweak to call chain search to make the docs correct
-              about treatment of disabled deco'd functions.
-0.1.12      - The `file` parameter.
-0.1.11      - (All that.)
-v0.1.10-b11 - Figured out how to retrieve values of deco'd functions
-              on the stack, so now we can & do display call #s
-              of deco'd callers when they're enabled and have call
-              numbers enabled.
-              Used the same technique to implement indentation,
-              cf. the 'indent' keyword parameter.
 
-v0.1.10-b10 - Doc log_calls.md done but for Installation & testing
-              sections up top... and TOC also up top somewhere.
-              197 tests in the runnable doc.
-              test_log_calls.py done, slightly more tests than
-              the .md so probably 200+.
+What's Changed
+==============
 
-              Revamped update() method of DecoSettingsMapping:
-                * now has a *dicts parameter,
-                * skips over immutable settings so user can just
-                  pass back a settings dict obtained from e.g. as_dict()
+* The indent setting is now by default True.
 
-              For benefit of stats.call_history_as_csv, kwargs fields
-              are guaranteed have their items sorted by key
+* By default, the display name for a function or method is now its __qualname__,
+  which in the case of methods includes class name. This makes unnecessary
+  what was probably the main use case of prefix.
 
-v0.1.10-b9 - test_log_calls.py, log_calls.md alllmost done,
-             redid stats.total_elapsed - it's available whether or not
-             call history is being recorded. Total time spent in
-             *logged* calls. For consistency with num_calls_* properties,
-             renamed it elapsed_secs_logged
+* record_history can now use log_message() and log_exprs(). Output is always
+  via print.
 
-v0.1.10-b8 - Wrote test_proxy_descriptors, simplified proxy_descriptors
-             as a result. 100% coverage of proxy_descriptors.py.
-             Doctests for get_args_pos in helpers.py, 100% coverage.
-             test_deco_settings.py: 100% coverage of deco_settings.py.
+* Fixed: log_message() formerly would blow up if called on a function or method
+  for which logging was disabled. It now produces no output in that situation.
 
-v0.1.10-b7 - Reworked __call__ routine to better use inspect module's
-             introspection, specifically the bind method. Defaulted
-             arg values weren't working quite right.
-             Implemented stats.call_history_as_csv, made the fn name
-             field in CallRecord the prefixed function name, and added
-             a caller_chain field to CallRecord.
-             Descriptors on stats object:
-                num_calls_total, num_calls_logged, call_history,
-                call_history_as_csv, total_elapsed, clear_history (method)
-            Need more tests, even more than before.
+* prefix is mutable in log_calls and record_history.
 
-v0.1.10-b6 - New: stats object available on the deco'd function,
-             with attributes num_calls, time_elapsed, call_history.
-             Four new keyword parameters:
-                log_elapsed, log_call_number, record_history, max_history
-             Nice lil class ClassInstanceAttrProxy (stats is one of them).
-             All tests from v0.1.10-b5 pass, but we still need more tests,
-             and documentation -- now, even more of both than at v0.1.10-b5.
+* Fixed, addressed: double-decoration no longer raises an exception.
+  Doing so doesn't wrap another decorator around an already wrapped function or method,
+  but merely adjusts the settings of the decorated callable.
 
-v0.1.10-b5 - Base class for log_calls that does count logging?
-             Possible to hide some of the housekeeping obligations?
-             call __call__ and bump counters? Arrogate 'enabled' keyword
-             shared by all decos, let's say, every one with this base class.
-             or _blah_enabled? For now, no.
+* Change to __repr__ handling in the arguments section of output:
+  use object.__repr__ for objects still in construction
+  (i.e. whose __init__ methods are still active),
+  otherwise use repr.
 
-v0.1.10-b4 - Implement attributes i.e. descriptors on DecoSettingsMapping
-             for each setting (e.g. f.log_calls_settings.enabled, you can
-             get and set it, i.e. __get__ and __set__ it. Thus,
-                    print('d.log_retval =', d.log_retval)
-                    d.enabled = 17
-                    d.log_retval = False
-                    d.log_exit = True
-                    d.log_args = 'different_log_args_kwd='
-             etc.
+* log_calls won't itself decorate __repr__ methods (it will decorate them instead
+  with :func:reprlib.recursive_repr); record_history can decorate __repr__.
 
-v0.1.10-b3 - New feature: mapping interface for settings! Any log_calls-deco'd
-             function f now has an attribute .log_calls_settings which behaves
-             "just like" a dictionary - __?etitem__, update, __contains__,
-             __len__, iteration through names, iteration through .items(),
-             a real __repr__ fn, a real __str__ fn.
-             Users can get & set the settings of a deco'd function much more
-             easily using these interfaces/methods,  no intrusion on deco'd
-             function's signature.
-             Indirect values still have their place, for controlling an entire
-             call subtree/subgraph.
-v0.1.10-b2 - Reworked decorator parameter handling: now every parameter except
-             prefix can take either direct or indirect values, indirect values
-             being names of keyword parameters/arguments of the wrapped function.
-             Thus, no more *_kwd parameters (3 fewer). prefix can't be late-bound
-             because it's needed immediately, as soon as the wrapped function
-             is returned by __call__.
-             Updated the doc/tests test_log_calls.py to reflect these changes,
-             plus probably other little improvements.
+* Removed the deprecated settings_path keyword parameter.
 
-v0.1.10-b1 - Added examples/doctests "Enabling with ints rather than booleans".
-             doctests moved to tests/test_log_calls.py. VERSIONS moved to
-             CHANGES.txt (this file).
-v0.1.9    -- reworked logic of enabled, enabled_kwd parameters:
-             enabled_kwd always overrides enabled.
-             Fixed: if a wrapped function explicitly declares its enabled_kwd
-             parameter, its default value wasn't being used when a caller
-             didn't explicitly pass a value for the keyword parameter.
-v0.1.8    -- another example: dynamically enabling logging.
-v0.1.7    -- actual doc (prose) in the docstrings.
-v0.1.6    -- illustrative code converted to doctests;
-             metaclass and multi-handler logging examples/tests;
-             log_calls is now a package;
-             export difference_update.
-v0.1.5    -- call chains! + illustrative code; 100% coverage.
-v0.1.4    -- switched to dedicated 'keyword' params for specifying enabled,
-             logger, and (what prompted the change) args_sep:
-             this way the top-level caller can compel logged functions
-             lower in the call chain to "conform"; exposed a bug (don't
-             use deepcopy [can't deepcopy a logger!] use copy), fixed.
-             Added example code at end giving 100% coverage.
-v0.1.3    -- logger can be a string naming a keyword arg of wrapped function;
-             better output when using a logger.
-v0.1.2    -- logger, loglevel keyword parameters
-v0.1.1    -- removed redundant function-based decos log_caller, log_args,
-             don't want to keep them in sync with the superset log_calls.
+* Officially, explicitly requires Python 3.3+. The package won't install
+  on earlier versions.
+
+* For consistency with the get*_defaults_OD() methods, the as_OrderedDict() method
+  of the "settings" objects (e.g. log_calls_settings) has been renamed as_OD().
+  Note, as_OrderedDict() is still supported but is now deprecated. You'll have to run
+  the Python interpreter with the -Wd flag to see the deprecation warning(s),
+  which include the file names and line numbers where as_OrderedDict() occurs.
+  (Since Python 3.2, DeprecationWarnings are by default not displayed.)

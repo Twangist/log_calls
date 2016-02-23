@@ -11,6 +11,7 @@ from log_calls.log_calls import DecoSettingEnabled, DecoSettingHistory
 from collections import OrderedDict
 import inspect
 import logging  # not to use, just for the logging.Logger type
+import sys
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper
@@ -94,23 +95,24 @@ class TestDecoSetting(TestCase):
 
     def test___repr__1(self):
         plain_repr = "DecoSetting('set_once', int, 15, allow_falsy=True, " \
-                     "allow_indirect=True, mutable=False, visible=True)"
+                     "allow_indirect=True, mutable=False, visible=True, pseudo_setting=False, indirect_default=15)"
         self.assertEqual(repr(self.info_plain), plain_repr)
 
     def test___repr__2(self):
         hidden_repr = "DecoSetting('hidden', bool, True, allow_falsy=True, " \
-                      "allow_indirect=False, mutable=True, visible=False)"
+                      "allow_indirect=False, mutable=True, visible=False, pseudo_setting=False, indirect_default=True)"
         self.assertEqual(repr(self.hidden), hidden_repr)
 
     def test___repr__3(self):
         twotype_repr = "DecoSetting('twotype', (Logger, str), None, allow_falsy=True, " \
-                      "allow_indirect=True, mutable=True, visible=True)"
+                      "allow_indirect=True, mutable=True, visible=True, pseudo_setting=False, indirect_default=None)"
         self.assertEqual(repr(self.twotype), twotype_repr)
 
     def test___repr__4(self):
         ext_repr = "DecoSetting('extended', tuple, ('Joe', 'Schmoe'), " \
                    "allow_falsy=True, allow_indirect=False, " \
-                   "mutable=True, visible=True, " \
+                   "mutable=True, visible=True, pseudo_setting=False, " \
+                   "indirect_default=('Joe', 'Schmoe'), " \
                    "extra1='Tom', extra2='Dick', extra3='Harry')"
         self.assertEqual(repr(self.info_extended), ext_repr)
 
@@ -127,7 +129,7 @@ class TestDecoSettingsMapping(TestCase):
     @classmethod
     def setUpClass(cls):
         cls._settings = (
-            DecoSettingEnabled('enabled'),
+            DecoSettingEnabled('enabled', indirect_default=False),
             DecoSetting('folderol',         str,            '',            allow_falsy=True,  allow_indirect=False),
             DecoSetting('my_setting',       str,            'on',          allow_falsy=False, allow_indirect=True),
             DecoSetting('your_setting',     str,            'off',         allow_falsy=False, allow_indirect=False,
@@ -183,11 +185,16 @@ class TestDecoSettingsMapping(TestCase):
         settings_repr = """
             DecoSettingsMapping.register_class_settings(
                 TestDecoSettingsMapping,
-                [DecoSetting('enabled', int, False, allow_falsy=True, allow_indirect=True, mutable=True, visible=True),
-                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True),
-                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True),
-                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True),
-                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False)
+                [DecoSetting('enabled', int, True, allow_falsy=True, allow_indirect=True, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default=False),
+                 DecoSetting('folderol', str, '', allow_falsy=True, allow_indirect=False, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default=''),
+                 DecoSetting('my_setting', str, 'on', allow_falsy=False, allow_indirect=True, mutable=True, visible=True,
+                             pseudo_setting=False, indirect_default='on'),
+                 DecoSetting('your_setting', str, 'off', allow_falsy=False, allow_indirect=False, mutable=False, visible=True,
+                             pseudo_setting=False, indirect_default='off'),
+                 DecoSetting('history', bool, False, allow_falsy=True, allow_indirect=False, mutable=True, visible=False,
+                             pseudo_setting=False, indirect_default=False)
             ])
         """
         self.assertEqual(
@@ -344,14 +351,39 @@ class TestDecoSettingsMapping(TestCase):
         self.assertNotIn('no_such_key', self._settings_mapping)
 
     def test___repr__(self):
-        the_repr = """
-            DecoSettingsMapping(
-                deco_class=TestDecoSettingsMapping,
-                ** {       'enabled': True,
-                    'folderol': 'bar',
-                    'my_setting': 'eek',
-                    'your_setting': 'Howdy'} )
         """
+        Split into cases because this bug got fixed in Python 3.5:
+
+        http://bugs.python.org/issue23775
+        "Fix pprint of OrderedDict.
+         Currently pprint prints the repr of OrderedDict if it fits in one line,
+         and prints the repr of dict if it is wrapped.
+         Proposed patch makes pprint always produce an output compatible
+         with OrderedDict's repr.
+        "
+        The bugfix also affected tests in test_log_calls_more.py (see docstring there).
+        """
+        if (sys.version_info.major == 3 and sys.version_info.minor >= 5
+           ) or sys.version_info.major > 3:     # :)
+            the_repr = """
+                DecoSettingsMapping(
+                    deco_class=TestDecoSettingsMapping,
+                    ** OrderedDict([
+                        ('enabled', True),
+                        ('folderol', 'bar'),
+                        ('my_setting', 'eek'),
+                        ('your_setting', 'Howdy')]) )
+            """
+        else:   # Py <= 3.4
+            the_repr = """
+                DecoSettingsMapping(
+                    deco_class=TestDecoSettingsMapping,
+                    ** {
+                        'enabled': True,
+                        'folderol': 'bar',
+                        'my_setting': 'eek',
+                        'your_setting': 'Howdy'} )
+            """
         self.assertEqual(
             collapse_whitespace(repr(self._settings_mapping)),
             collapse_whitespace(the_repr),
@@ -410,10 +442,10 @@ class TestDecoSettingsMapping(TestCase):
             history=True
         )
 
-    def test_as_OrderedDict(self):
+    def test_as_OD(self):
         self.assertDictEqual(
             OrderedDict([('enabled', True), ('folderol', 'bar'), ('my_setting', 'eek'), ('your_setting', 'Howdy')]),
-            self._settings_mapping.as_OrderedDict()
+            self._settings_mapping.as_OD()
         )
 
     def test_as_dict(self):
@@ -464,3 +496,76 @@ class TestDecoSettingsMapping(TestCase):
         hparams = inspect.signature(h).parameters
         v = mapping.get_final_value('enabled', fparams=hparams)
         self.assertEqual(v, False)
+
+
+import logging
+
+class TestDecoSettingsMapping_set_reset_defaults(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._settings = (
+            DecoSettingEnabled('enabled', indirect_default=False),
+            DecoSetting('number',          (str, int),     '12',          allow_falsy=True,  allow_indirect=False),
+            DecoSetting('my_logger',       (str, logging.Logger), 'nix',  allow_falsy=False, allow_indirect=True),
+            DecoSetting('your_setting',    str,            'off',         allow_falsy=False, allow_indirect=False,
+                        mutable=False),
+            DecoSettingHistory('history', visible=False),
+        )
+        DecoSettingsMapping.register_class_settings('TestDecoSettingsMapping_set_reset_defaults',
+                                                    cls._settings)
+        # # "'enabled' setting default value = False"
+        # print("'enabled' setting default value =",
+        #       cls._settings[0].default)
+
+    def setUp(self):
+        """
+        """
+        pass
+
+    def test_set_reset_defaults(self):
+        clsname = self.__class__.__name__
+
+        settings_map = DecoSettingsMapping.get_deco_class_settings_dict(clsname)
+
+        # try set 'my_logger' = '' ==> no effect (setting doesn't .allow_falsy)
+        DecoSettingsMapping.set_defaults(clsname, {'my_logger': ''})
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+
+        # try setting 'your_setting' = 500 ==> no effect (not acceptable type)
+        DecoSettingsMapping.set_defaults(clsname, {'your_setting': 500})
+        self.assertEqual(settings_map['your_setting'].default, 'off')
+
+        # try setting 'no_such_setting' = 0 ==> KeyError
+        def set_no_such_setting():
+            DecoSettingsMapping.set_defaults(clsname, {'no_such_setting': 0})
+        self.assertRaises(KeyError, set_no_such_setting)
+
+        # try setting 'history' = False ==> KeyError (setting not visible)
+        def set_history():
+            DecoSettingsMapping.set_defaults(clsname, {'history': False})
+        self.assertRaises(KeyError, set_history)
+
+        # set enabled=False, number=17 (int);
+        #    check that .default of things in settings_map reflect this
+        DecoSettingsMapping.set_defaults(clsname, dict(enabled=False, number=17))
+        self.assertEqual(settings_map['enabled'].default, False)
+        self.assertEqual(settings_map['number'].default, 17)
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'off')
+        # self.assertEqual(settings_map['history'].default, 'True')
+
+        # set enabled=True, number='100', your_setting='Howdy';
+        #    check that .default of things in settings_map reflect this
+        DecoSettingsMapping.set_defaults(clsname, dict(enabled=True, number='100', your_setting='Howdy'))
+        self.assertEqual(settings_map['enabled'].default, True)
+        self.assertEqual(settings_map['number'].default, '100')
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'Howdy')
+
+        # reset, see that defaults are correct
+        DecoSettingsMapping.reset_defaults(clsname)
+        self.assertEqual(settings_map['enabled'].default, True)      # the default for DecoSettingEnabled
+        self.assertEqual(settings_map['number'].default, '12')
+        self.assertEqual(settings_map['my_logger'].default, 'nix')
+        self.assertEqual(settings_map['your_setting'].default, 'off')

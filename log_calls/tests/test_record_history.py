@@ -60,7 +60,7 @@ attribute of a decorated function.
     ['enabled', 'prefix', 'max_history']
     >>> list(record_me.record_history_settings.items())
     [('enabled', True), ('prefix', ''), ('max_history', 0)]
-    >>> record_me.record_history_settings.as_OrderedDict()  # doctest: +NORMALIZE_WHITESPACE
+    >>> record_me.record_history_settings.as_OD()  # doctest: +NORMALIZE_WHITESPACE
     OrderedDict([('enabled', True), ('prefix', ''), ('max_history', 0)])
 
 ## [Call history and statistics for *record_history*](id:Call-history-and-statistics-record_history)
@@ -87,10 +87,10 @@ The tallies:
     >>> record_me.stats.elapsed_secs_logged          # doctest: +SKIP
     2.2172927856445312e-05
 
-Call history in CSV format (ellipses for 'elapsed_secs', `CPU_secs` and 'timestamp' columns):
+Call history in CSV format (ellipses for 'elapsed_secs', `process_secs` and 'timestamp' columns):
 
     >>> print(record_me.stats.history_as_csv)         # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|a|b|x|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|3|5|0|5|...|...|...|'record_me'|['<module>']
     2|3|5|1|8|...|...|...|'record_me'|['<module>']
     3|3|5|2|11|...|...|...|'record_me'|['<module>']
@@ -150,7 +150,7 @@ and examine the call history again:
     >>> for x in range(15):
     ...     _ = record_me(3, 5, x)
     >>> print(record_me.stats.history_as_csv)      # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|a|b|x|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     13|3|5|12|41|...|...|...|'record_me'|['<module>']
     14|3|5|13|44|...|...|...|'record_me'|['<module>']
     15|3|5|14|47|...|...|...|'record_me'|['<module>']
@@ -168,11 +168,11 @@ caller appearing in the call chain:
     ...         for k in range(nth, 2 * nth):
     ...             record_me(a, b, k)
     >>> class Even(Base):
-    ...     @record_history(prefix='Even.')
+    ...     @record_history()
     ...     def call_it(self, n):
     ...         self.call_record_me(2*n + 1, 3*n + 1, n)
     >>> class Odd(Base):
-    ...     @record_history(prefix='Odd.')
+    ...     @record_history()
     ...     def call_it(self, n):
     ...         self.call_record_me(5*n + 1, 7*n + 1, n)
     >>> even = Even()
@@ -186,18 +186,18 @@ caller appearing in the call chain:
     7
 
     >>> print(even.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|self|n|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|<__main__.Even object at ...>|0|None|...|...|...|'Even.call_it'|['<module>']
     2|<__main__.Even object at ...>|2|None|...|...|...|'Even.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(odd.call_it.stats.history_as_csv)        # doctest: +ELLIPSIS
-    call_num|self|n|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|self|n|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|<__main__.Odd object at ...>|1|None|...|...|...|'Odd.call_it'|['<module>']
     <BLANKLINE>
 
     >>> print(record_me.stats.history_as_csv)     # doctest: +ELLIPSIS
-    call_num|a|b|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|a|b|x|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|1|1|1|2|...|...|...|'record_me'|['call_record_me', 'Even.call_it [1]']
     2|6|8|2|20|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
     3|6|8|3|26|...|...|...|'record_me'|['call_record_me', 'Odd.call_it [1]']
@@ -224,10 +224,10 @@ numerical inaccuracy:
     True
 
 Similarly,
-### [*stats.CPU_secs_logged* == sum of *CPU_secs* column of call history](id:CPU_secs_logged-equal-sum-etc)
-    >>> CPU_col = list(map(lambda rec: getattr(rec, 'CPU_secs'),
+### [*stats.process_secs_logged* == sum of *process_secs* column of call history](id:process_secs_logged-equal-sum-etc)
+    >>> process_col = list(map(lambda rec: getattr(rec, 'process_secs'),
     ...                    slow.stats.history))
-    >>> abs(sum(CPU_col) - slow.stats.CPU_secs_logged) < 1.0e-15
+    >>> abs(sum(process_col) - slow.stats.process_secs_logged) < 1.0e-15
     True
 
     """

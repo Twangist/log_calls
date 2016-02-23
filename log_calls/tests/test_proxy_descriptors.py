@@ -81,7 +81,7 @@ class TestInstall_proxy_descriptor(TestCase):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 class A1(A):
     @classmethod
-    def get_descriptor_names(cls):
+    def get_data_descriptor_names(cls):
         return ['counter', 'x']
 
     @classmethod
@@ -94,8 +94,8 @@ class A1(A):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 class A2(A1):
     @classmethod
-    def get_descriptor_names(cls):
-        return ['filter', 'inverse_filter'] + super().get_descriptor_names()
+    def get_data_descriptor_names(cls):
+        return ['filter', 'inverse_filter'] + super().get_data_descriptor_names()
 
     @classmethod
     def get_method_descriptor_names(cls):
@@ -128,8 +128,16 @@ class TestClassInstanceAttrProxy(TestCase):
         # A1 just like A but has get_descriptor_names, get_method_descriptor_names classmethods
         a1_1 = A1(7)
         a1_2 = A1(1000)
-        proxy1 = ClassInstanceAttrProxy(class_instance=a1_1)
-        proxy2 = ClassInstanceAttrProxy(class_instance=a1_2)
+        proxy1 = ClassInstanceAttrProxy(
+            class_instance=a1_1,
+            data_descriptor_names=a1_1.get_data_descriptor_names(),
+            method_descriptor_names=a1_1.get_method_descriptor_names()
+        )
+        proxy2 = ClassInstanceAttrProxy(
+            class_instance=a1_2,
+            data_descriptor_names=a1_2.get_data_descriptor_names(),
+            method_descriptor_names=a1_2.get_method_descriptor_names()
+        )
         # These have descriptors 'counter', 'x', 'my_method'
         self.assertEqual(proxy1.counter, 1)
         self.assertEqual(proxy1.x, 7)
@@ -154,7 +162,11 @@ class TestClassInstanceAttrProxy(TestCase):
                           proxy2)
         # A2 subclasses A1, adds method descriptors 'filter', 'inverse_filter'
         a2 = A2(1729)
-        proxy_a2 = ClassInstanceAttrProxy(class_instance=a2)
+        proxy_a2 = ClassInstanceAttrProxy(
+            class_instance=a2,
+            data_descriptor_names=a2.get_data_descriptor_names(),
+            method_descriptor_names=a2.get_method_descriptor_names()
+        )
         a2.counter      # counter now 1
         self.assertEqual(proxy_a2.counter, 2)
         self.assertEqual(proxy_a2.x, 1729)
