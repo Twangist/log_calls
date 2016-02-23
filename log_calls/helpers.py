@@ -18,9 +18,41 @@ import inspect
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # helper function(s)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def difference_update(d, d_remove):
+def no_duplicates(seq):
+    """Generator that removes duplicates from seq (preserving order).
+    Without order preservation, it would suffice to return list(set(seq)).
+    seq is an iterable.
+    >>> list(no_duplicates([1, 2, 3, 3, 2, 0, 1]))
+    [1, 2, 3, 0]
+    >>> tuple(no_duplicates([1, 2, 3, 4]))
+    (1, 2, 3, 4)
+    >>> ''.join(no_duplicates('ababcabcd...xyz'))
+    'abcd.xyz'
+    """
+    seen = set()
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            yield(x)
+    return
+
+def restrict_keys(d: dict, domain) -> dict:
+    """Remove from d all items whose key is not in domain; return d.
+    >>> d = {'a': 1, 'b': 2}
+    >>> dr = restrict_keys(d, {'a', 'c'})
+    >>> dr
+    {'a': 1}
+    >>> d == dr
+    True
+    """
+    for k in set(d):
+        if k not in domain:
+            del d[k]
+    return d
+
+def difference_update(d: dict, remove) -> dict:
     """Change and return d.
-    d: mutable mapping, d_remove: iterable.
+    d: mutable mapping, remove: iterable.
     There is such a method for sets, but unfortunately not for dicts.
 
     >>> d = {'a': 1, 'b': 2, 'c': 3}
@@ -31,7 +63,7 @@ def difference_update(d, d_remove):
     >>> d == {'a': 1, 'c': 3}
     True
     """
-    for k in d_remove:
+    for k in remove:
         if k in d:
             del(d[k])
     return d    # so that we can pass a call to this fn as an arg, or chain
@@ -205,7 +237,7 @@ def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
     )
 
 
-def dict_to_sorted_str(d):
+def dict_to_sorted_str(d, _sort=True):
     """Return a str representation of dict d where keys are in ascending order.
     >>> d = {'c': 3, 'a': 1, 'b': 2}
     >>> print(dict_to_sorted_str(d))
@@ -214,13 +246,28 @@ def dict_to_sorted_str(d):
     >>> print(dict_to_sorted_str(d2))
     {'X': 'alphanumeric', 'Y': 'yomomma', 'Z': 'zebulon'}
     """
-    lst = [(k, v) for (k, v) in d.items()]
-    lst.sort(key=lambda p: p[0])
+    lst = list(d.items())
+    if _sort:
+        lst.sort(key=lambda p: p[0])
     ret = ('{' +
            ', '.join(["%s: %s" % (repr(k), repr(v)) for (k, v) in lst ]) +
            '}')
     return ret
 
+
+def OrderedDict_to_dict_str(od):
+    """Return a str representation of OrderedDict od as a dict where keys are in
+    the same order as in od.
+    Useful for doctests & unittests.
+
+    >>> od = OrderedDict(( ('c', 3), ('a', 1), ('b', 2) ))
+    >>> print(OrderedDict_to_dict_str(od))
+    {'c': 3, 'a': 1, 'b': 2}
+    >>> od2 = OrderedDict(( ('Z', 'zebulon'), ('X', 'alphanumeric'), ('Y', 'yomomma') ))
+    >>> print(OrderedDict_to_dict_str(od2))
+    {'Z': 'zebulon', 'X': 'alphanumeric', 'Y': 'yomomma'}
+    """
+    return dict_to_sorted_str(od, _sort=False)
 
 def is_quoted_str(s):
     """
@@ -243,8 +290,48 @@ def is_quoted_str(s):
     return isinstance(s, str) and len(s) >= 2 and s[0] == s[-1] and s[0] in QUOTES
 
 
+# match using match_fn(x, pattern).
+def any_match(match_fn, seq, patterns):
+    """Return True if match_fn(s, pat) is true for some (s, pat) in seq x patterns
+    match_fn: seq x patterns -> bool,
+    seq, patterns: iterables, generators.
+
+    Equality:
+    >>> any_match(lambda x, y: x == y, (1, 2, 3), (5, 6, 1))
+    True
+    >>> any_match(lambda x, y: x == y, (1, 2, 3), (5, 6))
+    False
+
+    fnmatch.fnmatchcase (fnmatch.fnmatchcase is case-sensitive)
+    >>> import fnmatch
+    >>> names = (s for s in ('pair', 'P.pair', 'pair.getter', 'P.pair.getter'))
+    >>> patterns = ('pair', )
+    >>> any_match(fnmatch.fnmatchcase, names, patterns)
+    True
+    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names generator is now 'spent', list(names) is empty
+    False
+
+    Regexp
+    >>> import re
+    >>> patterns = (r'a.*b', r'[0-9]{2,2}[a-z]')
+    >>> matcher = lambda s, pat: re.match(pat, s)
+    >>> any_match(matcher, ('aaaa', 'bbb', '0q'), patterns)
+    False
+    >>> any_match(matcher, ('aaaab',), patterns)
+    True
+    >>> any_match(matcher, ('aa', '23z'), patterns)
+    True
+    """
+    return any(
+        match_fn(s, pat)
+        for s in seq
+        for pat in patterns
+    )
+
 #############################################################################
 
 if __name__ == "__main__":
+
+
     import doctest
     doctest.testmod()

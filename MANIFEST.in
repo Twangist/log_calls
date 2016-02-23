@@ -1,11 +1,12 @@
-include README.md
-include log_calls/docs/*
-include log_calls/tests/*
+include run_tests.py
+include readme.rst
+recursive-include log_calls/docs *
+recursive-include log_calls/tests *
 include *.txt
 
-exclude Untitled*.ipynb
-exclude log_calls/docs/Untitled*.ipynb
+global-exclude Untitled*.ipynb
+global-exclude .DS_Store
+exclude log_calls/_HIDE*
+exclude ./.ipynb_checkpoints*
 
-prune log_calls/._HIDE
-prune ./.ipynb_checkpoints*
-prune ./build
+global-exclude */__pycache__/*

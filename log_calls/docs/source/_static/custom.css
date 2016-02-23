@@ -1,0 +1,63 @@
+/*
+.tt.literal {
+    color: #404040;
+}
+*/
+/*
+ Trying to override the hideous font and color
+    #E74C3C
+ of inline code in the RTD theme. So far, nothing works.
+*/
+
+span.literal {
+    /*color: #0044DD !important;*/
+    /*color: #003aa9 !important;*/
+    color: #003398 !important;
+    /*background-color: #efefff;*/
+    /*background-color: #f0f0ff;*/
+    background-color: #f3f4fc;
+    /*font-size: 110% !important;*/
+    font-size: 110% !important;
+}
+
+code.literal {
+    color: #003398 !important;
+    background-color: #f3f4fc;
+    /*font-size: 87% !important */
+    font-size: 87% !important;
+}
+
+/* THIS works -- code blocks */
+pre {
+    font-size: 83% !important;
+}
+
+
+/*
+Make HRs more visible, they're ridiculous with 'border-top: 1px solid #e1e4e5;''
+*/
+hr {
+    border-top: 1px solid #bec1c3;
+}
+/*
+DUNNO HOW TO CHANGE SIZE OF CODE BLOCKS.
+They're too small.
+
+div.highlight-python {
+    font-size: 125% !important;
+}
+*/
+
+h4 {
+    font-size: 112%;    // was 115%
+}
+
+h5 {
+    font-size: 104%;    // was 110%
+}
+
+h6 {
+    font-size: 100%;    // was 110%
+    font-style: italic;
+}
+
