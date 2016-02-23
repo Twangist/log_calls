@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b24'
+__version__ = '0.3.0'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -312,7 +312,7 @@ class DecoSettingsMapping():
                     "set_defaults: setting (key) '%s' is not visible in class %s."
                     % (setting_name, deco_classname))
 
-        # TODO Disallow? anyway, prevent, 'indirect' values -- somehow.
+        # TODO 'indirect' values -- Disallow? anyway, prevent? Somehow.
         #  |   Perhaps just get rid of any trailing INDIRECT_VALUE_MARKER ('=')
 
         # Change working default values

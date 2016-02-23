@@ -25,6 +25,10 @@ log_calls
     `file` parameter: allow string pathnames?
         Probably NOT, but think about it.
 
+    Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
+    (used in testing & debugging -- TODO : comment out or "if ___" out in release?)
+    Ditto `record_history_omit`, `record_history_only`    (TODO; document or delete)
+
 
 
 ==============

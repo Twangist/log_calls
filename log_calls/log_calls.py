@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0b25'
+__version__ = '0.3.0'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -597,30 +597,7 @@ class _deco_base():
     See deco_settings.py docstring for details.
 
     Settings/keyword params to __init__ that this base class knows about,
-    and uses in __call__ (in wrapper for wrapped function):
-
-        enabled:           If true, then logging will occur. (Default: True)
-        log_call_numbers: If truthy, display the (1-based) number of the function call,
-                          e.g.   f [n] <== <module>   for n-th logged call.
-                          This call would correspond to the n-th record
-                          in the functions call history, if record_history is true.
-                          (Default: False)
-        indent:            if true, log messages for each level of log_calls-decorated
-                           functions will be indented by 4 spaces, when printing
-                           and not using a logger (default: True (0.3.0))
-        prefix:            str to prefix the function name with when it is used
-                           in logged messages: on entry, in reporting return value
-                           (if log_retval) and on exit (if log_exit). (Default: '')
-        record_history:    If true, an array of records will be kept, one for each
-                           call to the function; each holds call number (1-based),
-                           arguments and defaulted keyword arguments, return value,
-                           time elapsed, time of call, caller (call chain), prefixed
-                           function name.(Default: False)
-        max_history:       An int. value >  0 --> store at most value-many records,
-                                                  oldest records overwritten;
-                                   value <= 0 --> unboundedly many records are stored
-
-        <<<<<<< TODO -- more............. >>>>>>>
+    and uses in __call__ (in wrapper for wrapped function): ... see docs.
     """
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # constants for the `mute` setting
@@ -669,7 +646,7 @@ class _deco_base():
     # # *** DecoSettingsMapping "API" --
     # # (1) initialize: Subclasses must call register_class_settings
     # #     with a sequence of DecoSetting objs containing at least these:
-    # #     (TODO: yes it's an odd lot of required DecoSetting objs)
+    # #     (Yes it's an odd lot of required DecoSetting objs)
     #
     # _setting_info_list = (
     #     DecoSettingEnabled('enabled'),
@@ -1697,7 +1674,6 @@ class _deco_base():
             try:
                 self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
             except AttributeError as e:
-                # print("%s has no qualname: %s" % (f, str(e)))     # <<<<<<<<< TODO DELETE DEBUG; don't deco???
                 self._classname_of_f = ''
 
             # Special-case '__repr__' handling, if deco subclass doesn't allow it.
@@ -1779,6 +1755,10 @@ class _deco_base():
             # 0.3.0 We assume Py3.3 so we use perf_counter, process_time all the time
             wall_time_fn = time.perf_counter
             process_time_fn = time.process_time
+
+            #############################
+            # The wrapper of a callable
+            #############################
 
             @wraps(f)
             def _deco_base_f_wrapper_(*args, **kwargs):
@@ -2044,8 +2024,8 @@ class _deco_base():
                 self
             )
         except TypeError as e:
-            # TODO -- this is fragile (if errormessage changes)
-            # TODO -- create a test for this situation
+            # Note, this is fragile (if errormessage changes, `errmsg in str(e)` may fail).
+            # .     There's a test for this situation.
             # E.g.  log_calls(only='update')(dict)
             # or    decorate_class(dict, only='update')
 
@@ -2213,8 +2193,6 @@ class _deco_base():
             _deco_class(klass)
         # (_deco_class_rec if decorate_subclasses else _deco_class)(klass)
 
-    # TODO docstring, docs
-
     @classmethod
     def decorate_package_function(cls, f: 'Callable', **setting_kwds) -> None:
         """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
@@ -2263,7 +2241,7 @@ class _deco_base():
         if basic_modname and '.' in fmodname:
             fpackagename = namespace['__package__']     # '.'.join(fmodname.split('.')[:-1])
             exec("import " + fpackagename)
-            package_dict = eval("vars(%s)" % fpackagename)    # TODO - works?
+            package_dict = eval("vars(%s)" % fpackagename)
             package_dict[f.__name__] = f_deco
 
         namespace[f.__name__] = f_deco
@@ -2313,8 +2291,8 @@ class _deco_base():
         if functions:
             for name, f in inspect.getmembers(mod, inspect.isfunction):
                 vars(mod)[name] = cls(**setting_kwds)(f)
-                ### todo vars(mod) also has key __package__,
-                ###  |   e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
+                ### Note, vars(mod) also has key __package__,
+                ### .     e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
         # Classes
         if classes:
             for name, kls in inspect.getmembers(mod, inspect.isclass):

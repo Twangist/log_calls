@@ -79,7 +79,8 @@ setup(
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
     test_suite='run_tests.py',     # log_calls.tests
-    scripts=['scripts/log_calls-path-to-docs'],
+    scripts=[       # 'scripts/log_calls-path-to-docs'
+            ],
     include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
