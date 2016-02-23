@@ -21,7 +21,8 @@ import doctest
 class C():
     clsmember = 17
 
-    @log_calls(log_retval=False)
+    ## Not needed, log_retval defaults to False for __init__, unless explicit `log_retval=True` given:
+    # @log_calls(log_retval=False)
     def __init__(self, x):
         self.x = x
 
@@ -77,7 +78,7 @@ def main__lc_class_deco__all_method_types():
         arguments:
             q=100
         C.statmeth_lc [1] return value: 200
-        elapsed time: ... [secs], CPU time: ... [secs]
+        elapsed time: ... [secs], process time: ... [secs]
     C.statmeth_lc [1] ==> returning to <module>
 
     >>> c = C(1000)                             # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
@@ -128,7 +129,7 @@ main__lc_class_deco__all_method_types.__doc__ = \
 #-----------------------
 # data
 #-----------------------
-@log_calls(indent=True, args_sep='\n', log_call_numbers=True, log_retval=True)
+@log_calls(args_sep='\n', log_call_numbers=True, log_retval=True)
 class D():
     def __init__(self):
         pass
@@ -285,6 +286,58 @@ def main__lc_class_deco__omit_only__basic():
 
 
 #=============================================================================
+# main__lc_class_deco__globs
+#=============================================================================
+def main__lc_class_deco__globs():
+    """
+Wildcard '?':
+
+    >>> @log_calls(only='f_ab?', settings=MINIMAL)
+    ... class X():
+    ...     def f_ab(self): pass
+    ...     def f_abc(self): pass
+    ...     def f_abd(self): pass
+    >>> x = X(); x.f_ab(); x.f_abc(); x.f_abd()
+    X.f_abc <== called by <module>
+    X.f_abd <== called by <module>
+
+Character sets and ranges
+
+Match characters in set:
+
+    >>> @log_calls(only='g_ab[cd]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters in range:
+
+    >>> @log_calls(only='g_ab[a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_abc_or_something <== called by <module>
+    Y.g_abd_perhaps <== called by <module>
+
+Match characters not in range
+
+    >>> @log_calls(only='g_ab[!a-z]*', settings=MINIMAL)
+    ... class Y():
+    ...     def g_ab7_and_more(self): pass
+    ...     def g_abc_or_something(self): pass
+    ...     def g_abd_perhaps(self): pass
+    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
+    Y.g_ab7_and_more <== called by <module>
+    """
+    pass
+
+#=============================================================================
 # main__lc_class_deco__omit_only__inner_classes
 #=============================================================================
 def main__lc_class_deco__omit_only__inner_classes():
@@ -341,50 +394,6 @@ Only '*_handler' methods:
     >>> ohi2 = O.I2(); ohi2.another_handler(); ohi2.g2()
     O.I2.another_handler <== called by <module>
 
-Wildcard '?':
-
-    >>> @log_calls(only='f_ab?', settings=MINIMAL)
-    ... class X():
-    ...     def f_ab(self): pass
-    ...     def f_abc(self): pass
-    ...     def f_abd(self): pass
-    >>> x = X(); x.f_ab(); x.f_abc(); x.f_abd()
-    X.f_abc <== called by <module>
-    X.f_abd <== called by <module>
-
-Character sets and ranges
-
-Match characters in set:
-
-    >>> @log_calls(only='g_ab[cd]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_abc_or_something <== called by <module>
-    Y.g_abd_perhaps <== called by <module>
-
-Match characters in range:
-
-    >>> @log_calls(only='g_ab[a-z]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_abc_or_something <== called by <module>
-    Y.g_abd_perhaps <== called by <module>
-
-Match characters not in range
-
-    >>> @log_calls(only='g_ab[!a-z]*', settings=MINIMAL)
-    ... class Y():
-    ...     def g_ab7_and_more(self): pass
-    ...     def g_abc_or_something(self): pass
-    ...     def g_abd_perhaps(self): pass
-    >>> y = Y(); y.g_ab7_and_more(); y.g_abc_or_something(); y.g_abd_perhaps()
-    Y.g_ab7_and_more <== called by <module>
 
 When provided and nonempty, inner `only` overrides outer `only`
 In I1, only g1 is decorated, despite the outer class's `only` specifier:
@@ -492,10 +501,8 @@ Property specified via decorator:
     ... class A():
     ...     def f(self): pass
     ...     @property
-    ...     @log_calls()
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().f(); A().prop; A().prop = 17
     A.f <== called by <module>
@@ -504,10 +511,8 @@ Property specified via decorator:
     >>> @log_calls(omit='prop')
     ... class A():
     ...     @property
-    ...     @log_calls()
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().prop; A().prop = 17     # (no output)
 
@@ -623,7 +628,6 @@ Property specified via decorator:
     ...     @property
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
     ...     def prop(self, val): pass
     >>> A().prop; A().prop = 17
     A.prop <== called by <module>
@@ -636,7 +640,7 @@ Property specified via decorator:
     ...     @log_calls(name='A.%s.getter')
     ...     def prop(self): pass
     ...     @prop.setter
-    ...     @log_calls()
+    ...     @log_calls()        # outer `omit` overrides this
     ...     def prop(self, val): pass
     >>> A().f(); A().prop; A().prop = 17
     A.f <== called by <module>
@@ -684,11 +688,9 @@ Property specified via property():
         - only [OBSERVE, uses both ways of referring to the property attrs]
     >>> @log_calls(only='prop_get prop.deleter', settings=MINIMAL)
     ... class A():
-    ...     @log_calls()
     ...     def prop_get(self): pass
-    ...     @log_calls()
+    ...     # @log_calls()    would have no effect
     ...     def prop_set(self, val): pass
-    ...     @log_calls()
     ...     def prop_del(self): pass
     ...     prop = property(prop_get, prop_set, prop_del)
     >>> A().prop; A().prop = 17; del A().prop
@@ -699,14 +701,12 @@ Property specified via property():
     ('prop_get', 'prop.deleter', 'prop_del')
 
         - omit
-        Referring to 'prop_get' rather than 'prop.getter' works reliably because prop_get is already decorated
+        Referring to 'prop_get' rather than 'prop.getter' works too
 
     >>> @log_calls(omit='prop_get', settings=MINIMAL)
     ... class A():
     ...     def f(self): pass
-    ...     @log_calls()
     ...     def prop_get(self): pass
-    ...     @log_calls()
     ...     def prop_del(self): pass
     ...     prop = property(prop_get, None, prop_del)
     >>> A().f(); A().prop; del A().prop
@@ -758,7 +758,8 @@ propertyname.getter, propertyname.setter, propertyname.deleter
 to refer to methods supplied to the 'property' constructor, which are also
 in the class dictionary.
 
-Empirically: In Python 3.4.2, 'xx' is enumerated before 'setxx' in class XX.
+Empirically: In Python 3.4.2 & probably other versions, 'xx' is enumerated
+before 'setxx' in class XX.
 Without the fixup, these tests would (or, could) fail.
 
 - omit
@@ -824,7 +825,7 @@ def main__lc_class_deco__omitonly_with_property_ctor__property_name_only():
 Same class we test omit='xx.setter' with,
 where `xx` is a property created using `property` constructor,
 and `xx` is enumerated by `cls.__dict__` before `setxx` in Py3.4.2.
-This failed in  prior to handling entire properties
+This failed prior to handling entire properties
 in `_deco_base._add_property_method_names`
 
     >>> @log_calls(omit='xx')
@@ -1136,6 +1137,127 @@ hence this error message:
     pass
 
 
+#-----------------------------------------------------------------------------
+# main__test___repr__log_calls_as_functional_applied_to_lambda
+#-----------------------------------------------------------------------------
+def main__test___repr__log_calls_as_functional_applied_to_lambda():
+    """
+    >>> import math
+
+    >>> @log_calls(indent=True)
+    ... class Point():
+    ...     def __init__(self, x, y):
+    ...         self.x = x
+    ...         self.y = y
+    ...
+    ...     @property
+    ...     def pair(self):
+    ...         return (self.x, self.y)
+    ...
+    ...     @pair.setter
+    ...     @log_calls(prefix='set:')
+    ...     def pair(self, pr):
+    ...         self.x, self.y = pr
+    ...
+    ...     @staticmethod
+    ...     def distance(pt1, pt2):
+    ...         return math.sqrt((pt1.x - pt2.x)**2 + (pt1.y - pt2.y)**2)
+    ...
+    ...     # `log_calls` as functional applied to lambda
+    ...     length_ = log_calls(log_retval=True)(
+    ...         lambda self: self.distance(Point(0, 0), self)
+    ...     )
+    ...
+    ...     def __repr__(self):
+    ...         return "Point" + str((self.x, self.y))
+
+    >>> p = Point(1, 2)                             # doctest: +ELLIPSIS
+    Point.__init__ <== called by <module>
+        arguments: self=<__main__.Point object at 0x...>, x=1, y=2
+    Point.__init__ ==> returning to <module>
+
+    >>> print("p.length_() =", p.length_())         # doctest: +ELLIPSIS
+    Point.<lambda> <== called by <module>
+        arguments: self=Point(1, 2)
+        Point.__init__ <== called by Point.<lambda>
+            arguments: self=<__main__.Point object at 0x...>, x=0, y=0
+        Point.__init__ ==> returning to Point.<lambda>
+        Point.distance <== called by Point.<lambda>
+            arguments: pt1=Point(0, 0), pt2=Point(1, 2)
+        Point.distance ==> returning to Point.<lambda>
+        Point.<lambda> return value: 2.236...
+    Point.<lambda> ==> returning to <module>
+    p.length_() = 2.236...
+
+`log_calls` does not decorate `__repr__` (anyway, not with itself!
+It deco's it with reprlib.recursive_repr):
+
+    >>> hasattr(p.__repr__, 'log_calls_settings')
+    False
+    """
+    pass
+
+# SURGERY:
+main__test___repr__log_calls_as_functional_applied_to_lambda.__doc__ = \
+    main__test___repr__log_calls_as_functional_applied_to_lambda.__doc__.replace("__main__", __name__)
+
+#-----------------------------------------------------------------------------
+# main__test__decorate_hierarchy
+#-----------------------------------------------------------------------------
+def main__test__decorate_class__hierarchy():
+    """
+    >>> class Base():
+    ...     def __init__(self, x):
+    ...         self.x = x
+    ...
+    ...     def template_method(self):
+    ...         print("**** callout returns", self.callout())
+    ...
+    ...     def callout(self):
+    ...         pass
+
+    >>> @log_calls(omit='callout')      # IGNORED; similarly, `only` ignored
+    ... class A(Base):
+    ...     def callout(self):  self.helper_A(); return 2 * self.x
+    ...     def helper_A(self): pass
+
+    >>> @log_calls(log_retval=False)    # overrides setting passed to `decorate_hierarchy`
+    ... class B(Base):
+    ...     def callout(self):  self.helper_B(); return 5 * self.x
+    ...     def helper_B(self): pass
+
+    >>> log_calls.decorate_class(Base, decorate_subclasses=True,
+    ...                          only="template_method callout", indent=True, log_retval=True)
+
+    >>> a = A(5)
+    >>> a.template_method()                             # doctest: +ELLIPSIS
+    Base.template_method <== called by <module>
+        arguments: self=<__main__.A object at 0x...>
+        A.callout <== called by Base.template_method
+            arguments: self=<__main__.A object at 0x...>
+            A.callout return value: 10
+        A.callout ==> returning to Base.template_method
+    **** callout returns 10
+        Base.template_method return value: None
+    Base.template_method ==> returning to <module>
+
+    >>> b = B(100)
+    >>> b.template_method()                             # doctest: +ELLIPSIS
+    Base.template_method <== called by <module>
+        arguments: self=<__main__.B object at 0x...>
+        B.callout <== called by Base.template_method
+            arguments: self=<__main__.B object at 0x...>
+        B.callout ==> returning to Base.template_method
+    **** callout returns 500
+        Base.template_method return value: None
+    Base.template_method ==> returning to <module>
+    """
+    pass
+
+# SURGERY:
+main__test__decorate_class__hierarchy.__doc__ = \
+    main__test__decorate_class__hierarchy.__doc__.replace("__main__", __name__)
+
 ##############################################################################
 # end of tests.
 ##############################################################################
@@ -1148,7 +1270,7 @@ def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests
 
-
+#-----------------------------------------------------------------------------
 if __name__ == "__main__":
 
     doctest.testmod()   # (verbose=True)

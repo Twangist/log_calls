@@ -5,7 +5,7 @@ Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
 number of call, to stdout or to a logger. log_calls can track
 call history and provide it in CSV format and Pandas DataFrame format.
-NOTE: CPython only -- this uses internals of stack frames
+NOTE: for CPython only -- this uses internals of stack frames
       which may well differ in other interpreters.
 See docs/log_calls.md for details, usage info and examples.
 
@@ -24,13 +24,16 @@ import time
 import datetime
 from collections import namedtuple, deque, OrderedDict
 
+# 0.3.0b23
+from reprlib import recursive_repr
+
 import fnmatch  # 0.3.0 for omit, only
 
 from .deco_settings import (DecoSetting,
                             DecoSetting_bool, DecoSetting_int, DecoSetting_str,
                             DecoSettingsMapping)
 from .helpers import (no_duplicates, get_args_pos, get_args_kwargs_param_names,
-                      difference_update,
+                      difference_update, restrict_keys,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
                       dict_to_sorted_str, prefix_multiline_str,
                       is_quoted_str, any_match)
@@ -39,49 +42,45 @@ from .used_unused_kwds import used_unused_keywords
 
 __all__ = ['log_calls', 'CallRecord', '__version__', '__author__']
 
-
 #-----------------------------------------------------------------------------
 # DecoSetting subclasses with pre-call handlers.
 # The `context` arg for pre_call_handler methods has these keys:
 #     decorator
 #     settings              # self._deco_settings     (of decorator)
 #     stats                 # self._stats             ("      "    )
-#     indent
 #     prefixed_fname
-#     output_fname          # prefixed_fname + possibly num_calls_logged (if log_call_numbers true)
 #     fparams
+#     call_list
+#     args
+#     kwargs
+#     indent
+#     output_fname          # prefixed_fname + possibly num_calls_logged (if log_call_numbers true)
+#
 #     argcount
 #     argnames              # argcount-long
 #     argvals               # argcount-long
 #     varargs
-#     explicit_kwargs
+#     varargs_name
+#     kwargs_name
 #     defaulted_kwargs
+#     explicit_kwargs
 #     implicit_kwargs
-#     call_list
-#     args
-#     kwargs
 #-----------------------------------------------------------------------------
 
-# TODO 0.3.x, possible `context` setting:  - - - - - - - - - - - - - - - - - -
-# todo  context key/vals that would be of interest to wrapped functions:
-#     settings
-#     stats
-#     explicit_kwargs
-#     defaulted_kwargs
-#     implicit_kwargs   # ??? maybe
-#     call_list
 # Note: stats (data) attributes are all r/o (but method clear_history isn't!),
-#         so wrapped function can't trash 'em;
-#       settings - could pass settings.as_dict();
-#       the rest (*_kwargs, call_list) could be mucked with,
-#         so we'd have to deepcopy() to prevent that.
-#       OR just document that wrapped functions shouldn't write to these values,
-#          as they're "live" and altering them could cause confusion/chaos/weirdness/crashes.
-#end TODO. - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  .       so wrapped function can't trash 'em;
+#  .     settings - could pass settings.as_dict();
+#  .     the rest (*_kwargs, call_list) could be mucked with,
+#  .       so we'd have to deepcopy() to prevent that.
+#  .     OR just document that wrapped functions shouldn't write to these values,
+#  .        as they're "live" and altering them could cause confusion/chaos/weirdness/crashes.
 
 class DecoSettingEnabled(DecoSetting_int):
     def __init__(self, name, **kwargs):
-        super().__init__(name, int, False, allow_falsy=True, **kwargs)
+        # v0.3.0b25 Let's try default=True, see what tests break.
+        #           It sucks having the real default be False.
+        # super().__init__(name, int, False, allow_falsy=True, **kwargs)
+        super().__init__(name, int, True, allow_falsy=True, **kwargs)
 
     def pre_call_handler(self, context):
         return ("%s <== called by %s"
@@ -99,6 +98,35 @@ class DecoSettingEnabled(DecoSetting_int):
             except ValueError:
                 return self.default
 
+
+# #### v0.3.0b18
+# def my_recursive_repr(fillvalue='...'):
+#     'Decorator to make a repr function return fillvalue for a recursive call'
+#
+#     def decorating_function(user_function):
+#         repr_running = set()
+#
+#         def wrapper(self):
+#             key = id(self), -1          # -1 == get_ident()
+#             if key in repr_running:
+#                 return fillvalue
+#             repr_running.add(key)
+#             try:
+#                 result = user_function()    # BTO: user_function(self)
+#             finally:
+#                 repr_running.discard(key)
+#             return result
+#
+#         # Can't use functools.wraps() here because of bootstrap issues
+#         wrapper.__module__ = getattr(user_function, '__module__', None)
+#         wrapper.__doc__ = getattr(user_function, '__doc__', '')
+#         wrapper.__name__ = getattr(user_function, '__name__', '')
+#         # BTO: only customization is adding defaults for the above 3 getattr calls
+#         #      so they don't blow up if e.g. user_function has no attr '__module__'
+#         wrapper.__annotations__ = getattr(user_function, '__annotations__', {})
+#         return wrapper
+#
+#     return decorating_function
 
 class DecoSettingArgs(DecoSetting_bool):
     def __init__(self, name, **kwargs):
@@ -182,19 +210,23 @@ class DecoSettingArgs(DecoSetting_bool):
                 if id(val) in ids_objs_in_progress:
                     arg_eq_val_str = '%s=%s' % (arg, object.__repr__(val))
                 else:
+                    #### Note, the '%r' can trigger indiectly recursive __repr__ calls,
+                    ####  .    which is why we use now reprlib.recursive_repr (v0.3.0b23) :
                     arg_eq_val_str = '%s=%r' % pair
+
                 arg_eq_val_strs.append(arg_eq_val_str)
+
             return arg_eq_val_strs
 
         args_vals = list(zip(context['argnames'], context['argvals']))
 
         if context['varargs']:
-            args_vals.append( ("[*]%s" % context['varargs_name'], context['varargs']) )
+            args_vals.append( ("*%s" % context['varargs_name'], context['varargs']) )
 
         args_vals.extend( context['explicit_kwargs'].items() )
 
         if context['implicit_kwargs']:
-            args_vals.append( ("[**]%s" % context['kwargs_name'], context['implicit_kwargs']) )
+            args_vals.append( ("**%s" % context['kwargs_name'], context['implicit_kwargs']) )
 
         if args_vals:
             msg += args_sep.join(
@@ -219,7 +251,7 @@ class DecoSettingArgs(DecoSetting_bool):
 # DecoSetting subclasses with post-call handlers.
 # The `context` for post_call_handler methods has these additional keys:
 #     elapsed_secs
-#     CPU_secs
+#     process_secs
 #     timestamp
 #     retval
 #-----------------------------------------------------------------------------
@@ -244,8 +276,8 @@ class DecoSettingElapsed(DecoSetting_bool):
 
     def post_call_handler(self, context: dict):
         return (context['indent'] +
-                "elapsed time: %f [secs], CPU time: %f [secs]"
-                % (context['elapsed_secs'], context['CPU_secs']))
+                "elapsed time: %f [secs], process time: %f [secs]"
+                % (context['elapsed_secs'], context['process_secs']))
 
 
 class DecoSettingExit(DecoSetting_bool):
@@ -272,7 +304,7 @@ class DecoSettingHistory(DecoSetting_bool):
             context['implicit_kwargs'],
             context['retval'],
             elapsed_secs=context['elapsed_secs'],
-            CPU_secs=context['CPU_secs'],
+            process_secs=context['process_secs'],
             timestamp_secs=context['timestamp'],
             prefixed_func_name=context['prefixed_fname'],
             caller_chain=context['call_list']
@@ -331,7 +363,7 @@ CallRecord = namedtuple(
         'varargs',
         'explicit_kwargs', 'defaulted_kwargs', 'implicit_kwargs',
         'retval',
-        'elapsed_secs', 'CPU_secs',
+        'elapsed_secs', 'process_secs',
         'timestamp',
         'prefixed_func_name',
         # caller_chain: list of fn names, possibly "prefixed".
@@ -544,10 +576,10 @@ def _get_deco_wrapper(deco_class, cls, fname: str) -> "function":
                          % (fname, prop_suffix, cls.__name__))
 
 
-#-----------------------------------------------------------------------------
+#-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 # _deco_base
 # Fat base class for log_calls and record_history decorators
-#-----------------------------------------------------------------------------
+#-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
 class _deco_base():
     """
@@ -565,33 +597,14 @@ class _deco_base():
     See deco_settings.py docstring for details.
 
     Settings/keyword params to __init__ that this base class knows about,
-    and uses in __call__ (in wrapper for wrapped function):
-
-        enabled:           If true, then logging will occur. (Default: True)
-        log_call_numbers: If truthy, display the (1-based) number of the function call,
-                          e.g.   f [n] <== <module>   for n-th logged call.
-                          This call would correspond to the n-th record
-                          in the functions call history, if record_history is true.
-                          (Default: False)
-        indent:            if true, log messages for each level of log_calls-decorated
-                           functions will be indented by 4 spaces, when printing
-                           and not using a logger (default: False)
-        prefix:            str to prefix the function name with when it is used
-                           in logged messages: on entry, in reporting return value
-                           (if log_retval) and on exit (if log_exit). (Default: '')
-        record_history:    If true, an array of records will be kept, one for each
-                           call to the function; each holds call number (1-based),
-                           arguments and defaulted keyword arguments, return value,
-                           time elapsed, time of call, caller (call chain), prefixed
-                           function name.(Default: False)
-        max_history:       An int. value >  0 --> store at most value-many records,
-                                                  oldest records overwritten;
-                                   value <= 0 --> unboundedly many records are stored.
+    and uses in __call__ (in wrapper for wrapped function): ... see docs.
     """
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # constants for the `mute` setting
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     class MUTE():
+        assert False == 0 and True == 1     # a friendly reminder
+
         NOTHING = False     # (default -- all output produced)
         CALLS = True        # (mute output from decorated functions & methods & properties,
                             #  but log_message and thus log_exprs produce output;
@@ -608,6 +621,12 @@ class _deco_base():
         'DECO_OF': '_$_f_%s_wrapper_-or-cls-DECO'       # value = self (0.3.0)
     }
 
+    _version = __version__
+
+    @classmethod
+    def version(cls):
+        return cls._version
+
     @classmethod
     def _set_class_sentinels(cls):
         """ 'virtual', called from __init__
@@ -620,13 +639,14 @@ class _deco_base():
     # placeholder! _set_class_sentinels called from __init__
     _sentinels = None
 
+
     INDENT = 4      # number of spaces to __ by at a time
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # # *** DecoSettingsMapping "API" --
     # # (1) initialize: Subclasses must call register_class_settings
     # #     with a sequence of DecoSetting objs containing at least these:
-    # #     (TODO: yes it's an odd lot of required DecoSetting objs)
+    # #     (Yes it's an odd lot of required DecoSetting objs)
     #
     # _setting_info_list = (
     #     DecoSettingEnabled('enabled'),
@@ -647,7 +667,7 @@ class _deco_base():
         'num_calls_logged',
         'num_calls_total',
         'elapsed_secs_logged',
-        'CPU_secs_logged',
+        'process_secs_logged',
         'history',
         'history_as_csv',
         'history_as_DataFrame',
@@ -702,10 +722,10 @@ class _deco_base():
         return self._elapsed_secs_logged
 
     @property
-    def CPU_secs_logged(self):
+    def process_secs_logged(self):
         # This value is accumulated for logged calls
         # whether or not history is being recorded.
-        return self._CPU_secs_logged
+        return self._process_secs_logged
 
     @property
     def history(self):
@@ -721,7 +741,7 @@ class _deco_base():
             implicit_kwargs (str)
             retval          (repr?)
             elapsed_secs
-            CPU_secs
+            process_secs
             timestamp       (format somehow? what is it anyway)
             function (it's a name/str)
         """
@@ -734,7 +754,7 @@ class _deco_base():
         # Write column headings line (append to csv str)
         fields = ['call_num']
         fields.extend(all_args)
-        fields.extend(['retval', 'elapsed_secs', 'CPU_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
+        fields.extend(['retval', 'elapsed_secs', 'process_secs', 'timestamp', 'prefixed_fname', 'caller_chain'])
         # 0.2.1 - use str not repr, get rid of quotes around column names
         csv = csv_sep.join(map(str, fields))
         csv += '\n'
@@ -761,7 +781,7 @@ class _deco_base():
             # and now the remaining fields
             fields.append(repr(rec.retval))
             fields.append(str(rec.elapsed_secs))
-            fields.append(str(rec.CPU_secs))
+            fields.append(str(rec.process_secs))
             fields.append(rec.timestamp)        # it already IS a formatted str
             fields.append(repr(rec.prefixed_func_name))
             fields.append(repr(rec.caller_chain))
@@ -793,7 +813,7 @@ class _deco_base():
         self._num_calls_total = 0
 
         self._elapsed_secs_logged = 0.0
-        self._CPU_secs_logged = 0.0
+        self._process_secs_logged = 0.0
 
         self.max_history = int(max_history)  # set before calling _make_call_history
         self._call_history = self._make_call_history()
@@ -804,16 +824,16 @@ class _deco_base():
         if logged:
             self._num_calls_logged += 1
 
-    def _add_to_elapsed(self, elapsed_secs, CPU_secs):
+    def _add_to_elapsed(self, elapsed_secs, process_secs):
         self._elapsed_secs_logged += elapsed_secs
-        self._CPU_secs_logged += CPU_secs
+        self._process_secs_logged += process_secs
 
     def _add_to_history(self,
                         argnames, argvals,
                         varargs,
                         explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                         retval,
-                        elapsed_secs, CPU_secs,
+                        elapsed_secs, process_secs,
                         timestamp_secs,
                         prefixed_func_name,
                         caller_chain
@@ -837,7 +857,7 @@ class _deco_base():
                     varargs,
                     explicit_kwargs, defaulted_kwargs, implicit_kwargs,
                     retval,
-                    elapsed_secs, CPU_secs,
+                    elapsed_secs, process_secs,
                     timestamp,
                     prefixed_func_name=prefixed_func_name,
                     caller_chain=caller_chain)
@@ -880,7 +900,7 @@ class _deco_base():
         makes string from each, expr = val,
         pass those strs to _log_message.
         :param exprs: exprs to evaluate and log with value
-        :param sep: as for _log_message
+        :param sep: default ', '
         :param extra_indent_level: as for _log_message
         :param prefix_with_name: as for _log_message
         :param prefix: additional text to prepend to output message
@@ -933,7 +953,7 @@ class _deco_base():
         _prefix: for log_exprs, callers of log_message won't need to use it
                  additional text to prepend to output message
         """
-        # do nothing unless enabled! cuz then the other 'stack' accesses will blow up
+        # do nothing unless enabled! if disabled, the other 'stack' accesses will blow up
         if self._enabled_stack[-1] <= 0:    # disabled
             return
 
@@ -947,6 +967,7 @@ class _deco_base():
         # adjust for calls not being logged -- don't indent an extra level
         #  (no 'log_calls frame', no 'arguments:' to align with),
         #  and prefix with display name cuz there's no log_calls "frame"
+        # NOTE, In this case we force "prefix_with_name = True" <<<
         ####if mute == self.MUTE.CALLS:
         if mute >= self.log_message_auto_prefix_threshold():
             extra_indent_level -= 1
@@ -969,11 +990,68 @@ class _deco_base():
     # settings
     #----------------------------------------------------------------
 
-    def _read_settings_file(self, settings_path=''):
+    # v0.3.0b24
+    @classmethod
+    def get_factory_defaults_OD(cls) -> OrderedDict:
+        return DecoSettingsMapping.get_factory_defaults_OD(cls.__name__)
+
+    # v0.3.0b24
+    @classmethod
+    def get_defaults_OD(cls) -> OrderedDict:
+        return DecoSettingsMapping.get_defaults_OD(cls.__name__)
+
+    @classmethod
+    def reset_defaults(cls):
+        DecoSettingsMapping.reset_defaults(cls.__name__)
+
+    @classmethod
+    def _get_settings_dict(cls, *,
+                           settings=None,
+                           deco_settings_keys=None,
+                           extra_settings_dict=None
+                          ) -> dict:
+        """Get settings from dict or read settings from file, if given, as a dict;
+        update that dict with any settings from extra_settings_dict, and return the result.
+        :param settings: dict, or str as for _read_settings_file (or None)
+        :param deco_settings_keys: seq or set of keys naming settings for this deco class `cls`
+        :param extra_settings_dict: more settings, restricted to deco_settings_keys (any others ignored)
+        :return:
+        """
+        if not deco_settings_keys:
+            deco_settings_keys = set(DecoSettingsMapping.get_deco_class_settings_dict(cls.__name__))
+
+        settings_dict = {}
+        if isinstance(settings, dict):
+            settings_dict = restrict_keys(settings, deco_settings_keys)
+        elif isinstance(settings, str):
+            settings_dict = cls._read_settings_file(settings_path=settings)
+
+        if extra_settings_dict:
+            settings_dict.update(extra_settings_dict)
+
+        return settings_dict
+
+    @classmethod
+    def set_defaults(cls, settings=None, ** more_defaults):
+        """
+        :param settings: a dict,
+                         or a str specifying a "settings file"
+                            such as _read_settings_file accepts (its `settings_path` parameter):
+                                *  a directory name (dir containing settings file '.' + self.__class__.__name__),
+                                *  or a path to a (text) settings file
+        :param more_defaults: keyword params where every key is a "setting".
+                              These override any default settings provided by `settings`
+        """
+        d = cls._get_settings_dict(settings=settings,
+                                   extra_settings_dict=more_defaults)
+        DecoSettingsMapping.set_defaults(cls.__name__, d)
+
+    @classmethod
+    def _read_settings_file(cls, settings_path=''):
         """If settings_path names a file that exists,
         load settings from that file.
         If settings_path names a directory, load settings from
-            settings_path + '.' + self.__class__.__name__
+            settings_path + '.' + cls.__name__
             e.g. the file '.log_calls' in directory specified by settings_path.
         If not settings_path or it doesn't exist, return {}.
         Format of settings file - zero or more lines of the form:
@@ -982,16 +1060,13 @@ class _deco_base():
         Blank lines are ok & ignored; lines whose first non-whitespace char is '#'
         are treated as comments & ignored.
 
-        Note: self._settings_mapping doesn't exist yet!
-              so this function can't use it, e.g. to test for valid settings,
-                    if setting in self._settings_mapping: ...
-              won't work.
+        v0.3.0 -- special-case handling for pseudo-setting `NO_DECO`
         """
         if not settings_path:
             return {}
 
         if os.path.isdir(settings_path):
-            settings_path = os.path.join(settings_path, '.' + self.__class__.__name__)
+            settings_path = os.path.join(settings_path, '.' + cls.__name__)
         if not os.path.isfile(settings_path):
             return {}
 
@@ -1002,9 +1077,10 @@ class _deco_base():
         except BaseException:   # FileNotFoundError?!
             return d
 
-        settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+        settings_dict = DecoSettingsMapping.get_deco_class_settings_dict(cls.__name__)
         for line in lines:
             line = line.strip()
+            # Allow blank lines & comments
             if not line or line[0] == '#':
                 continue
 
@@ -1054,10 +1130,11 @@ class _deco_base():
                  _omit=tuple(),             # 0.3.0 class deco'ing: str or seq - omit these methods/proper; not a setting
                  _only=tuple(),             # 0.3.0 class deco'ing: str or seq - deco only these (sans any in omit); not a setting
                  _name_param=None,          # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 _override=False,           # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
                  enabled=True,
                  log_call_numbers=False,
-                 indent=False,
+                 indent=True,               # 0.3.0 changed default
                  prefix='',
                  mute=False,
                  ** other_values_dict):
@@ -1079,44 +1156,42 @@ class _deco_base():
         #--------------------------------------------------------------------
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # Set up defaults_dict with log_calls's defaults - the static ones:
+        # Initialize effective_settings_dict with log_calls's defaults - the static ones:
         #   self.__class__.__name__ is name *of subclass*, clsname,
         #   which we trust has already called
         #     DecoSettingsMapping.register_class_settings(clsname, list-of-deco-setting-objs)
         #   Special-case handling of 'enabled' (ugh, eh), whose DecoSetting obj
         #   has .default = False, for "technical" reasons
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        od = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
-        defaults_dict = {k: od[k].default for k in od}
-        defaults_dict['enabled'] = True
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # get settings from dict | read settings from file
-        # if given, as a dict settings_dict
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict = {}
-        if isinstance(settings, dict):
-            settings_dict = settings
-        elif isinstance(settings, str):
-            settings_dict = self._read_settings_file(settings_path=settings)
 
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # 0.3.0 Save settings_dict updated with _used_keywords_dict
+        deco_settings_map = DecoSettingsMapping.get_deco_class_settings_dict(self.__class__.__name__)
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Get settings from dict | read settings from file, if given, as a dict
+        # Update with _used_keywords_dict, save as self._changed_settings,
         # so that these can be reapplied by any outer class deco --
-        # (class deco's _effective_settings (copy of) updated with these --
-        # in class case of __call__
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        settings_dict.update(_used_keywords_dict)   # settings_dict is now no longer *that*
-        self._changed_settings = settings_dict
+        # (a copy of a class deco's _effective_settings is updated with these
+        #  in class case of __call__)
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self._changed_settings = self._get_settings_dict(
+            settings=settings,
+            deco_settings_keys=set(deco_settings_map),
+            extra_settings_dict=_used_keywords_dict
+        )
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # update defaults_dict with settings *explicitly* passed to caller
+        # Initialize effective_settings_dict with log_calls's defaults - the static ones.
+        #
+        # update effective_settings_dict with settings *explicitly* passed to caller
         # of subclass's __init__, and save *that* (used in __call__)
         # as self._effective_settings, which are the final settings used
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        defaults_dict.update(self._changed_settings)    # defaults_dict is now no longer *that*
-        self._effective_settings = defaults_dict
+        effective_settings_dict = {k: deco_settings_map[k].default for k in deco_settings_map}
+        effective_settings_dict['enabled'] = True
+        effective_settings_dict.update(self._changed_settings)
+        self._effective_settings = effective_settings_dict
 
-        def _make_sequence(names) -> tuple:
+        def _make_token_sequence(names) -> tuple:
             """names is either a string of space- and/or comma-separated umm tokens,
             or is already a sequence of tokens.
             Return tuple of tokens."""
@@ -1124,12 +1199,19 @@ class _deco_base():
                 names = names.replace(',', ' ').split()
             return tuple(map(str, names))
 
-        self._omit_ex = self._omit = _make_sequence(_omit)
-        self._only_ex = self._only = _make_sequence(_only)
+        self._omit_ex = self._omit = _make_token_sequence(_omit)
+        self._only_ex = self._only = _make_token_sequence(_only)
 
         self.prefix = prefix                # special case
         self._name_param = _name_param
         self._other_values_dict = other_values_dict     # 0.3.0
+
+        self._override = _override                      # 0.3.0b18
+
+        # initialize sentinel strings
+        if not self.__class__._sentinels:
+            self.__class__._sentinels = self._set_class_sentinels()
+
         # 0.3.0 Factored out rest of __init__ to function case of __call__
 
     @property
@@ -1162,7 +1244,7 @@ class _deco_base():
         by classname + '.', AND WHICH MAY CONTAIN WILDCARDS AND
         CHARACTER RANGES (to match or reject). Classname can name
         inner classes & so can contain dots; Wildcards can match dot.
-        Wildcards/chart classes are as in "globs" --
+        Wildcards/char classes are as in "globs" --
         matching is done with fnmatch.fnmatchcase.
 
         :param cls: class being deco'd, some of whose methods/fns
@@ -1234,12 +1316,19 @@ class _deco_base():
 
         return tuple(no_duplicates(method_specs_ex))
 
-    def _class__call__(self, cls):
+    ### 0.3.0b18
+    def _update_settings(self, new: dict, old: dict, override_existing: bool):
+        new.update({k: v
+                   for (k,v) in old.items()
+                   if (not override_existing or k not in old)
+                  })
+
+    def _class__call__(self, klass):
         """
-        :param cls: class to decorate ALL the methods of,
+        :param klass: class to decorate ALL the methods of,
                     including properties and methods of inner classes.
-        :return: decorated class (cls - modified/operated on)
-        Operate on each function in cls.
+        :return: decorated class (klass - modified/operated on)
+        Operate on each function in klass.
         Use __getattribute__ to determine whether a function is (/will be)
         an instance method, staticmethod or classmethod;
 
@@ -1253,7 +1342,7 @@ class _deco_base():
                 using sentinel deco_obj = getattr(func, 'DECO_OF')
             get deco_obj._changed_settings of that instance,
 
-            THEN make its settings = self._effective_settings (for this cls)
+            THEN make its settings = self._effective_settings (for this klass)
                 updated with those deco_obj._changed_settings
 
         otherwise, (a non-wrapped function that will be an instance method)
@@ -1274,20 +1363,20 @@ class _deco_base():
         # via propertyname.getter or .setter or .deleter
         # and then the method's name is added to the list too.
         # Otherwise, if the function gets enumerated after the property
-        # in loop through cls.__dict__ below, it won't be recognized
+        # in loop through klass.__dict__ below, it won't be recognized
         # by name as something to omit or decorate-only.
-        self._omit_ex = self._add_property_method_names(cls, self._omit)
-        self._only_ex = self._add_property_method_names(cls, self._only)
+        self._omit_ex = self._add_property_method_names(klass, self._omit)
+        self._only_ex = self._add_property_method_names(klass, self._only)
 
         ## Equivalently,
-        # for name in cls.__dict__:
-        #     item = cls.__getattribute__(cls, name)
+        # for name in klass.__dict__:
+        #     item = klass.__getattribute__(klass, name)
 
-        for name, item in cls.__dict__.items():
-            actual_item = getattr(cls, name)
+        for name, item in klass.__dict__.items():
+            actual_item = getattr(klass, name)
             # If item is a staticmethod or classmethod,
             # actual_item is the underlying function;
-            # if item is a function or class, actual_item is item.
+            # if item is a function (instance method) or class, actual_item is item.
             # In all these cases, actual_item is callable.
             # If item is a property, it's not callable, and actual_item is item.
             if not (callable(actual_item) or type(item) == property):
@@ -1299,16 +1388,21 @@ class _deco_base():
             if inspect.isclass(item):
                 # item is an inner class.
                 # decorate it, using self._changed_settings
-                # Use sentinel 'DECO_OF' attribute on cls to get those
+                # Use sentinel 'DECO_OF' attribute on klass to get those
                 new_settings = self._changed_settings.copy()
                 new_only = self._only
                 new_omit = self._omit
                 deco_obj = getattr(item, self._sentinels['DECO_OF'], None)
-                if deco_obj:    # cls is already decorated
+
+                if deco_obj:    # klass is already decorated
+
                     # It IS already deco'd, so we want its settings to be
                     #    (copy of) self._changed_settings updated with its _changed_settings
-                    new_settings.update(deco_obj._changed_settings)
-                    # NOTICE WHAT THIS DOES:
+                    ### 0.3.0b18 -- Use self._override
+                    self._update_settings(new=new_settings,
+                                          old=deco_obj._changed_settings,
+                                          override_existing=self._override)
+                    # NOTICE WHAT THIS DOES (if override == False):
                     # inner "only" is what was originally given IF SOMETHING WAS GIVEN
                     #     -- DON'T add outer ones -- otherwise, use the outer ones;
                     # inner "omit" is cumulative, union -- DO add outer ones
@@ -1321,7 +1415,7 @@ class _deco_base():
                     omit=new_omit
                 )(item)
                 # and replace in class dict
-                setattr(cls, name, new_class)
+                setattr(klass, name, new_class)
                 continue    # for name, item in ...
 
             #-------------------------------------------------------
@@ -1360,14 +1454,13 @@ class _deco_base():
                     dont_decorate = False
                     namelist = [pre + fn
                                 for pre in ('',
-                                            cls.__qualname__ + '.')
+                                            klass.__qualname__ + '.')
                                 for fn in {name,                        # varies faster than pre
                                            name + '.' + PROPERTY_ATTRS_to_USER_SUFFIXES[attr],
                                            func_name}]
                     if _any_match(namelist, self._omit_ex):
                         dont_decorate = True
                     if self._only and not _any_match(namelist, self._only_ex):
-                        dont_decorate = True
                         dont_decorate = True
 
                     # get a fresh copy for each attr
@@ -1384,7 +1477,10 @@ class _deco_base():
 
                     if deco_obj:                        # it IS decorated
                         # Tweak its deco settings
-                        new_settings.update(deco_obj._changed_settings)
+                        ### 0.3.0b18 -- Use self._override
+                        self._update_settings(new=new_settings,
+                                              old=deco_obj._changed_settings,
+                                              override_existing=self._override)
                         # update func's settings (_force_mutable=True to handle `max_history` properly)
                         deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
                         # ...
@@ -1396,39 +1492,39 @@ class _deco_base():
                         new_func = self.__class__(** new_settings)(func)
                         # update property
                         new_funcs[attr] = new_func
-                        # Possibly update cls definition of func with new_func
+                        # Possibly update klass definition of func with new_func
                         # NOTE: if `property` ctor used to create property (item),
                         # then func (its name) is in class dict, ** as a function **,
                         # BUT IT MAY NOT BE DECO'd YET: despite the order of declarations
-                        # in the class body, we get them ~randomly via cls.__dict__.
-                        # SO in that case we ALSO have to update cls with new decorated func,
+                        # in the class body, we get them ~randomly via klass.__dict__.
+                        # SO in that case we ALSO have to update klass with new decorated func,
                         # otherwise we'll create a another, new wrapper for it,
                         # and THAT will be found by log_calls_wrapper(func.__name__)
                         # but log_calls_wrapper(property_name + '.___ter') will find this wrapper,
                         # and bad things can happen (log_message can use "the other" wrapper).
-                        # So: Is func also in class cls dict *** as a function ***?
+                        # So: Is func also in class klass dict *** as a function ***?
                         # NOT the case if @property decorator used to create property (item),
                         # but it IS the case if some random methods (including func)
                         # have been fed to 'property' ctor to create the property.
-                        if self._is_a_function_in_class(func_name, cls):
-                            setattr(cls, func_name, new_func)
+                        if self._is_a_function_in_class(func_name, klass):
+                            setattr(klass, func_name, new_func)
                         change = True
 
                 # Make new property object if anything changed
                 if change:
-                    # Replace property object in cls
-                    setattr(cls,
+                    # Replace property object in klass
+                    setattr(klass,
                             name,
                             property(new_funcs['fget'], new_funcs['fset'], new_funcs['fdel']))
                 continue    # for name, item in ...
 
             #-------------------------------------------------------
-            # Handle instance, static, class methods
-            # All we know it, actual_item is callable
+            # Handle instance, static, class methods.
+            # All we know is, actual_item is callable
             #-------------------------------------------------------
             # Filter with self._only and self._omit.
             dont_decorate = False
-            namelist = [name, cls.__qualname__ + '.' + name]
+            namelist = [name, klass.__qualname__ + '.' + name]
             if _any_match(namelist, self._omit_ex):
                 dont_decorate = True
             if self._only and not _any_match(namelist, self._only_ex):
@@ -1447,7 +1543,7 @@ class _deco_base():
             deco_obj = getattr(func, self._sentinels['DECO_OF'], None)
             if dont_decorate:
                 if deco_obj:
-                    setattr(cls, name, deco_obj.f)  # Undecorate
+                    setattr(klass, name, deco_obj.f)  # Undecorate
                 continue
 
             new_settings = self._changed_settings.copy()    # updated below
@@ -1461,7 +1557,10 @@ class _deco_base():
 
             if deco_obj:        # is func deco'd by this decorator?
                 # Yes. Figure out settings for func,
-                new_settings.update(deco_obj._changed_settings)
+                ### 0.3.0b18 -- Use self._override
+                self._update_settings(new=new_settings,
+                                      old=deco_obj._changed_settings,
+                                      override_existing=self._override)
                 # update func's settings (_force_mutable=True to handle `max_history` properly)
                 deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
             else:
@@ -1477,80 +1576,111 @@ class _deco_base():
                 elif type(item) == classmethod:
                     new_func = classmethod(new_func)
                 # and replace in class dict
-                setattr(cls, name, new_func)
+                setattr(klass, name, new_func)
 
-        return cls
+        return klass
 
-    def __call__(self, f_or_cls):
+    def __call__(self, f_or_klass):
         """Because there are decorator arguments, __call__() is called
         only once, and it can take only a single argument: the function
-        to decorate. The return value of __call__ is called subsequently.
-        So, this method *returns* the decorator proper.
+        or class to decorate. The return value of __call__ is called
+        subsequently. So, this method *returns* the decorator proper.
         (~ Bruce Eckel in a book, ___) TODO ref.
         """
+
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
-        # 0.3.0 -- handle decorating both functions and classes
+        # 0.3.0
+        # -- implement "kill switch", NO_DECO
+        # -- handle decorating both functions and classes
         #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*****
-        f = f_or_cls if inspect.isfunction(f_or_cls) else None
-        cls = f_or_cls if inspect.isclass(f_or_cls) else None
+
+        # 0.3.0b16: if it isn't callable, scram'
+        if not callable(f_or_klass):
+            return f_or_klass
+
+        # Special-case handling for ``NO_DECO``: remove from settings of ``self``
+        if self._effective_settings.get('NO_DECO'):
+            return f_or_klass
+        # else, delete that item wherever it might be
+        if 'NO_DECO' in self._effective_settings:
+            del self._effective_settings['NO_DECO']
+        if 'NO_DECO' in self._changed_settings:
+            del self._changed_settings['NO_DECO']
+
+        f = f_or_klass if inspect.isfunction(f_or_klass) else None
+        klass = f_or_klass if inspect.isclass(f_or_klass) else None
 
         self.f = f
-        self.cls = cls
+        self.cls = klass
 
-        # Whether class or function, initialize sentinels (0.3.0 formerly in __init__) TODO why not put it back there lol
-        if not self.__class__._sentinels:
-            self.__class__._sentinels = self._set_class_sentinels()
-
-        if cls:
+        if klass:
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0 -- case "f_or_cls is a class" -- namely, cls
+            # 0.3.0 -- case "f_or_klass is a class" -- namely, klass
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
-            self._class__call__(cls)     # modifies cls
-            # add attribute to cls: key is useful as sentinel, value is this deco
-            setattr(
-                cls,
-                self._sentinels['DECO_OF'],
-                self
-            )
-            # Make it easy for user to find the log_calls wrapper of a method,
-            # given its name, via `get_log_calls_wrapper(fname)`
-            # or `get_record_history_wrapper(fname)`
-            # This can be called on a deco'd class or on an instance thereof.
-            this_deco_class = self.__class__
-            setattr(
-                cls,
-                'get_' + this_deco_class.__name__ + '_wrapper',
-                classmethod(partial(_get_deco_wrapper, this_deco_class))
-            )
-            # Make it even easier for methods to find their own log_calls wrappers,
-            # via `get_own_log_calls_wrapper(fname)`
-            # or `get_own_record_history_wrapper(fname)`
-            # This can be called on a deco'd class or on an instance thereof.
-            this_deco_class = self.__class__
-            setattr(
-                cls,
-                'get_own_' + this_deco_class.__name__ + '_wrapper',
-                classmethod(partial(_get_own_deco_wrapper, this_deco_class))
-            )
+            self._class__call__(klass)      # modifies klass (methods & inner classes) (if not builtin)
+            self._add_class_attrs(klass)    # v0.3.0v20 traps TypeError for builtins
+            return klass
 
-            # largely for testing (by the time anyone gets to see these,
-            # they're no longer used... 'cept outer class at class level
-            # can manipulate inner classes' omit and only, but so what)
-            setattr(cls, this_deco_class.__name__ + '_omit', self.omit)
-            setattr(cls, this_deco_class.__name__ + '_only', self.only)
-
-            return cls
-
-        else:   # f - not a class
+        elif not f:
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            # 0.3.0 -- case "f_or_cls is a function" -- namely, f
+            # 0.3.0 -- case "f_or_klass is a callable but not a function"
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
-            self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
+            # functools.partial objects are callable, have no __name__ much less __qualname__,
+            # and trying to deco __call__ gets messy.
+            # Callable builtins e.g. len are not functions in the isfunction sense, can't deco anyway.
+            # Just give up (quietly)
+            return f_or_klass
 
-            # Refuse to decorate '__repr__' if deco subclass doesn't allow it.
-            if f.__name__ == '__repr__' and self._classname_of_f and not self.allow_repr():
+        else:           # not a class, f nonempty is a function of f_or_klass callable
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+            # 0.3.0 -- case "f_or_klass is a function" -- namely, f
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+
+            #----------------------------------------------------------------
+            # Don't double-decorate -- don't wanna, & it doesn't work anyway!
+            #----------------------------------------------------------------
+            # Note: As with methods of classes,
+            # .    if f is deco'd, its existing EXPLICITLY GIVEN settings take precedence.
+
+            # # From _class__call__, props & methods cases, w/a few name changes
+            deco_obj = getattr(f, self._sentinels['DECO_OF'], None)     # type: _deco_base
+
+            # get a fresh copy for each attr
+            new_settings = self._changed_settings.copy()    # updated below
+
+            # __init__ fixup, a nicety:
+            # By default, don't log retval for __init__.
+            # If user insists on it with 'log_retval=True' in __init__ deco,
+            # that will override this.
+            if f.__name__ == '__init__':
+                self.fixup_for_init(new_settings)
+
+            if deco_obj:        # f is deco'd by this decorator
+                # Yes. Figure out settings for f,
+                ### 0.3.0b18 -- Use self._override
+                self._update_settings(new=new_settings,
+                                      old=deco_obj._changed_settings,
+                                      override_existing=self._override)
+                # update func's settings (_force_mutable=True to handle `max_history` properly)
+                deco_obj._settings_mapping.update(new_settings, _force_mutable=True)
                 return f
+
+            #----------------------------------------------------------------
+            # f is a function & is NOT already deco'd
+            #----------------------------------------------------------------
+
+            # 0.3.0.x -- f may not have a .__qualname__
+            try:
+                self._classname_of_f = '.'.join( f.__qualname__.split('.')[:-1] )
+            except AttributeError as e:
+                self._classname_of_f = ''
+
+            # Special-case '__repr__' handling, if deco subclass doesn't allow it.
+            if f.__name__ == '__repr__' and self._classname_of_f and not self.allow_repr():
+                # v0.3.0b23 -- Instead of refusing to deco, use recursive_repr
+                # return f
+                return recursive_repr(fillvalue="...")(f)
 
             # 0.3.0
             # Use __qualname__ ALL the time, unless user provides `name=display_name_str`
@@ -1605,7 +1735,7 @@ class _deco_base():
             # Accumulate this (for logged calls only)
             # even when record_history is false:
             self._elapsed_secs_logged = 0.0
-            self._CPU_secs_logged = 0.0
+            self._process_secs_logged = 0.0
 
             # 0.2.2.post1
             # stack(s), pushed & popped wrapper of deco'd function
@@ -1624,7 +1754,11 @@ class _deco_base():
 
             # 0.3.0 We assume Py3.3 so we use perf_counter, process_time all the time
             wall_time_fn = time.perf_counter
-            CPU_time_fn = time.process_time
+            process_time_fn = time.process_time
+
+            #############################
+            # The wrapper of a callable
+            #############################
 
             @wraps(f)
             def _deco_base_f_wrapper_(*args, **kwargs):
@@ -1661,7 +1795,7 @@ class _deco_base():
                     return ret
 
                 # Bump call counters, before calling fn.
-                # Note: elapsed_secs, CPU_secs not reflected yet of course
+                # Note: elapsed_secs, process_secs not reflected yet of course
                 self._add_call(logged=_enabled)
 
                 _log_call_numbers = _get_final_value('log_call_numbers')
@@ -1679,8 +1813,6 @@ class _deco_base():
                 do_indent = _get_final_value('indent')
                 _extra_indent_level = (prev_indent_level +
                                        int(not not do_indent and not not _enabled))
-
-                # Needed 3x:
                 # 0.3.0
                 ########## prefixed_fname = _get_final_value('prefix') + f.__name__
                 prefixed_fname = _get_final_value('prefix') + self.f_display_name
@@ -1721,7 +1853,7 @@ class _deco_base():
                 # 0.2.2 -- self._log_message() will use
                 # the logging_fn, indent_len and output_fname at top of these stacks;
                 # thus, verbose functions should use log_message to write their blather.
-                # There are parallel stacks of these,
+                # There's a stack of logging-state ,
                 # used by self._log_message(), maintained in this wrapper.
                 self._logging_state_push(logging_fn, global_indent_len, output_fname, mute)
 
@@ -1748,7 +1880,6 @@ class _deco_base():
                     'kwargs': kwargs,
                     'indent': " " * self.INDENT,              # our unit of indentation
                     'output_fname': output_fname,
-                    'stats': self._stats,
                 }
 
                 # Gather all the things we need (for log output, & for history)
@@ -1805,16 +1936,16 @@ class _deco_base():
                 # No dictionary overhead between timer(s) start & stop.
                 t0 = time.time()                # for timestamp
                 t0_wall = wall_time_fn()
-                t0_CPU = CPU_time_fn()
+                t0_process = process_time_fn()
                 retval = f(*args, **kwargs)
                 t_end_wall = wall_time_fn()
-                t_end_CPU = CPU_time_fn()
+                t_end_process = process_time_fn()
                 context['elapsed_secs'] = (t_end_wall - t0_wall)
-                context['CPU_secs'] = (t_end_CPU - t0_CPU)
+                context['process_secs'] = (t_end_process - t0_process)
                 context['timestamp'] = t0
                 context['retval'] = retval
 
-                self._add_to_elapsed(context['elapsed_secs'], context['CPU_secs'])
+                self._add_to_elapsed(context['elapsed_secs'], context['process_secs'])
 
                 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 # Call post-call handlers, collect nonempty return values
@@ -1833,58 +1964,104 @@ class _deco_base():
                     if logging_fn:
                         for msg in post_msgs:
                             self._log_message(msg, extra_indent_level=0)
+                # v0.3.0b22 -- if recording history, add record of call even if we're muted(!)
+                elif _get_final_value('record_history'):
+                    info = self._settings_mapping._get_DecoSetting('record_history')
+                    _ = info.post_call_handler(context)
 
                 self._logging_state_pop(enabled_too=True)
 
                 return retval
 
-            # Add a sentinel as an attribute to _deco_base_f_wrapper_
+            self._add_function_attrs(f, _deco_base_f_wrapper_)
+            return _deco_base_f_wrapper_
+
+            #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            # end else (case "f_or_klass is a function")
+            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+
+    def _add_function_attrs(self, f, f_wrapper):
+            # Add a sentinel as an attribute to f_wrapper
             # so we can in theory chase back to any previous log_calls-decorated fn
             setattr(
-                _deco_base_f_wrapper_,
-                self._sentinels['SENTINEL_ATTR'],
-                self._sentinels['SENTINEL_VAR']
+                f_wrapper, self._sentinels['SENTINEL_ATTR'], self._sentinels['SENTINEL_VAR']
             )
             # A back-pointer
             setattr(
-                f,
-                self._sentinels['WRAPPER_FN_OBJ'],
-                _deco_base_f_wrapper_
+                f, self._sentinels['WRAPPER_FN_OBJ'], f_wrapper
             )
             # 0.3.0 -- pointer to self
             setattr(
-                _deco_base_f_wrapper_,
-                self._sentinels['DECO_OF'],
-                self
+                f_wrapper, self._sentinels['DECO_OF'], self
             )
             # stats objects (attr of wrapper)
             setattr(
-                _deco_base_f_wrapper_,
-                'stats',
-                self._stats
+                f_wrapper, 'stats', self._stats
             )
             setattr(
-                _deco_base_f_wrapper_,
-                self.__class__.__name__ + '_settings',
-                self._settings_mapping
+                f_wrapper, self.__class__.__name__ + '_settings', self._settings_mapping
             )
             # 0.2.1a
             setattr(
-                _deco_base_f_wrapper_,
-                'log_message',
-                self._log_message,
+                f_wrapper, 'log_message', self._log_message,
             )
             # 0.3.0
             setattr(
-                _deco_base_f_wrapper_,
-                'log_exprs',
-                self._log_exprs,
+                f_wrapper, 'log_exprs', self._log_exprs,
             )
 
-            return _deco_base_f_wrapper_
-            #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            # end else (case "f_or_cls is a function")
-            #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
+    def _add_class_attrs(self, klass):
+        """Add attribute(s) to klass: key is useful as sentinel, value is this deco
+
+        v0.3.0b20 - trap builtin/extension type failure
+            TypeError: can't set attributes of built-in/extension type 'dict'
+        """
+        # It's only necessary to trap builtin failure for the first `setattr`
+        try:
+            setattr(
+                klass,
+                self._sentinels['DECO_OF'],
+                self
+            )
+        except TypeError as e:
+            # Note, this is fragile (if errormessage changes, `errmsg in str(e)` may fail).
+            # .     There's a test for this situation.
+            # E.g.  log_calls(only='update')(dict)
+            # or    decorate_class(dict, only='update')
+
+            errmsg = "can't set attributes of built-in/extension type"
+            if errmsg in str(e):
+                return
+
+        # klass is not a builtin or extension type
+
+        # Make it easy for user to find the log_calls wrapper of a method,
+        # given its name, via `get_log_calls_wrapper(fname)`
+        # or `get_record_history_wrapper(fname)`
+        # This can be called on a deco'd class or on an instance thereof.
+        this_deco_class = self.__class__
+        this_deco_class_name = this_deco_class.__name__
+        setattr(
+            klass,
+            'get_' + this_deco_class_name + '_wrapper',
+            classmethod(partial(_get_deco_wrapper, this_deco_class))
+        )
+        # Make it even easier for methods to find their own log_calls wrappers,
+        # via `get_own_log_calls_wrapper(fname)`
+        # or `get_own_record_history_wrapper(fname)`
+        # This can be called on a deco'd class or on an instance thereof.
+        this_deco_class = self.__class__
+        setattr(
+            klass,
+            'get_own_' + this_deco_class_name + '_wrapper',
+            classmethod(partial(_get_own_deco_wrapper, this_deco_class))
+        )
+
+        # largely for testing (by the time anyone gets to see these,
+        # they're no longer used... 'cept outer class at class level
+        # can manipulate inner classes' omit and only, but so what)
+        setattr(klass, this_deco_class_name + '_omit', self.omit)
+        setattr(klass, this_deco_class_name + '_only', self.only)
 
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
@@ -1967,7 +2144,7 @@ class _deco_base():
                         prev_indent_level = active_call_items['_extra_indent_level']
 
                     if enabled and log_call_numbers:
-                        call_list[-1] += " [" + str(active_call_number) + "]"
+                        call_list[-1] += (' [%d]' % active_call_number)
                     found_enabled = enabled     # done with outer loop too if enabled
                 else:   # bypassed
                     enabled = False
@@ -1982,6 +2159,145 @@ class _deco_base():
             call_list = call_list[:1]
         return call_list, prev_indent_level
 
+    @classmethod
+    def decorate_hierarchy(cls, baseclass: type, **setting_kwds) -> None:
+        """Decorate baseclass and, recursively, all of its descendants.
+        If any subclasses are directly decorated, their explicitly given setting_kwds,
+        EXCEPT `omit` and `only`, override those in `setting_kwds` UNLESS 'override=True'
+        is in `setting_kwds`.
+        """
+        cls.decorate_class(baseclass, decorate_subclasses=True, **setting_kwds)
+
+    @classmethod
+    def decorate_class(cls, klass: type, decorate_subclasses=False, **setting_kwds) -> None:
+        """Decorate klass and, optionally, all of its descendants recursively.
+       (If decorate_subclasses == True, and if any subclasses are decorated,
+       their explicitly given setting_kwds, EXCEPT `omit` and `only`,
+       override those in `setting_kwds` UNLESS 'override=True' is in `setting_kwds`.)
+        """
+        assert isinstance(klass, type)
+
+        def _deco_class(kls: type):
+            t = cls(**setting_kwds)
+            _ = t(kls)
+            # assert _ == kls
+
+        def _deco_class_rec(kls: type):
+            _deco_class(kls)
+            for subclass in kls.__subclasses__():
+                _deco_class_rec(subclass)
+
+        if decorate_subclasses:
+            _deco_class_rec(klass)
+        else:
+            _deco_class(klass)
+        # (_deco_class_rec if decorate_subclasses else _deco_class)(klass)
+
+    @classmethod
+    def decorate_package_function(cls, f: 'Callable', **setting_kwds) -> None:
+        """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
+        replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
+        of the module of ``f``.
+
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, qualified with package, e.g. mypackage.myfunc,
+                  however it would be referred to in code at the point of a call to `decorate_package_function`.
+        :param setting_kwds: settings for decorator
+
+        inspect.getmodule(f).__name__
+        'sklearn.cluster.k_means_'
+
+        inspect.getmodulename('sklearn/cluster/k_means_.py')
+        'k_means_'
+
+        SO
+            * fmodname = inspect.getmodule(f).__name__
+                'sklearn.cluster.k_means_'
+            * replace '.' with '/' in fmodname
+              fmodname = 'sklearn/cluster/k_means_'
+
+            * inspect.getmodulename('sklearn/cluster/k_means_.py')
+              'k_means_'
+             VS
+              inspect.getmodulename('sklearn.cluster')
+              None
+
+              So call inspect.getmodulename(fmodname + '.py')
+              If it returns None, leave alone, f was called through module.
+              If it's NOT None, then trim off last bit from path
+              fmodname = '.'.join(fmodname.split('/')[:-1])
+              eval(fmodname + '.' + f.__name__
+
+
+        """
+        f_deco = cls(**setting_kwds)(f)
+
+        namespace = vars(inspect.getmodule(f))
+
+        fmodname = inspect.getmodule(f).__name__
+        # 'sklearn.cluster.k_means_'
+        basic_modname = inspect.getmodulename(fmodname.replace('.', '/') + '.py')
+        # 'k_means_' or 'some_module', or None
+        if basic_modname and '.' in fmodname:
+            fpackagename = namespace['__package__']     # '.'.join(fmodname.split('.')[:-1])
+            exec("import " + fpackagename)
+            package_dict = eval("vars(%s)" % fpackagename)
+            package_dict[f.__name__] = f_deco
+
+        namespace[f.__name__] = f_deco
+
+    @classmethod
+    def decorate_module_function(cls, f: 'Callable', **setting_kwds) -> None:
+        """Wrap ``f`` with decorator ``cls`` (e..g ``log_calls``) using settings in ``settings_kwds``;
+        replace definition of ``f.__name__`` with that decorated function in the ``__dict__``
+        of the module of ``f``.
+
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, qualified with module, e.g. mymodule.myfunc,
+                  however it would be referred to in code at the point of a call to `decorate_module_function`.
+        :param setting_kwds: settings for decorator
+        """
+        namespace = vars(inspect.getmodule(f))
+        namespace[f.__name__] = cls(**setting_kwds)(f)
+
+    @classmethod
+    def decorate_function(cls, f: 'Callable', **setting_kwds) -> None:
+        """Wrap f with decorator `cls` using settings, replace definition of f.__name__
+        with that decorated function in the global namespace OF THE CALLER.
+
+        :param cls: decorator class e.g. log_calls
+        :param f: a function object, with no package/module qualifier.
+                  However it would be referred to in code at the point of the call
+                  to `decorate_function`.
+        :param setting_kwds: settings for decorator
+        """
+        caller_frame = sys._getframe(1)           # caller's frame
+        namespace = caller_frame.f_globals
+        namespace[f.__name__] = cls(**setting_kwds)(f)
+
+    # v0.3.0b18 -- Not ready for primetime?
+    # Hard to get this working on real-world examples, e.g. sklearn.cluster.k_means_
+    @classmethod
+    def decorate_module(cls, mod: 'module',
+                        functions=True, classes=True,
+                        **setting_kwds) -> None:
+        """
+        Can't decorate builtins, attempting
+            log_calls.decorate_class(dict, only='update')
+        gives:
+            TypeError: can't set attributes of built-in/extension type 'dict'
+        """
+        # Functions
+        if functions:
+            for name, f in inspect.getmembers(mod, inspect.isfunction):
+                vars(mod)[name] = cls(**setting_kwds)(f)
+                ### Note, vars(mod) also has key __package__,
+                ### .     e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
+        # Classes
+        if classes:
+            for name, kls in inspect.getmembers(mod, inspect.isclass):
+                _ = cls(**setting_kwds)(kls)
+                # assert _ == kls
 
 #----------------------------------------------------------------------------
 # log_calls
@@ -2025,7 +2341,7 @@ class log_calls(_deco_base):
                           in seconds. (Default: False)
         indent:            if true, log messages for each level of log_calls-decorated
                            functions will be indented by 4 spaces, when printing
-                           and not using a logger (default: False)
+                           and not using a logger (default: True (0.3.0))
         prefix:            str to prefix the function name with when it is used
                            in logged messages: on entry, in reporting return value
                            (if log_retval) and on exit (if log_exit). (Default: '')
@@ -2119,13 +2435,14 @@ class log_calls(_deco_base):
 
     # allow indirection for all except prefix and max_history, which also isn't mutable
     _setting_info_list = (
-        DecoSettingEnabled('enabled'),
+        # indirect_default='False': a user attr which constructor knows about
+        DecoSettingEnabled('enabled', indirect_default=False),
         DecoSetting_str('args_sep',          str,            ', ',          allow_falsy=False),
         DecoSettingArgs('log_args'),
         DecoSettingRetval('log_retval'),
         DecoSettingElapsed('log_elapsed'),
         DecoSettingExit('log_exit'),
-        DecoSetting_bool('indent',           bool,           False,         allow_falsy=True),
+        DecoSetting_bool('indent',           bool,           True,          allow_falsy=True),
         DecoSetting_bool('log_call_numbers', bool,           False,         allow_falsy=True),
         DecoSetting_str('prefix',            str,            '',            allow_falsy=True,
                         allow_indirect=False, mutable=True),    # 0.3.0; was mutable=False
@@ -2139,6 +2456,9 @@ class log_calls(_deco_base):
         DecoSettingHistory('record_history'),
         DecoSetting_int('max_history',       int,            0,             allow_falsy=True,
                         allow_indirect=False, mutable=False),
+        DecoSetting_bool('NO_DECO',  bool,           False,         allow_falsy=True, mutable=False,
+                         pseudo_setting=True
+                        ),
     )
     DecoSettingsMapping.register_class_settings('log_calls',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
@@ -2148,14 +2468,15 @@ class log_calls(_deco_base):
                  settings=None,     # 0.2.4.post2. A dict or a pathname
                  omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
                  only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
-                 name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 name='',         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 override=False,    # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  enabled=True,
                  args_sep=', ',
                  log_args=True,
                  log_retval=False,
                  log_elapsed=False,
                  log_exit=True,
-                 indent=False,         # probably better than =True
+                 indent=True,            # 0.3.0, this seems the better default
                  log_call_numbers=False,
                  prefix='',
                  file=None,    # detectable value so we late-bind to sys.stdout
@@ -2164,13 +2485,15 @@ class log_calls(_deco_base):
                  mute=False,
                  record_history=False,
                  max_history=0,
+                 NO_DECO=False,
     ):
         """(See base class docstring)
         """
         # 0.2.4 settings stuff:
         # determine which keyword arguments were actually passed by caller!
         used_keywords_dict = log_calls.__dict__['__init__'].get_used_keywords()
-        for kwd in ('settings', 'omit', 'only', 'name'):
+        # remove non-"settings"
+        for kwd in ('settings', 'omit', 'only', 'name', 'override'):
             if kwd in used_keywords_dict:
                 del used_keywords_dict[kwd]
 
@@ -2179,6 +2502,7 @@ class log_calls(_deco_base):
             _omit=omit,             # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
             _only=only,             # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (sans omit)
             _name_param=name,       # 0.3.0 name or oldstyle fmt str etc.
+            _override=override,     # 0.3.0b18: new settings override existing ones. NOT a "setting"
             _used_keywords_dict=used_keywords_dict,
             enabled=enabled,
             args_sep=args_sep,
@@ -2195,6 +2519,7 @@ class log_calls(_deco_base):
             mute=mute,
             record_history=record_history,
             max_history=max_history,
+            NO_DECO=NO_DECO,
         )
 
     # 0.3.0

@@ -1,7 +1,7 @@
 __author__ = "Brian O'Neill"  # BTO
 __version__ = '0.3.0'
 
-from .deco_settings import DecoSetting, DecoSettingsMapping
+from .deco_settings import DecoSetting, DecoSettingsMapping, DecoSetting_bool
 from .log_calls import _deco_base, DecoSettingHistory
 from .used_unused_kwds import used_unused_keywords
 
@@ -18,6 +18,7 @@ class record_history(_deco_base):
         DecoSetting('prefix',           str,  '',     allow_falsy=True, allow_indirect=False),
         DecoSetting('mute',             int,  False,  allow_falsy=True, visible=False),  # 0.3.0
         DecoSetting('max_history',      int,  0,      allow_falsy=True, mutable=False),
+        DecoSetting_bool('NO_DECO',  bool,  False,   allow_falsy=True, mutable=False),
     )
     DecoSettingsMapping.register_class_settings('record_history',    # name of this class. DRY - oh well.
                                                 _setting_info_list)
@@ -25,12 +26,15 @@ class record_history(_deco_base):
     # 0.2.6 Fix: use decorator:
     @used_unused_keywords()
     def __init__(self,
+                 settings=None,     # 0.3.0b18 added:  A dict or a pathname
                  omit=tuple(),      # 0.3.0 class deco'ing: omit these methods/inner classes
                  only=tuple(),      # 0.3.0 class deco'ing: decorate only these methods/inner classes (minus any in omit)
                  name=None,         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  enabled=True,
                  prefix='',
-                 max_history=0):
+                 max_history=0,
+                 NO_DECO=False,
+                ):
         # 0.2.6 get used_keywords_dict and pass to super().__init__
         used_keywords_dict = record_history.__dict__['__init__'].get_used_keywords()
         # 0.3.0 but first, ditch parameters that aren't settings
@@ -39,6 +43,7 @@ class record_history(_deco_base):
                 del used_keywords_dict[kwd]
 
         super().__init__(
+            settings=settings, # 0.3.0b18 added:  A dict or a pathname
             _omit=omit,        # 0.3.0 class deco'ing: tuple - omit these methods/inner classes
             _only=only,        # 0.3.0 class deco'ing: tuple - decorate only these methods/inner classes (minus omit)
             _name_param=name,  # 0.3.0 name or oldstyle fmt str etc.
@@ -49,6 +54,7 @@ class record_history(_deco_base):
             max_history=max_history,
             indent=False,              # p.i.t.a. that this is here :|
             log_call_numbers=True,     # for call chain in history record
+            NO_DECO=NO_DECO,
         )
 
     # 0.3.0

@@ -1,12 +1,29 @@
 __author__ = "Brian O'Neill"
 __version__ = '0.3.0'
 
+'''
+Four tests changed because of a Python bug fixed in 3.5:
+    http://bugs.python.org/issue23775
+    Fix pprint of OrderedDict
+
+    Pre-3.5, pprint printed the repr of OrderedDict if it fit on one line,
+    and printed the repr of dict if the output would be wrapped.
+
+The four tests all did
+    pprint.pprint(f.log_calls_settings.as_OD())
+and expected the output to be multiline & so plain dicts.
+Rather than have separate tests for different versions
+of Python, we just changed the tests to test for equality
+to a constant dict:
+    f.log_calls_settings.as_OrderedDict() == { ... }
+'''
+
 from log_calls import log_calls
 
 import pprint
 import doctest
 import unittest
-
+from log_calls.helpers import OrderedDict_to_dict_str
 
 #############################################################################
 # doctests
@@ -22,7 +39,7 @@ def main__static_dynamic_parameter_values__dynamic_control__more():
     ...     return x**2
     >>> _ = f(2, logexit=False)   # logargs=True, log_retval=False: defaults
     f <== called by <module>
-        arguments: x=2, [**]kwargs={'logexit': False}
+        arguments: x=2, **kwargs={'logexit': False}
 
     >>> _ = f(5, logargs=False, logretval=True) # log_exit=True, default
     f <== called by <module>
@@ -91,7 +108,7 @@ but here we do get output:
     >>> bar(debug=False)  # no output
     >>> bar(debug=True)   # output
     bar <== called by <module>
-        arguments: [**]kwargs={'debug': True}
+        arguments: **kwargs={'debug': True}
     bar ==> returning to <module>
 
     >>> bar()         # no output: enabled=<keyword> overrides enabled=True
@@ -140,7 +157,7 @@ uses the default separator ', '.)
     ...     print(x * y + z)
     >>> r(1, 2, 3, enable=True)
     r <== called by <module>
-        arguments: x=1, y=2, z=3, [**]kwargs={'enable': True}
+        arguments: x=1, y=2, z=3, **kwargs={'enable': True}
     5
     r ==> returning to <module>
 
@@ -163,15 +180,15 @@ separator '\\n'):
             x=1
             y=2
             z=3
-            [**]kwargs={...}
-    DEBUG:mylogger:r <== called by s <== t
-    DEBUG:mylogger:    arguments:
-            x=1
-            y=2
-            z=3
-            [**]kwargs={...}
+            **kwargs={...}
+    DEBUG:mylogger:    r <== called by s <== t
+    DEBUG:mylogger:        arguments:
+                x=1
+                y=2
+                z=3
+                **kwargs={...}
     5
-    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
 #### Test of logger with indirect str value (name of logger)
@@ -183,15 +200,15 @@ Same output as above, with logger_=logger:
             x=1
             y=2
             z=3
-            [**]kwargs={...}
-    DEBUG:mylogger:r <== called by s <== t
-    DEBUG:mylogger:    arguments:
-            x=1
-            y=2
-            z=3
-            [**]kwargs={...}
+            **kwargs={...}
+    DEBUG:mylogger:    r <== called by s <== t
+    DEBUG:mylogger:        arguments:
+                x=1
+                y=2
+                z=3
+                **kwargs={...}
     5
-    DEBUG:mylogger:r ==> returning to s ==> t
+    DEBUG:mylogger:    r ==> returning to s ==> t
     DEBUG:mylogger:t ==> returning to <module>
 
 
@@ -215,7 +232,7 @@ but now we do get output:
     ...                   logger_=logger,
     ...                   loglevel_=logging.INFO)    # doctest: +ELLIPSIS
     INFO:mylogger:indirect_loglevel <== called by <module>
-    INFO:mylogger:    arguments: a=5, x=3, y=3, [**]kwargs={...}
+    INFO:mylogger:    arguments: a=5, x=3, y=3, **kwargs={...}
     135
     INFO:mylogger:indirect_loglevel ==> returning to <module>
     """
@@ -236,19 +253,19 @@ def main__logging_with_indent__minimal_formatters():
 Now the same example as in test_log_calls [the *indent* parameter]
 has the same expected output:
 
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g1():
     ...     pass
-    >>> @log_calls(logger=another_logger)    # no extra indentation for g1
+    >>> @log_calls(indent=False, logger=another_logger)    # no extra indentation for g1
     ... def g2():
     ...     g1()
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g3():
     ...     g2()
-    >>> @log_calls(logger=another_logger)    # no extra indentation for g3
+    >>> @log_calls(indent=False, logger=another_logger)    # no extra indentation for g3
     ... def g4():
     ...     g3()
-    >>> @log_calls(indent=True, logger=another_logger)
+    >>> @log_calls(logger=another_logger)
     ... def g5():
     ...     g4()
     >>> g5()
@@ -319,10 +336,10 @@ or writing to a file with `print`, using the `file` parameter:
     ...     lines = temp.readlines()
     ...     print(''.join(lines))    # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+        arguments: **kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
+            arguments: **kwargs={'file_': <_io.TextIOWrapper name=... mode='w+' encoding='UTF-8'>}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -333,10 +350,10 @@ or with the logger defined above, which can be passed either as the Logger insta
 
     >>> h(logger_=another_logger)       # doctest: +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+        arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'logger_': <logging.Logger object at 0x...>}
+            arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -346,10 +363,10 @@ or as the name of the Logger:
 
     >>> h(logger_='yet_another_logger')       # doctest: +ELLIPSIS
     h <== called by <module>
-        arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+        arguments: **kwargs={'logger_': 'yet_another_logger'}
         h: before g...
         g <== called by h
-            arguments: [**]kwargs={'logger_': 'yet_another_logger'}
+            arguments: **kwargs={'logger_': 'yet_another_logger'}
             Regards, g
         g ==> returning to h
         h: ... after g
@@ -437,22 +454,24 @@ for the decorator.
 
 Verify the settings:
 
-    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
-    {'enabled': 1,
-     'args_sep': ' / ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': None,
-     'logger': 'logger_',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 57}
+    >>> f.log_calls_settings.as_OD() == {
+    ...     'enabled': 1,
+    ...     'args_sep': ' / ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': 'logger_',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 57
+    ... }
+    True
 
 Finally, call the function. The call supplies final
 values for the indirect values of `log_elapsed` and `logger`.
@@ -461,12 +480,12 @@ in one order or the other.
 
     >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
     *** f [1] <== called by <module>
-    ***     arguments: n=1 / [**]kwargs={...}
+    ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
-    ***         arguments: n=0 / [**]kwargs={...}
-    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***         arguments: n=0 / **kwargs={...}
+    ***         elapsed time: 0.0... [secs], process time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -493,24 +512,30 @@ and again, we assume that the current directory is `log_calls/tests`.
     ... def g(m, n, **kwargs):
     ...     return 2 * m * n
 
-Let's examine the settings:
+Let's examine the settings.
+    >>> od = g.log_calls_settings.as_OD()
 
-    >>> pprint.pprint(g.log_calls_settings.as_OrderedDict())
-    {'enabled': True,
-     'args_sep': ' | ',
-     'log_args': True,
-     'log_retval': True,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': False,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>,
-     'logger': 'star3_logger',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 0}
+We have to step carefully around the 'file' setting, to be able to doctest '`od`.
+    >>> od['file']
+    <_io.TextIOWrapper name='<stderr>' mode='w' encoding='UTF-8'>
+    >>> del od['file']
+    >>> od == {
+    ...     'enabled': True,
+    ...     'args_sep': ' | ',
+    ...     'log_args': True,
+    ...     'log_retval': True,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'logger': 'star3_logger',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 0
+    ... }
+    True
 
 The settings `args_sep`, `log_retval`, `log_elapsed`, `file` and `logger` have
 values from the settings file. `log_args` is set to `False` in the settings file,
@@ -523,9 +548,9 @@ Now call the function, supplying a final value for `log_elapsed`:
 
     >>> _ = g(5, 7, elapsed_=True)            # doctest: +ELLIPSIS
     *** g [1] <== called by <module>
-    ***     arguments: m=5 | n=7 | [**]kwargs={'elapsed_': True}
+    ***     arguments: m=5 | n=7 | **kwargs={'elapsed_': True}
     ***     g [1] return value: 70
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** g [1] ==> returning to <module>
 
 ------------------------------------------------------------------------------
@@ -576,22 +601,24 @@ Let's use this troubled settings file and examine the resulting settings:
     >>> @log_calls(settings='./bad-settings.txt')
     ... def qq(j, k):
     ...     return (j+1) * (k+1)
-    >>> pprint.pprint(qq.log_calls_settings.as_OrderedDict())
-    {'enabled': True,
-     'args_sep': ', ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': False,
-     'log_exit': True,
-     'indent': False,
-     'log_call_numbers': False,
-     'prefix': '',
-     'file': None,
-     'logger': None,
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 0}
+    >>> qq.log_calls_settings.as_OD() == {
+    ...     'enabled': True,
+    ...     'args_sep': ', ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': False,
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': False,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': None,
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 0
+    ... }
+    True
 
 ------------------------------------------------------------------------------
 
@@ -615,34 +642,36 @@ Now let's test `settings` as a dict:
 
 Verify that `f`'s settings are as expected:
 
-    >>> pprint.pprint(f.log_calls_settings.as_OrderedDict())
-    {'enabled': 2,
-     'args_sep': ' / ',
-     'log_args': True,
-     'log_retval': False,
-     'log_elapsed': 'elapsed_',
-     'log_exit': True,
-     'indent': True,
-     'log_call_numbers': True,
-     'prefix': '',
-     'file': None,
-     'logger': 'logger_',
-     'loglevel': 10,
-     'mute': False,
-     'record_history': False,
-     'max_history': 57}
+    >>> f.log_calls_settings.as_OD() == {
+    ...     'enabled': 2,
+    ...     'args_sep': ' / ',
+    ...     'log_args': True,
+    ...     'log_retval': False,
+    ...     'log_elapsed': 'elapsed_',
+    ...     'log_exit': True,
+    ...     'indent': True,
+    ...     'log_call_numbers': True,
+    ...     'prefix': '',
+    ...     'file': None,
+    ...     'logger': 'logger_',
+    ...     'loglevel': 10,
+    ...     'mute': False,
+    ...     'record_history': False,
+    ...     'max_history': 57
+    ... }
+    True
 
 Call `f`. Again, `kwargs` is `{'elapsed_': True, 'logger_': 'star3_logger'}`
 in one of the two possible orders.
 
     >>> f(1, logger_='star3_logger', elapsed_=True)   # doctest: +ELLIPSIS
     *** f [1] <== called by <module>
-    ***     arguments: n=1 / [**]kwargs={...}
+    ***     arguments: n=1 / **kwargs={...}
     ***     f [2] <== called by f [1]
-    ***         arguments: n=0 / [**]kwargs={...}
-    ***         elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***         arguments: n=0 / **kwargs={...}
+    ***         elapsed time: 0.0... [secs], process time: 0.0... [secs]
     ***     f [2] ==> returning to f [1]
-    ***     elapsed time: 0.0... [secs], CPU time: 0.0... [secs]
+    ***     elapsed time: 0.0... [secs], process time: 0.0... [secs]
     *** f [1] ==> returning to <module>
 
     """
@@ -672,8 +701,8 @@ Call it:
 
     >>> inn()
     outer.<locals>.inner <== called by <module>
-    f <== called by g <== outer.<locals>.inner
-    f ==> returning to g ==> outer.<locals>.inner
+        f <== called by g <== outer.<locals>.inner
+        f ==> returning to g ==> outer.<locals>.inner
     outer.<locals>.inner ==> returning to <module>
 
     """
@@ -752,7 +781,7 @@ Call these methods:
         arguments: x=1 + y=2
         f <== called by g <== Klass.statikmethod
         f ==> returning to g ==> Klass.statikmethod
-        elapsed time: ... [secs], CPU time: 0.0... [secs]
+        elapsed time: ... [secs], process time: 0.0... [secs]
     Klass.statikmethod ==> returning to <module>
 
 Similarly, the stats attribute can be accessed via the class or an instance:
@@ -764,9 +793,9 @@ Similarly, the stats attribute can be accessed via the class or an instance:
     >>> # about 0.0001738
     >>> elapsed > 0.0
     True
-    >>> cpu =  Klass.statikmethod.stats.CPU_secs_logged    # doctest: +ELLIPSIS
+    >>> process =  Klass.statikmethod.stats.process_secs_logged    # doctest: +ELLIPSIS
     >>> # about 0.0001670
-    >>> cpu > 0.0
+    >>> process > 0.0
     True
     """
     pass

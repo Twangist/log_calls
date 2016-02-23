@@ -1,0 +1,54 @@
+##########
+TODOs
+##########
+
+======================================
+Features that WON'T be in v0.3.0
+======================================
+
+record_history
+-----------------
+
+    Support the `file` keyword parameter? as a setting?
+        Can use `log_*` methods, and output is always via print,
+        BUT also always to `sys.stdout`. Allow `sys.stderr` at least.
+
+    Support the `override` parameter?
+        After all, it can deco classes and it supports decorate_* methods.
+        CHECK THIS: does it not support `override`???
+
+    `record_history` does or does not support `set_defaults()`, `reset_defaults()`?
+
+log_calls
+-------------
+
+    `file` parameter: allow string pathnames?
+        Probably NOT, but think about it.
+
+    Added attributes `log_calls_omit` and `log_calls_only` to deco'd classes
+    (used in testing & debugging -- TODO : comment out or "if ___" out in release?)
+    Ditto `record_history_omit`, `record_history_only`    (TODO; document or delete)
+
+
+
+==============
+TESTS
+==============
+
+    `record_history` does or does not support `set_defaults()`, `reset_defaults()`?
+        Verify/refute
+        DOC (What's New) implies that only `log_calls` does:
+            * `log_calls` has classmethods to globally set and reset
+              default values for settings, program-wide:
+        Adjust if need be
+
+    `record_history` with `decorate_*` methods
+        They work?
+        DOC says they do
+
+==============
+MISC
+==============
+Download latest Python 3.5.y (3.5.1 ?);
+run `run_tests`
+

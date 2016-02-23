@@ -36,10 +36,23 @@ def no_duplicates(seq):
             yield(x)
     return
 
+def restrict_keys(d: dict, domain) -> dict:
+    """Remove from d all items whose key is not in domain; return d.
+    >>> d = {'a': 1, 'b': 2}
+    >>> dr = restrict_keys(d, {'a', 'c'})
+    >>> dr
+    {'a': 1}
+    >>> d == dr
+    True
+    """
+    for k in set(d):
+        if k not in domain:
+            del d[k]
+    return d
 
-def difference_update(d, d_remove):
+def difference_update(d: dict, remove) -> dict:
     """Change and return d.
-    d: mutable mapping, d_remove: iterable.
+    d: mutable mapping, remove: iterable.
     There is such a method for sets, but unfortunately not for dicts.
 
     >>> d = {'a': 1, 'b': 2, 'c': 3}
@@ -50,7 +63,7 @@ def difference_update(d, d_remove):
     >>> d == {'a': 1, 'c': 3}
     True
     """
-    for k in d_remove:
+    for k in remove:
         if k in d:
             del(d[k])
     return d    # so that we can pass a call to this fn as an arg, or chain
@@ -224,7 +237,7 @@ def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
     )
 
 
-def dict_to_sorted_str(d):
+def dict_to_sorted_str(d, _sort=True):
     """Return a str representation of dict d where keys are in ascending order.
     >>> d = {'c': 3, 'a': 1, 'b': 2}
     >>> print(dict_to_sorted_str(d))
@@ -234,12 +247,27 @@ def dict_to_sorted_str(d):
     {'X': 'alphanumeric', 'Y': 'yomomma', 'Z': 'zebulon'}
     """
     lst = list(d.items())
-    lst.sort(key=lambda p: p[0])
+    if _sort:
+        lst.sort(key=lambda p: p[0])
     ret = ('{' +
            ', '.join(["%s: %s" % (repr(k), repr(v)) for (k, v) in lst ]) +
            '}')
     return ret
 
+
+def OrderedDict_to_dict_str(od):
+    """Return a str representation of OrderedDict od as a dict where keys are in
+    the same order as in od.
+    Useful for doctests & unittests.
+
+    >>> od = OrderedDict(( ('c', 3), ('a', 1), ('b', 2) ))
+    >>> print(OrderedDict_to_dict_str(od))
+    {'c': 3, 'a': 1, 'b': 2}
+    >>> od2 = OrderedDict(( ('Z', 'zebulon'), ('X', 'alphanumeric'), ('Y', 'yomomma') ))
+    >>> print(OrderedDict_to_dict_str(od2))
+    {'Z': 'zebulon', 'X': 'alphanumeric', 'Y': 'yomomma'}
+    """
+    return dict_to_sorted_str(od, _sort=False)
 
 def is_quoted_str(s):
     """
@@ -264,7 +292,8 @@ def is_quoted_str(s):
 
 # match using match_fn(x, pattern).
 def any_match(match_fn, seq, patterns):
-    """match_fn(s, pat) -> bool
+    """Return True if match_fn(s, pat) is true for some (s, pat) in seq x patterns
+    match_fn: seq x patterns -> bool,
     seq, patterns: iterables, generators.
 
     Equality:
@@ -279,7 +308,7 @@ def any_match(match_fn, seq, patterns):
     >>> patterns = ('pair', )
     >>> any_match(fnmatch.fnmatchcase, names, patterns)
     True
-    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names is now 'spent', list(names) is empty
+    >>> any_match(fnmatch.fnmatchcase, names, patterns) # names generator is now 'spent', list(names) is empty
     False
 
     Regexp

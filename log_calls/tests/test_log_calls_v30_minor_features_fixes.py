@@ -153,7 +153,7 @@ test__repr_with_init_active_3.__doc__ = \
 #-------------------------------------------------------------------
 def test__mute():
     """
-When a decorated function not muted (`mute` is `False`, the default),
+When a decorated function is not muted (`mute` is `log_calls.MUTE.NOTHING`, the default),
 log_calls produces output as do `log_message` and `log_exprs`, which uses `log_message`:
     >>> @log_calls()
     ... def f():
@@ -163,9 +163,9 @@ log_calls produces output as do `log_message` and `log_exprs`, which uses `log_m
         Hello, world!
     f ==> returning to <module>
 
-When `mute` is `True` ( == `log_calls.MUTE.CALLS`),
+When `mute` is `log_calls.MUTE.CALLS` ( == `True`),
 no extra indent level, and messages are prefixed with function's display name:
-    >>> f.log_calls_settings.mute = True
+    >>> f.log_calls_settings.mute = log_calls.MUTE.CALLS
     >>> f()
     f: Hello, world!
 
@@ -237,7 +237,7 @@ invocation of `rec`, with an odd value for `level`).
 
 
 #-------------------------------------------------------------------
-# Tests/examples of log_message writing only if enabled
+# Tests/examples of mute setting as an indirect value
 #-------------------------------------------------------------------
 def test__log_message__indirect_mute():
     """
@@ -316,9 +316,9 @@ is
 
 ### Basic examples/tests
 
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def f(): f.log_message("Hi"); g()
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def g(): g.log_message("Hi")
 
 
@@ -331,7 +331,7 @@ is
         g ==> returning to f
     f ==> returning to <module>
 
-    >>> log_calls.mute = True
+    >>> log_calls.mute = log_calls.MUTE.CALLS
     >>> f()
     f: Hi
         g: Hi
@@ -356,13 +356,13 @@ is
 
 Global mute is always checked realtime
 
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def f(mute=False):
     ...     f.log_message("before g")
     ...     g(mute=mute)
     ...     f.log_message("after g")
 
-    >>> @log_calls(indent=True)
+    >>> @log_calls()
     ... def g(mute=False):
     ...     g.log_message("entering g")
     ...     log_calls.mute = mute

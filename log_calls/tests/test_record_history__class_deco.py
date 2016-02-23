@@ -64,7 +64,7 @@ This will call `RecordThem.__repr__` once:
     (10, 5)
 
     >>> print(rt.f.stats.history_as_csv)       # doctest: +ELLIPSIS
-    call_num|self|x|retval|elapsed_secs|CPU_secs|timestamp|prefixed_fname|caller_chain
+    call_num|self|x|retval|elapsed_secs|process_secs|timestamp|prefixed_fname|caller_chain
     1|<A(10) at 0x...>|0|0|...|...|...|'RecordThem.f'|['<module>']
     2|<A(10) at 0x...>|0|0|...|...|...|'RecordThem.f'|['RT.gee [1]']
     3|<A(10) at 0x...>|1|10|...|...|...|'RecordThem.f'|['<module>']

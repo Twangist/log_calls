@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4.post1'
+__version__ = '0.3.0'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -48,7 +48,11 @@ is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
 from collections import OrderedDict, defaultdict
+from copy import deepcopy
 import pprint
+
+import warnings     # v0.3.0b23
+
 from .helpers import is_keyword_param, is_quoted_str
 
 
@@ -62,6 +66,12 @@ __all__ = ['DecoSetting', 'DecoSettingsMapping']
 class DecoSetting():
     """a little struct - static info about one setting (keyword parameter),
                          sans any value.
+
+    v0.3.0b25
+    indirect_default: a user attribute which this constructor knows about.
+    If present in kwargs, use the value there; o/w use .default.
+    This is the latest take on how to handle missing indirect value of "enabled".
+
     Callers can add additional fields by passing additional keyword args.
     The additional fields/keys & values are made attributes of this object,
     and a (sorted) list of the keys is saved (_user_attrs).
@@ -104,6 +114,7 @@ class DecoSetting():
     """
     def __init__(self, name, final_type, default, *,
                  allow_falsy, allow_indirect=True, mutable=True, visible=True,
+                 pseudo_setting=False,  # v0.3.0b24
                  **more_attributes):
         """not visible => not allow_indirect
         """
@@ -115,7 +126,12 @@ class DecoSetting():
         self.allow_indirect = allow_indirect and visible  # are indirect values allowed
         self.mutable = mutable
         self.visible = visible
-        # we need write fields in repr the same way every time,
+        self.pseudo_setting = pseudo_setting    # v0.3.0b24
+
+        # v0.3.0b25
+        self.indirect_default = more_attributes.pop('indirect_default', self.default)
+
+        # we need to write fields in repr the same way every time,
         # so even though more_attributes isn't ordered,
         # we need to pick an order & stick to it
         self._user_attrs = sorted(list(more_attributes))
@@ -127,10 +143,11 @@ class DecoSetting():
         else:                                       # it's a type
             final_type = self.final_type.__name__
         #default = self.default if final_type != 'str' else repr(self.default)
-        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, mutable=%s, visible=%s"
+        output = ("DecoSetting(%r, %s, %r, allow_falsy=%s, allow_indirect=%s, "
+                  "mutable=%s, visible=%s, pseudo_setting=%r, indirect_default=%r"
                   %
-                  (self.name, final_type, self.default,
-                   self.allow_falsy, self.allow_indirect, self.mutable, self.visible)
+                  (self.name, final_type, self.default, self.allow_falsy, self.allow_indirect,
+                   self.mutable, self.visible, self.pseudo_setting, self.indirect_default)
         )
         # append user attrs
         for attr in self._user_attrs:
@@ -190,6 +207,8 @@ class DecoSettingsMapping():
     as well as 'direct' and 'indirect' values for its keyword params"""
     # Class-level mapping: classname |-> OrderedDict of class's settings (info 'structs')
     _classname2SettingsData_dict = {}
+    _classname2SettingsDataOrigDefaults_dict = {}
+
     # Class-level mapping: classname |-> pair of tuples:
     #                                   (pre-call handler settings names,
     #                                    post-call handler settings names)
@@ -213,6 +232,10 @@ class DecoSettingsMapping():
         cls: this class
         deco_classname: key for dict produced from settings_iter
         settings_iter: iterable of DecoSetting objs"""
+        # Only do once per deco class
+        if deco_classname in cls._classname2SettingsData_dict:
+            return
+
         od = OrderedDict()
         pre_handlers = []
         post_handlers = []
@@ -224,13 +247,94 @@ class DecoSettingsMapping():
                 post_handlers.append(setting.name)
 
         cls._classname2SettingsData_dict[deco_classname] = od
+        # v0.3.0b23 Make this an OD too
+        cls._classname2SettingsDataOrigDefaults_dict[deco_classname] = OrderedDict(
+            [(name, od[name].default) for name in od]
+        )
         cls._classname2handlers[deco_classname] = (
             tuple(pre_handlers), tuple(post_handlers))
 
-        # <<<attributes>>> Set up descriptors
+        # <<<attributes>>> Set up descriptors -- OMIT .pseudo_setting !
         for name in od:
-            if od[name].visible:
+            if od[name].visible and not od[name].pseudo_setting:
                 setattr(cls, name, cls.make_setting_descriptor(name))
+
+    # v0.3.0b24
+    @classmethod
+    def get_factory_defaults_OD(cls, deco_classname) -> OrderedDict:
+        # return cls._classname2SettingsDataOrigDefaults_dict[deco_classname]
+        class_settings = cls._classname2SettingsData_dict[deco_classname]
+        return OrderedDict(
+            [(name, value)
+             for name, value in cls._classname2SettingsDataOrigDefaults_dict[deco_classname].items()
+             if class_settings[name].visible and not class_settings[name].pseudo_setting
+            ]
+        )
+
+    # v0.3.0b24
+    @classmethod
+    def get_defaults_OD(cls, deco_classname) -> OrderedDict:
+        # return cls._classname2SettingsData_dict[deco_classname]
+        return OrderedDict(
+            [(name, setting.default)
+             for name, setting in cls._classname2SettingsData_dict[deco_classname].items()
+             if setting.visible and not setting.pseudo_setting
+            ]
+        )
+
+    @classmethod
+    def set_defaults(cls, deco_classname, defaults: dict):
+        """Change global default values for all (subsequent) uses of decorator
+        with name deco_classname.
+        Only settings that are *visible* for cls can be changed.
+
+        Raises KeyError if any key in defaults isn't actually "settings" are is not "visible".
+        In both cases no changes are made.
+        Ignores any items in `defaults` whose values are of incorrect type,
+        or whose value is 'falsy' but the setting has .allow_falsy == False.
+        These behaviors are what __setitem__ & __getitem__ do.
+
+        :param deco_classname: name of decorator class, subclass of _deco_base
+        :param defaults: dict of setting-name keys and new default values
+        """
+        # Change defaults of items in cls._classname2SettingsData_dict[deco_classname]
+        deco_settings = cls._classname2SettingsData_dict[deco_classname]
+
+        # Integrity check:
+        # if setting_name is not a "setting" or it's not a "visible" setting for cls,
+        # raise KeyError: that's what __getitem__/__setitem__ do
+        for setting_name in defaults:
+            if setting_name not in deco_settings:
+                raise KeyError(
+                    "set_defaults: no such setting (key) as '%s'" % setting_name)
+            elif not deco_settings[setting_name].visible:
+                raise KeyError(
+                    "set_defaults: setting (key) '%s' is not visible in class %s."
+                    % (setting_name, deco_classname))
+
+        # TODO 'indirect' values -- Disallow? anyway, prevent? Somehow.
+        #  |   Perhaps just get rid of any trailing INDIRECT_VALUE_MARKER ('=')
+
+        # Change working default values
+        for setting_name in defaults:
+            deco_setting = deco_settings[setting_name]
+            new_default_val = defaults[setting_name]
+
+            if ((new_default_val or deco_setting.allow_falsy)
+                and deco_setting.has_acceptable_type(new_default_val)
+               ):
+                # set working default value = new_default_val
+                deco_setting.default = new_default_val
+
+    @classmethod
+    def reset_defaults(cls, deco_classname):
+        """Revert to initial defaults as per documentation & static declarations in code
+        """
+        #  v0.3.0b24 -- use new classmethods
+        orig_defaults = cls._classname2SettingsDataOrigDefaults_dict[deco_classname]
+        settings_map = cls._classname2SettingsData_dict[deco_classname]
+        for name in settings_map:
+            settings_map[name].default = orig_defaults[name]
 
     # <<<attributes>>>
     @classmethod
@@ -439,19 +543,37 @@ class DecoSettingsMapping():
                 "    ** %s\n"
                 ")") % \
                (self.deco_class.__name__,
-                pprint.pformat(self.as_OrderedDict(), indent=8)
+                pprint.pformat(self.as_OD(), indent=8)
                )
 
     def __str__(self):
         return str(self.as_dict())
 
-    def as_OrderedDict(self):
-        """Return OD of visible settings only."""
+    def as_OD(self) -> OrderedDict:
+        """Return OrderedDict of visible settings (only).
+        v0.3.0b23
+          Renamed ``as_OrderedDict`` ==> ``as_OD`` -- to match new classmethods
+          ``log_calls.get_factory_defaults_OD()``, ``log_calls.get_defaults_OD()``.
+          ``as_OrderedDict`` deprecated.
+        """
         od = OrderedDict()
         for k, v in self._tagged_values_dict.items():
             if self._is_visible(k):
                 od[k] = v[1]
         return od
+
+    def as_OrderedDict(self) -> OrderedDict:
+        """Deprecated alias for ``as_OD`` -- v0.3.0b23."""
+        # Issue a warning. (and don't do it ALL the time.)
+        # In Py3.2+ "DeprecationWarning is now ignored by default"
+        # (https://docs.python.org/3/library/warnings.html),
+        # so to see it, you have to run the Python interpreter
+        # with the -W switch, e.g. `python -W default run_tests.py`
+        # [equivalently: `python -Wd run_tests.py`]
+        warnings.warn("Warning: 'as_OrderedDict()' method is deprecated, use 'as_OD()' instead.",
+                      DeprecationWarning,
+                      stacklevel=2)         # refer to stackframe of caller
+        return self.as_OD()
 
     def as_dict(self):
         """Return dict of visible settings only."""
@@ -489,7 +611,6 @@ class DecoSettingsMapping():
                  but it can also be e.g. *(explicit_kwargs, defaulted_kwargs,
                  implicit_kwargs, with fparams=None) of that function f,
         fparams: inspect.signature(f).parameters of that function f
-                 NOTE: it's a mandatory, keyword-ONLY argument
         THIS method assumes that the objs stored in self._deco_class_settings_dict
         are DecoSetting objects -- this method uses every attribute of that class
                                    except allow_indirect.
@@ -503,7 +624,9 @@ class DecoSettingsMapping():
 
         setting_info = self._deco_class_settings_dict[name]
         final_type = setting_info.final_type
-        default = setting_info.default
+        ## v0.3.0b25
+        # default = setting_info.default
+        default = setting_info.indirect_default
         allow_falsy = setting_info.allow_falsy
 
         # If di_val is in any of the dictionaries, get corresponding value
