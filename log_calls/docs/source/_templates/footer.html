@@ -1,5 +1,24 @@
 {% block trans %}
+<hr>
+<p style="font-size: 95%">
+{% if pagename in ['intro', 'index'] %}
+You can show your appreciation and support of <em>log_calls</em>
+<a href="http://www.example.com" TARGET="_blank">HERE</a>.
+{% else %}
+    {% if pagename in ['whats_new'] or 'appendix' in pagename %}
+    Has <em>log_calls</em> helped you? Would you like to help ensure that its development continues, <br/>
+    at the same high level of quality? You can show your appreciation and support
+    <a href="http://www.example.com" TARGET="_blank">HERE</a>.
+    {% else %}
+    Have you found this helpful? Would you like to see <em>log_calls</em> development continue, <br/>
+    at the same high level of quality? You can show your appreciation and support
+    <a href="http://www.example.com" TARGET="_blank">HERE</a>.
+    {% endif %}
+{% endif %}
+</p>
+<p style="text-align: right">
 Built with <a href="http://sphinx-doc.org/">Sphinx</a> using
 a tweaked <a href="https://readthedocs.org">Read the Docs</a>
 <a href="https://github.com/snide/sphinx_rtd_theme">theme</a>.
+</p>
 {% endblock %}

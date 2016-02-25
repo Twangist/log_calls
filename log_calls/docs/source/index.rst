@@ -6,8 +6,8 @@
 
 `log_calls` Documentation (release |release|)
 ===================================================
-
-Chapters:
+Table of Contents
+------------------
 
 ..  toctree::
     :maxdepth: 1
@@ -33,10 +33,8 @@ Chapters:
     appendix_I_parameters_table
     appendix_II_what_has_been_new
 
-
-Index and Search
-==================
+.. Index
+.. ------
 
 * :ref:`genindex`
-* :ref:`search`
 
