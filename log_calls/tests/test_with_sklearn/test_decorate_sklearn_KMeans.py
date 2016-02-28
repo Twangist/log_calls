@@ -105,21 +105,18 @@ Now let's view arguments too:
 ##############################################################################
 # end of tests.
 ##############################################################################
+import doctest
 
-if __name__ == '__main__':
+# For unittest integration
+def load_tests(loader, tests, ignore):
     try:
         import sklearn
     except ImportError:
-        import sys
-        print("(sklearn not installed, skipping 3 tests)", file=sys.stderr)
         pass
     else:
-        # For unittest integration
-        def load_tests(loader, tests, ignore):
-            tests.addTests(doctest.DocTestSuite())
-            return tests
+        tests.addTests(doctest.DocTestSuite())
+    return tests
 
-        import doctest
-        doctest.testmod()
-
+if __name__ == '__main__':
+    doctest.testmod()
 

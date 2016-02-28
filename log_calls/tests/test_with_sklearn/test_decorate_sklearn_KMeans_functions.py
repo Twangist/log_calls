@@ -1,6 +1,8 @@
 __author__ = 'brianoneill'
 
 
+###############################################################################
+
 def test_deco_sklearn_cluster_kmeans_function():
     """
     Dunno how to decorate `sklearn.cluster.kmeans` so that the decorated funciton
@@ -144,17 +146,16 @@ Call via module -- OUTPUT TOO now :D:D:D :
 ##############################################################################
 import doctest
 
-if __name__ == '__main__':
+# For unittest integration
+def load_tests(loader, tests, ignore):
     try:
         import sklearn
     except ImportError:
         pass
     else:
-        # For unittest integration
-        def load_tests(loader, tests, ignore):
-            tests.addTests(doctest.DocTestSuite())
-            return tests
+        tests.addTests(doctest.DocTestSuite())
+    return tests
 
-        import doctest
-        doctest.testmod()
+if __name__ == '__main__':
+    doctest.testmod()
 

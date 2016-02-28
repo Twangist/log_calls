@@ -260,18 +260,19 @@ def test_decorate_module_sklearn():
 
 
 ##############################################################################
+import doctest
 
-if __name__ == '__main__':
-
+# For unittest integration
+def load_tests(loader, tests, ignore):
     try:
         import sklearn
     except ImportError:
         pass
     else:
-        # For unittest integration
-        def load_tests(loader, tests, ignore):
-            tests.addTests(doctest.DocTestSuite())
-            return tests
+        tests.addTests(doctest.DocTestSuite())
+    return tests
 
-        import doctest
-        doctest.testmod()
+
+if __name__ == '__main__':
+    doctest.testmod()
+
