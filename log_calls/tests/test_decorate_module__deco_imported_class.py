@@ -92,4 +92,51 @@ def load_tests(loader, tests, ignore):
     return tests
 
 if __name__ == '__main__':
+
+    # from log_calls import log_calls
+
+    # cwd is tests/
+    import some_module as somemod
+    # from log_calls.tests import some_module
+
+    log_calls.decorate_module(somemod)
+
+    # Functions in module:
+
+    print(somemod.f(0, 0))
+    """
+    f <== called by <module>
+        arguments: a=0, b=0
+        g <== called by f
+            arguments: a=0, b=0
+        g ==> returning to f
+    f ==> returning to <module>
+    10"""
+
+    print(somemod.g(1, 0))
+    """
+    g <== called by <module>
+        arguments: a=1, b=0
+    g ==> returning to <module>
+    1"""
+
+    # Classes in module:
+
+    c = somemod.C("Hi")
+    """
+    C.__init__ <== called by <module>
+        arguments: self=<log_calls.tests.some_module.C object at 0x...>, prefix='Hi'
+    C.__init__ ==> returning to <module>"""
+
+    #### FAILS ####
+    print(c.concat("there!"))
+    """
+    C.concat <== called by <module>
+        arguments: self=<log_calls.tests.some_module.C object at 0x...>, s='there!'
+    C.concat ==> returning to <module>
+    Hi there!"""
+
+    pass
+
+    ############################
     doctest.testmod()

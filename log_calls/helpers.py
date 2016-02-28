@@ -2,17 +2,22 @@ __author__ = 'brianoneill'
 
 __all__ = [
     'difference_update',
+
     'is_keyword_param',
     'get_args_pos',
     'get_args_kwargs_param_names',
     'get_defaulted_kwargs_OD',
     'get_explicit_kwargs_OD',
-    'dict_to_sorted_str',
+    'get_file_of_object',
+
     'is_quoted_str',
+    'dict_to_sorted_str',
 ]
 
 from collections import OrderedDict
 import inspect
+
+
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -236,6 +241,32 @@ def get_explicit_kwargs_OD(f_params, bound_args, kwargs) -> OrderedDict:
          if k in arguments and k in kwargs)
     )
 
+def get_file_of_object(obj, allow_binary=True) -> str:
+    """Return filename of object obj's file --
+        source file of ``obj``, if allow_binary=False and source exists;
+        file that ``obj`` is defined in, if allow_binary=True;
+        otherwise, it's a "builtin", so return ''.
+    This function can be used as a straightforward "is builtin?" predicate,
+    but this actually returns a witness.
+
+    :param obj: any. function or class object, in practice here, but this is method is general.
+    :param allow_binary: if True, return
+    :return: filename of source for ``obj`` if such exists, empty string '' o/w
+
+        inspect.getsourcefile(object)
+
+            Return the name of the Python source file in which an object was defined.
+            This will fail with a TypeError if the object is a built-in module, class, or function.
+
+        -- https://docs.python.org/3.5/library/inspect.html
+    """
+    try:
+        return (inspect.getfile if allow_binary else inspect.getsourcefile)(obj)
+    except TypeError:
+        return ''
+
+
+#------------------------------------------------------------------------------
 
 def dict_to_sorted_str(d, _sort=True):
     """Return a str representation of dict d where keys are in ascending order.

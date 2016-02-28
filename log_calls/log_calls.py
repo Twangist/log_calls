@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0'
+__version__ = 'v0.3.0rc3'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -16,6 +16,7 @@ with changes for Py3 and several enhancements, as described in docs/log_calls.md
 import inspect
 import functools
 from functools import wraps, partial
+from itertools import chain
 import logging
 import sys
 import os
@@ -35,6 +36,7 @@ from .deco_settings import (DecoSetting,
 from .helpers import (no_duplicates, get_args_pos, get_args_kwargs_param_names,
                       difference_update, restrict_keys,
                       get_defaulted_kwargs_OD, get_explicit_kwargs_OD,
+                      get_file_of_object,
                       dict_to_sorted_str, prefix_multiline_str,
                       is_quoted_str, any_match)
 from .proxy_descriptors import ClassInstanceAttrProxy
@@ -2063,6 +2065,9 @@ class _deco_base():
         setattr(klass, this_deco_class_name + '_omit', self.omit)
         setattr(klass, this_deco_class_name + '_only', self.only)
 
+    # ---------------------------------------------
+    # call-chain chaser. kludgefest.
+    # ---------------------------------------------
     @classmethod
     def call_chain_to_next_log_calls_fn(cls):
         """Return list of callers (names) on the call chain
@@ -2159,13 +2164,22 @@ class _deco_base():
             call_list = call_list[:1]
         return call_list, prev_indent_level
 
+    # ---------------------------------------------
+    # decorate_*   methods
+    # None deco builtins. deco_module only decos
+    # things with source in that module.
+    # ---------------------------------------------
     @classmethod
     def decorate_hierarchy(cls, baseclass: type, **setting_kwds) -> None:
         """Decorate baseclass and, recursively, all of its descendants.
         If any subclasses are directly decorated, their explicitly given setting_kwds,
-        EXCEPT `omit` and `only`, override those in `setting_kwds` UNLESS 'override=True'
-        is in `setting_kwds`.
+        EXCEPT ``omit`` and ``only``, override those in ``setting_kwds``
+        UNLESS ``override=True`` is in ``setting_kwds``.
         """
+        # Filter out builtins. Better than failing to deco all subclasses too.
+        if not get_file_of_object(baseclass):
+            return
+
         cls.decorate_class(baseclass, decorate_subclasses=True, **setting_kwds)
 
     @classmethod
@@ -2175,7 +2189,13 @@ class _deco_base():
        their explicitly given setting_kwds, EXCEPT `omit` and `only`,
        override those in `setting_kwds` UNLESS 'override=True' is in `setting_kwds`.)
         """
-        assert isinstance(klass, type)
+        assert isinstance(klass, type)      # in "debug" mode only
+        if not isinstance(klass, type):     # in either mode, have the same awareness at the same time
+            return
+
+        # Filter out builtins.
+        if not get_file_of_object(klass):
+            return
 
         def _deco_class(kls: type):
             t = cls(**setting_kwds)
@@ -2201,7 +2221,8 @@ class _deco_base():
 
         :param cls: decorator class e.g. log_calls
         :param f: a function object, qualified with package, e.g. mypackage.myfunc,
-                  however it would be referred to in code at the point of a call to `decorate_package_function`.
+                  however it would be referred to in code at the point of a call
+                  to `decorate_package_function`.
         :param setting_kwds: settings for decorator
 
         inspect.getmodule(f).__name__
@@ -2227,14 +2248,17 @@ class _deco_base():
               If it's NOT None, then trim off last bit from path
               fmodname = '.'.join(fmodname.split('/')[:-1])
               eval(fmodname + '.' + f.__name__
-
-
         """
+        # Filter out builtins.
+        if not get_file_of_object(f):
+            return
+
         f_deco = cls(**setting_kwds)(f)
 
         namespace = vars(inspect.getmodule(f))
 
         fmodname = inspect.getmodule(f).__name__
+
         # 'sklearn.cluster.k_means_'
         basic_modname = inspect.getmodulename(fmodname.replace('.', '/') + '.py')
         # 'k_means_' or 'some_module', or None
@@ -2257,6 +2281,10 @@ class _deco_base():
                   however it would be referred to in code at the point of a call to `decorate_module_function`.
         :param setting_kwds: settings for decorator
         """
+        # Filter out builtins.
+        if not get_file_of_object(f):
+            return
+
         namespace = vars(inspect.getmodule(f))
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
@@ -2269,34 +2297,51 @@ class _deco_base():
         :param f: a function object, with no package/module qualifier.
                   However it would be referred to in code at the point of the call
                   to `decorate_function`.
+
+                  Typically, one which is defined in the calling module,
+                  or imported/in namespace.
         :param setting_kwds: settings for decorator
         """
+        # Filter out builtins.
+        if not get_file_of_object(f):
+            return
+
         caller_frame = sys._getframe(1)           # caller's frame
         namespace = caller_frame.f_globals
         namespace[f.__name__] = cls(**setting_kwds)(f)
 
-    # v0.3.0b18 -- Not ready for primetime?
-    # Hard to get this working on real-world examples, e.g. sklearn.cluster.k_means_
     @classmethod
     def decorate_module(cls, mod: 'module',
                         functions=True, classes=True,
                         **setting_kwds) -> None:
         """
+        :param cls: the decorator class (``log_calls`` or ``record_history``
+
         Can't decorate builtins, attempting
             log_calls.decorate_class(dict, only='update')
         gives:
             TypeError: can't set attributes of built-in/extension type 'dict'
+
+        Only decorate things with sourcecode in module.
+        As ever, don't try to deco builtins.
         """
+        module_source_filename = get_file_of_object(mod)
+
+        if not (module_source_filename and inspect.ismodule(mod) and functions and classes):
+            return      # refuse, SILENTLY
+
         # Functions
         if functions:
             for name, f in inspect.getmembers(mod, inspect.isfunction):
-                vars(mod)[name] = cls(**setting_kwds)(f)
-                ### Note, vars(mod) also has key __package__,
-                ### .     e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
+                if get_file_of_object(f) == module_source_filename:
+                    vars(mod)[name] = cls(**setting_kwds)(f)
+                    ### Note, vars(mod) also has key __package__,
+                    ### .     e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
         # Classes
         if classes:
             for name, kls in inspect.getmembers(mod, inspect.isclass):
-                _ = cls(**setting_kwds)(kls)
+                if get_file_of_object(kls) == module_source_filename:
+                    _ = cls(**setting_kwds)(kls)
                 # assert _ == kls
 
 #----------------------------------------------------------------------------

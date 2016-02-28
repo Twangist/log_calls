@@ -110,6 +110,8 @@ if __name__ == '__main__':
     try:
         import sklearn
     except ImportError:
+        import sys
+        print("(sklearn not installed, skipping 3 tests)", file=sys.stderr)
         pass
     else:
         # For unittest integration
