@@ -151,16 +151,5 @@ What's Changed
   (Since Python 3.2, DeprecationWarnings are by default not displayed.)
 
 * 0.3.1
-    - ``decorate_module`` improvements.
-        * Don't deco things which are just *in the module's namespace* because of whatever
-          *it* imports
-
-        * Don't deco metaclasses.
-          REALLY? Sometimes you want to. Hold off
-          They derive from type. What attribute is it s.t.
-          metaclasses have ``type`` but ordinary classes have tuples [of base classes? probably?
-          Investigate.]
-          decorate_class used by decorate_module now, and *it* prevents metaclass decoration
-
-        * Test importing and decorating ``fraction.Fraction``, it seems to stumble on a property?
-          Make the other changes first, then check this, might be an artifact of that.
+    Adds to tests and docs an example of decorating and redecorating ``fraction.Fraction``,
+    with use of ``log_calls.mute``.

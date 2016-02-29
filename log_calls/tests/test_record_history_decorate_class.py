@@ -43,7 +43,6 @@ test__record_history_decorate_class.__doc__ = \
     test__record_history_decorate_class.__doc__.replace("__main__", __name__)
 
 
-
 # For unittest integration
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())

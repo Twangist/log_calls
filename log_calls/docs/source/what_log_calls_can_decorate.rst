@@ -63,7 +63,7 @@ and in the articles cited there.
 
 .. _callables-that-log_calls-cannot-decorate:
 
-Examples, mostly negative
+A few negative examples
 ==============================================
 
 `log_calls` can't decorate callable builtins, such as ``len`` — it just returns the builtin unchanged:
@@ -103,3 +103,4 @@ by virtue of implementing a ``__call__`` method:
         arguments: self=<Rev object at 0x...>, s='ABC'
     Rev.__call__ ==> returning to <module>
     'CBA'
+

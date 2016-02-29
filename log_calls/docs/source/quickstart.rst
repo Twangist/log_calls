@@ -118,7 +118,7 @@ Only the ``ntimes`` method is decorated:
 .. _quickstart-classes:
 
 Decorating classes
-------------------------
+==================================================
 
 To decorate all methods of a class, simply decorate the class itself:
 
@@ -158,7 +158,7 @@ will and won't be decorated. The section on :ref:`the omit and only keyword para
 contains the details.
 
 Decorating *most* methods, overriding the settings of one method
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----------------------------------------------------------------------
 
 Suppose you have a class ``D`` that's just like ``C`` above, but adds a ``double()`` method.
 (For the sake of example, never mind that in practice you might subclass ``C``.)
@@ -210,8 +210,100 @@ However, the return value of ``revn`` *is* logged, and ``revint`` has *not* been
     ~~~
     My favorite number plus 3 is 20
 
+Decorating "external" code
+==================================================
+
+Sometimes it's enlightening and instructive to decorate objects in a package or module
+that you import. It might be in a new codebase you're getting to know, your own nontrivial
+code from a while ago which you now wish you had documented more, or even a function, class
+or module in Python's standard library.
+
+We'll illustrate techniques with a simple example: decorating the fractions class
+``fractions.Fraction``, to see how it uses its own API. Along the way we'll ilustrate
+how to use `log_calls` settings to filter the output.
+
+First, let's import the class, decorate it and create an instance:
+
+    >>> import fractions
+    >>> Fr = fractions.Fraction
+    >>> log_calls.decorate_class(Fr)
+    >>> print(Fr(3,4))
+    Fraction.__new__ <== called by <module>
+        arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
+        defaults:  _normalize=True
+    Fraction.__new__ ==> returning to <module>
+    Fraction.__str__ <== called by <module>
+        arguments: self=Fraction(3, 4)
+    Fraction.__str__ ==> returning to <module>
+    3/4
+
+Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
+
+    >>> log_calls.mute = True
+    >>> fr56 = fractions.Fraction(5,6)
+    >>> fr78 = fractions.Fraction(7,8)
+    >>> log_calls.mute = False
+
+Before using these, let's redecorate to improve `log_calls` output.
+After trying other examples at the command line it becomes apparent that
+``__str__`` gets called a lot, and the calls become just noise, so let's
+``omit`` that. To eliminate more clutter, let's suppress the exit lines
+("... returning to..."). We'll also display return values. Here's how to
+accomplish all of that, with one call to ``decorate_class``:
+
+    >>> log_calls.decorate_class(Fr,
+    ...                          omit='__str__', log_exit=False, log_retval=True)
+
+Finally, let's do some arithmetic on fractions:
+
+    >>> print(fr78-fr56)
+    Fraction._operator_fallbacks.<locals>.forward <== called by <module>
+        arguments: a=Fraction(7, 8), b=Fraction(5, 6)
+        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            arguments: a=Fraction(7, 8)
+            Fraction.denominator return value: 8
+        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            arguments: a=Fraction(5, 6)
+            Fraction.denominator return value: 6
+        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            arguments: a=Fraction(7, 8)
+            Fraction.numerator return value: 7
+        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            arguments: a=Fraction(5, 6)
+            Fraction.numerator return value: 5
+        Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
+            defaults:  _normalize=True
+            Fraction.__new__ return value: 1/24
+        Fraction._operator_fallbacks.<locals>.forward return value: 1/24
+    1/24
+
+So ultimately, subtraction of fractions is performed by ``Fraction._operator_fallbacks.<locals>.forward``,
+(an instance of) the ``forward`` inner function of the method ``Fraction._operator_fallbacks``. This
+instance of ``forward`` presumably implements the operator ``-``'.
+
+The implementation of ``-`` uses the public properties ``denominator`` and ``numerator``
+to retrieve the fields of the fractions, and returns a new fraction with the computed numerator and denominator.
+Like all fractions, the one returned by ``new`` displays itself in lowest terms.
+
+
+Where to go from here
+==================================================
+
 These examples have shown just a few of the features that make `log_calls` powerful,
-versatile, yet easy to use. They have also introduced a couple of `log_calls`'s keyword
-parameters, the source of much of that versatility. The :ref:`keyword_parameters` chapter
-documents them in detail. The chapter :ref:`decorating_classes` covers that subject
-thoroughly, presenting many techniques and explaining fine points.
+versatile, yet easy to use. They have introduced a few of `log_calls`'s keyword
+parameters, the source of much of its versatility, as well as one of the ``decorate_*``
+methods.
+
+Read at least the introduction of the next chapter, :ref:`what-log_calls-can-decorate` ,
+then read the :ref:`keyword_parameters` chapter, which documents the parameters in detail.
+The parameters chapter is a prerequisite for those that follow it, most of which can be read
+immediately afterward.
+
+The chapter :ref:`decorating_classes` covers that subject thoroughly, in particular the
+parameters ``only`` and ``omit``, presenting techniques and fine points.
+
+The ``decorate_*`` methods are presented in :ref:`decorating_functions_class_hierarchies_modules`.
+
+`log_calls` provides even more functionality which these examples haven't even
+hinted at. The remaining chapters document all of it.

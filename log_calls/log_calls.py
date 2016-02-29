@@ -2325,22 +2325,23 @@ class _deco_base():
         Only decorate things with sourcecode in module.
         As ever, don't try to deco builtins.
         """
-        module_source_filename = get_file_of_object(mod)
+        module_filename = get_file_of_object(mod)
 
-        if not (module_source_filename and inspect.ismodule(mod) and functions and classes):
+        whatis = inspect.ismodule(mod)
+        if not (module_filename and inspect.ismodule(mod) and functions and classes):
             return      # refuse, SILENTLY
 
         # Functions
         if functions:
             for name, f in inspect.getmembers(mod, inspect.isfunction):
-                if get_file_of_object(f) == module_source_filename:
+                if get_file_of_object(f) == module_filename:
                     vars(mod)[name] = cls(**setting_kwds)(f)
                     ### Note, vars(mod) also has key __package__,
                     ### .     e.g. 'sklearn.cluster' for mod = 'sklearn.cluster.k_means_'
         # Classes
         if classes:
             for name, kls in inspect.getmembers(mod, inspect.isclass):
-                if get_file_of_object(kls) == module_source_filename:
+                if get_file_of_object(kls) == module_filename:
                     _ = cls(**setting_kwds)(kls)
                 # assert _ == kls
 

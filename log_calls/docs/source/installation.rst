@@ -70,7 +70,7 @@ Both of the above commands run all tests in the ``tests/`` subdirectory. If you 
 either of them, the output you see should end like so::
 
 
-    Ran 106 tests in 0.539s
+    Ran 107 tests in 0.539s
 
     OK
 
