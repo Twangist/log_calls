@@ -88,7 +88,7 @@ write settings using the `log_calls` keywords as keys:
     >>> f.log_calls_settings['log_elapsed'] = True
 
 You can also use the same keywords as attributes of ``log_calls_settings``
-instead of as keys to the mapping interface; they're completely equivalent:
+instead of as keys to the mapping interface — they're completely equivalent:
 
     >>> f.log_calls_settings.log_elapsed
     True

@@ -34,7 +34,7 @@ whatever it may be.
 Whichever you choose, ideally you'll do it in a virtual environment (a *virtualenv*).
 In Python 3.3+, it's easy to set up a virtual environment using the
 `pyvenv <https://docs.python.org/3/using/scripts.html?highlight=pyvenv#pyvenv-creating-virtual-environments>`_
-tool, included in the standard distribution.
+tool included in the standard distribution.
 
 Running the tests
 =================

@@ -9,7 +9,7 @@ The two methods described in this chapter provide alternatives to
 
 `log_calls` exposes the method it uses to write its messages, and
 makes it available to decorated callables as the method ``log_message()``,
-which a callable can call *on its wrapper*. If a decorated callable writes
+which a callable can call *on its own wrapper*. If a decorated callable writes
 debugging messages, even multiline messages, it can use ``log_message()``
 to write those messages so that they sit nicely within the `log_calls`
 visual frame.

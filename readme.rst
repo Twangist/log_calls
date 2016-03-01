@@ -92,15 +92,16 @@ Installing `log_calls` is as simple as running the command
 
        ``$ pip install log_calls``
 
-to install `log_calls` from PyPI (the Python Package Index). Here and elsewhere,
-``$`` at the *beginning* of a line indicates your command prompt, whatever it may be.
+to install `log_calls` from PyPI (the Python Package Index). Here,
+``$`` indicates your command prompt, whatever it may be.
 
-Ideally you'll do install `log_calls` in a virtual environment (a *virtualenv*).
+Ideally, you'll install `log_calls` in a virtual environment (a *virtualenv*).
 In Python 3.3+, it's easy to set up a virtual environment using the
 `pyvenv <https://docs.python.org/3/using/scripts.html?highlight=pyvenv#pyvenv-creating-virtual-environments>`_
-tool, included in the standard distribution.
+tool included in the standard distribution.
 
 --------------------------------------------------------------------
+
 .. _quickstart:
 
 Quick Start
@@ -187,12 +188,12 @@ Now let's call ``h``:
 Notice that when writing entry and exit messages for ``f``, `log_calls` displays
 the entire active call chain *back to the nearest decorated function*, so that there
 aren't "gaps" in the chain of functions it reports on. If it didn't do this, we'd
-see only ``f <== called by g1`` and then ``f ==> returning to g1`` followed by
+see only ``f <== called by g1``, and then ``f ==> returning to g1`` followed by
 ``h ==> returning to <module>``, which wouldn't tell us the whole story about how
 control reached ``g1`` from ``h``.
 
-See the `Call Chains<http://www.pythonhosted.org/log_calls/call_chains.html>`_
-chapter of the documentation for more examples and finer points.
+See the `Call Chains <http://www.pythonhosted.org/log_calls/call_chains.html>`_
+chapter of the documentation contains for examples and finer points.
 
 
 .. _quickstart-methods:
@@ -218,6 +219,8 @@ Only the ``ntimes`` method is decorated:
         arguments: self=<__main__.A object at 0x...>, m=4
     A.ntimes ==> returning to <module>
     12
+
+---------------------------------------------------------------------------------------------
 
 .. _quickstart-classes:
 
@@ -258,9 +261,9 @@ Accessing its ``revn`` property calls the staticmethod ``revint``, and both call
 If you want to decorate only some of the methods of a class, you *don't* have to
 individually decorate all and only all the ones you want: the ``only`` and ``omit``
 keyword parameters to the class decorator let you concisely specify which methods
-will and won't be decorated. The documentation section on
- `the omit and only keyword parameters <http://www.pythonhosted.org/log_calls/omit_only_params.html>`_
-contains the details.
+will and won't be decorated. The section of the documentation
+on `the omit and only keyword parameters  <http://www.pythonhosted.org/log_calls/decorating_classes.html#the-omit-and-only-keyword-parameters-default-tuple>`_ contains
+the details.
 
 Decorating *most* methods, overriding the settings of one method
 ----------------------------------------------------------------------
@@ -315,6 +318,18 @@ However, the return value of ``revn`` *is* logged, and ``revint`` has *not* been
     ~~~
     My favorite number plus 3 is 20
 
+For more information
+----------------------
+
+The chapter `Decorating Classes <http://www.pythonhosted.org/log_calls/decorating_classes.html>`_
+covers that subject thoroughly — basics, details,
+subtleties and techniques.
+In particular, the parameters ``only`` and ``omit`` are documented there, in the
+section `the omit and only keyword parameters  <http://www.pythonhosted.org/log_calls/decorating_classes.html#the-omit-and-only-keyword-parameters-default-tuple>`_
+.
+
+---------------------------------------------------------------------------------------------
+
 Decorating "external" code
 ==================================================
 
@@ -361,7 +376,7 @@ accomplish all of that, with one call to ``decorate_class``:
 
 Finally, let's do some arithmetic on fractions:
 
-    >>> print(fr78-fr56)
+    >>> print(fr78 - fr56)
     Fraction._operator_fallbacks.<locals>.forward <== called by <module>
         arguments: a=Fraction(7, 8), b=Fraction(5, 6)
         Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
@@ -383,37 +398,371 @@ Finally, let's do some arithmetic on fractions:
         Fraction._operator_fallbacks.<locals>.forward return value: 1/24
     1/24
 
-So ultimately, subtraction of fractions is performed by ``Fraction._operator_fallbacks.<locals>.forward``,
-(an instance of) the ``forward`` inner function of the method ``Fraction._operator_fallbacks``. This
-instance of ``forward`` presumably implements the operator ``-``'.
-
-The implementation of ``-`` uses the public properties ``denominator`` and ``numerator``
+So ultimately, subtraction of fractions is performed by a function ``_sub`` (not decorated),
+to which ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
+The latter is an inner function of the method ``Fraction._operator_fallbacks``.
+The ``_sub`` function uses the public properties ``denominator`` and ``numerator``
 to retrieve the fields of the fractions, and returns a new fraction with the computed numerator and denominator.
 Like all fractions, the one returned by ``new`` displays itself in lowest terms.
 
+For more information
+----------------------------
 
-Where to go from here
+The ``decorate_*`` methods are presented in the
+chapter `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_ of
+the full documentation.
+
+---------------------------------------------------------------------------------------------
+
+Changing "settings" dynamically
+================================
+
+When `log_calls` decorates a callable (a function, method, property, ...), it "wraps" that
+callable in a function — the *wrapper* of the callable. Subsequently, calls to the decorated
+callable actually call the wrapper, which delegates to the original, in between its own
+pre- and post-processing. This is simply what decorators do.
+
+`log_calls` gives the wrapper a few attributes pertaining to the wrapped callable, notably
+``log_calls_settings``, a dict-like object that contains the `log_calls` state of the callable.
+The keys of ``log_calls_settings`` are `log_calls` keyword parameters, such as ``enabled`` and
+``log_retval`` — in fact, most of the keyword parameters, though not all of them.
+
+What is a "setting"?
+---------------------------
+
+**The** *settings of a decorated callable* **are the key/value pairs of its**
+``log_calls_settings`` **object, which is an attribute of the callable's wrapper.**
+The settings comprise the `log_calls` state of the callable.
+
+.. _the_settings:
+
+The following keyword parameters are (keys of) settings:
+
+    ``enabled``
+    ``args_sep``
+    ``log_args``
+    ``log_retval``
+    ``log_exit``
+    ``log_call_numbers``
+    ``log_elapsed``
+    ``indent``
+    ``prefix``
+    ``file``
+    ``mute``
+    ``logger``
+    ``loglevel``
+    ``record_history``
+    ``max_history``
+
+The other keyword parameters are *not* "settings":
+
+    ``NO_DECO``
+    ``settings``
+    ``name``
+    ``override``
+    ``omit``
+    ``only``
+
+These are directives to the decorator telling it how to initialize itself. Their initial values
+are not subsequently available via attributes of the wrapper, and cannot subsequently be changed.
+
+Lifecycle of a "setting"
+------------------------------
+Initially the value of a setting is the value passed to the `log_calls` decorator for
+the corresponding keyword parameter, or the default value for that parameter if no
+argument was supplied for it:
+
+    >>> @log_calls(args_sep = ' / ')
+    ... def f(*args, **kwargs): return 91
+
+You can access and change the settings of ``f`` via its ``log_calls_settings`` attribute,
+which behaves like a dictionary whose keys are the `log_calls` settings keywords:
+
+    >>> f.log_calls_settings['args_sep']
+    ' / '
+    >>> f.log_calls_settings['enabled']
+    True
+
+All of a decorated callable's settings can be accessed through ``log_calls_settings``,
+and almost all can be changed on the fly:
+
+    >>> f.log_calls_settings['enabled']
+    True
+    >>> f.log_calls_settings['enabled'] = False
+
+You can also use the same keywords as attributes of ``log_calls_settings``
+instead of as keys to the mapping interface — they're completely equivalent:
+
+    >>> f.log_calls_settings.enabled
+    False
+
+`log_calls` is disabled for ``f``, hence no output here:
+
+    >>> _ = f()                   # no output (not even 91, because of "_ = ")
+
+Let's reenable `log_calls` for ``f``, turn on call numbering and display of return values.
+We could do this with three separate assignments to settings, but it's easier to use
+the ``log_calls_settings.update()`` method:
+
+    >>> f.log_calls_settings.update(
+    ...     enabled=True, log_call_numbers=True,log_retval=True)
+
+Now call ``f`` again:
+
+    >>> _ = f()                   # output
+    f [1] <== called by <module>
+        arguments: <none>
+        f [1] return value: 91
+    f [1] ==> returning to <module>
+
+and again:
+
+    >>> _ = f(17, 19, foo='bar')                 # output
+    f [2] <== called by <module>
+        arguments: *args=(17, 19) / **kwargs={'foo': 'bar'}
+        f [2] return value: 91
+    f [2] ==> returning to <module>
+
+
+For more information
+----------------------------
+
+The chapter `Dynamic Control of Settings <http://www.pythonhosted.org/log_calls/dynamic_control_of_settings.html>`_
+of the documentation presents the ``log_calls_settings`` attribute and its API in detail, with many examples.
+
+---------------------------------------------------------------------------------------------
+
+Writing indent-aware debug messages
 ==================================================
+
+`log_calls` equips a decorated callable with two methods, ``log_message()``
+and ``log_exprs()``, that provide alternatives to ``print()`` for writing debug messages.
+`log_calls` exposes the method it uses to write its messages, and makes it available
+to decorated callables as ``log_message()``, which a callable calls *on its own wrapper*.
+If a decorated callable writes debugging messages, even multiline messages, it can use
+``log_message()`` to write those messages so that they sit nicely within
+the `log_calls` visual frame:
+
+    >>> @log_calls()
+    ... def f(x):
+    ...     f.log_message('Hi there.')
+    >>> f(2)
+    f <== called by <module>
+        arguments: x=2
+        Hi there.
+    f ==> returning to <module>
+
+Most uses of ``log_message()`` will print variables or expressions together with
+their values, so `log_calls` also provides the ``log_exprs()`` method,
+which make it very simple to do so. Here's a small but realistic example:
+
+    >>> @log_calls()
+    ... def gcd(a, b):
+    ...     while b:
+    ...         a, b = b, (a % b)
+    ...         gcd.log_exprs('a', 'b', prefix="At bottom of loop: ")
+    ...     return a
+    >>> gcd(48, 246)
+    gcd <== called by <module>
+        arguments: a=48, b=246
+        At bottom of loop: a = 246, b = 48
+        At bottom of loop: a = 48, b = 6
+        At bottom of loop: a = 6, b = 0
+    gcd ==> returning to <module>
+    6
+
+For more information
+----------------------------
+
+The chapter `Writing Indent-Aware Debug Messages <http://www.pythonhosted.org/log_calls/indent_aware_writing.html>`_
+of the documentation discusses the ``log_message()`` and ``log_exprs()`` methods.
+
+---------------------------------------------------------------------------------------------
+
+The ``settings`` keyword parameter
+==================================================
+
+The ``settings`` parameter lets you collect common values for settings keyword parameters
+in one place, and pass them to `log_calls` with a single parameter.
+``settings`` is a useful shorthand if you have, for example, a module with several
+`log_calls`-decorated functions, all with multiple, mostly identical settings
+which differ from `log_calls`'s defaults. Instead of repeating multiple identical
+settings across several uses of the decorator, a tedious and error-prone practice,
+you can gather them all into one ``dict`` or text file, and use the ``settings``
+parameter to concisely specify them *en masse*. You can use different groups
+of settings for different sets of functions, or classes, or modules — you're
+free to organize them as you please.
+
+When not ``None``, the ``settings`` parameter can be either a ``dict``, or a ``str``
+specifying the location of a *settings file* — a text file containing *key=value* pairs and optional comments.
+In either case, the valid keys are the keyword parameters that are "settings", listed :ref:`above <the_settings>`,
+plus, as a convenience, ``NO_DECO``. *Invalid keys are ignored.*
+
+The values of settings specified in a settings dict or settings file override `log_calls`'s
+default values for those settings, and any of the resulting settings are in turn overridden
+by corresponding keywords passed directly to the decorator. Of course, you *don't* have to provide
+a value for every valid key.
+
+``settings`` as a ``dict``
+--------------------------------------
+
+The value of ``settings`` can be a ``dict``, or more generally any object
+``d`` for which it's true that ``isinstance(d, dict)``. Here's a settings
+``dict`` and two `log_calls`-decorated functions that use it:
+
+    >>> d = dict(
+    ...     args_sep=' | ',
+    ...     log_args=False,
+    ...     log_call_numbers=True,
+    ...     NO_DECO=False           # True: "kill switch"
+    ... )
+    >>> @log_calls(settings=d)
+    ... def f(n):
+    ...     if n <= 0: return
+    ...     f(n-1)
+    >>> @log_calls(settings=d, log_args=True)
+    ... def g(s, t): print(s + t)
+
+Note that ``g`` overrides the ``log_args`` setting given in ``d``:
+
+    >>> f.log_calls_settings.log_args, g.log_calls_settings.log_args
+    (False, True)
+
+Let's call these functions and examine their `log_calls` output:
+
+    >>> f(2)
+    f [1] <== called by <module>
+        f [2] <== called by f [1]
+            f [3] <== called by f [2]
+            f [3] ==> returning to f [2]
+        f [2] ==> returning to f [1]
+    f [1] ==> returning to <module>
+
+    >>> g('aaa', 'bbb')
+    g [1] <== called by <module>
+        arguments: s='aaa' | t='bbb'
+    aaabbb
+    g [1] ==> returning to <module>
+
+``settings`` as a pathname (``str``)
+------------------------------------------
+
+When the value of the ``settings`` parameter is a ``str``, it must be a path to a
+*settings file* — a text file containing *key=value* pairs and optional comments.
+If the pathname is just a directory, `log_calls` looks there for a file
+named ``.log_calls`` and uses that as a settings file; if the pathname is a file,
+`log_calls` uses that file. In either case, if the file doesn't exist then no error
+results *nor is any warning issued*, and the ``settings`` parameter is ignored.
+
+.. topic:: Format of a settings file
+
+    A *settings file* is a text file containing zero or more lines of the form
+
+        *setting_name*\ ``=``\ *value*
+
+    Whitespace is permitted around *setting_name* and *value*, and is stripped.
+    Blank lines are ignored, as are lines whose first non-whitespace character is ``#``,
+    which therefore you can use as comments.
+
+Using ``NO_DECO`` as a global "kill switch"
+-------------------------------------------------
+
+The ``NO_DECO`` parameter prevents `log_calls` from decorating a callable or class:
+when true, the decorator returns the decorated thing itself, unwrapped and unaltered.
+Intended for use at program startup, it provides a single "true bypass" switch.
+
+Using this parameter in a settings dict or settings file lets you
+completely bypass `log_calls` decoration for all decorators using that ``settings`` value,
+with a single switch, e.g. for production, without having to comment out every decoration.
+
+Use ``NO_DECO=True`` for production
+-------------------------------------------
+
+Even even when it's disabled or bypassed, `log_calls` imposes some overhead.
+For production, therefore, it's best to not use it at all. One tedious way to guarantee
+that would be to comment out every ``@log_calls()`` decoration in every source file.
+``NO_DECO`` allows a more humane approach: Use a settings file or settings dict
+containing project-wide settings, including an entry for ``NO_DECO``.
+For development, use::
+
+    NO_DECO=False
+
+and for production, change that to::
+
+    NO_DECO=True
+
+Even though it isn't actually a "setting", ``NO_DECO`` is permitted in settings files and dicts
+in order to allow this.
+
+For example, if we change the ``NO_DECO`` setting in the settings dict ``d`` above and rerun
+the script, ``f`` and ``g`` will **not** be decorated:
+
+    >>> d = dict(
+    ...     args_sep=' | ',
+    ...     log_args=False,
+    ...     log_call_numbers=True,
+    ...     NO_DECO=True            # True: "kill switch"
+    ... )
+    >>> @log_calls(settings=d)
+    ... def f(n):
+    ...     if n <= 0: return
+    ...     f(n-1)
+    >>> @log_calls(settings=d, log_args=True)
+    ... def g(s, t): print(s + t)
+
+    >>> f(2)                # no log_calls output
+    >>> g('aaa', 'bbb')     # no log_calls output
+    aaabbb
+
+The functions ``f`` and ``g`` aren't just disabled or muted; they're not decorated at all:
+
+    >>> hasattr(f, 'log_calls_settings'), hasattr(g, 'log_calls_settings')
+    (False, False)
+
+For more information
+----------------------------
+See the section
+on `the settings parameter <http://www.pythonhosted.org/log_calls/parameters.html#settings-default-none>`_ in
+the Keyword Parameters chapter of the documentation.
+
+
+.. Examining call history and statistics
+.. ==================================================
+..
+.. .. todo::
+..     Example of using ``stats`` attribute, culminating in the ``.as_CSV`` display
+..
+..
+.. For more information
+.. ----------------------------
+..
+.. .. todo::
+..     "Examining call history and statistics"
+..     doc'd in chapter "Call History and Statistics"
+..     http://www.pythonhosted.org/log_calls/call_history_and_statistics.html
+
+---------------------------------------------------------------------------------------------
+
+Where To Go From Here
+#######################################
 
 These examples have shown just a few of the features that make `log_calls` powerful,
 versatile, yet easy to use. They have introduced a few of `log_calls`'s keyword
-parameters, the source of much of its versatility, as well as one of the ``decorate_*``
-methods.
+parameters, the source of much of its versatility, as well as some of its more
+advanced capabilities.
 
-In fhe documentation, read at least the introduction of the chapter,
- `What log_calls Can Decorate <http://www.pythonhosted.org/log_calls/what_log_calls_can_decorate.html>`_,
-then read the essential chapter following it,
- `Keyword Parameters <http://www.pythonhosted.org/log_calls/parameters.html>`_,
-which documents the parameters in detail. The parameters chapter is a prerequisite
-for those that follow it, most of which can be read immediately afterward.
+In the documentation, read at least the introduction of the
+chapter `What log_calls Can Decorate <http://www.pythonhosted.org/log_calls/what_log_calls_can_decorate.html>`_. Then
+read the essential chapter following
+it, `Keyword Parameters <http://www.pythonhosted.org/log_calls/parameters.html>`_, which
+documents the parameters in detail.
+That chapter is a reference, to which you can refer back
+as needed; it's not necessary to assimilate its details before proceeding on to further topics.
+For an even more concise reference, almost a cheatsheet,
+see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
-The chapter
- `Decorating Classes <http://www.pythonhosted.org/log_calls/decorating_classes.html>`_,
-covers that subject thoroughly, presenting techniques and fine points. In particular the
-parameters ``only`` and ``omit`` are documented there.
+The chapters following the keyword parameters chapter all presume familiarlty
+with its basic information, and most of them can be read immediately after it.
 
-The ``decorate_*`` methods are presented in
- `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_,
-
-`log_calls` provides even more functionality which these examples haven't even
-hinted at. The remaining chapters document all of it.
+`log_calls` provides yet more functionality which these examples haven't even
+hinted at. The full documentation covers all of it.

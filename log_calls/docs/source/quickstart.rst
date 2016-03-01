@@ -84,7 +84,7 @@ Now let's call ``h``:
 Notice that when writing entry and exit messages for ``f``, `log_calls` displays
 the entire active call chain *back to the nearest decorated function*, so that there
 aren't "gaps" in the chain of functions it reports on. If it didn't do this, we'd
-see only ``f <== called by g1`` and then ``f ==> returning to g1`` followed by
+see only ``f <== called by g1``, and then ``f ==> returning to g1`` followed by
 ``h ==> returning to <module>``, which wouldn't tell us the whole story about how
 control reached ``g1`` from ``h``.
 
@@ -213,8 +213,8 @@ However, the return value of ``revn`` *is* logged, and ``revint`` has *not* been
 For more information
 ----------------------
 
-The :ref:`decorating_classes` chapter covers that subject thoroughly — basics,
-techniques and fine points. In particular, the parameters ``only`` and ``omit``
+The :ref:`decorating_classes` chapter covers that subject thoroughly — basics, details,
+subtleties and techniques. In particular, the parameters ``only`` and ``omit``
 are documented there, in the
 section `the omit and only keyword parameters  <http://www.pythonhosted.org/log_calls/decorating_classes.html#the-omit-and-only-keyword-parameters-default-tuple>`_.
 
@@ -264,7 +264,7 @@ accomplish all of that, with one call to ``decorate_class``:
 
 Finally, let's do some arithmetic on fractions:
 
-    >>> print(fr78-fr56)
+    >>> print(fr78 - fr56)
     Fraction._operator_fallbacks.<locals>.forward <== called by <module>
         arguments: a=Fraction(7, 8), b=Fraction(5, 6)
         Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
@@ -297,8 +297,7 @@ For more information
 ----------------------------
 
 The ``decorate_*`` methods are presented in the
-chapter `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_ of
-the full documentation.
+chapter `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_.
 
 
 Where to go from here
@@ -314,7 +313,7 @@ Then read the essential chapter following
 it, :ref:`keyword_parameters`, which documents the parameters in detail.
 That chapter is a reference, to which you can refer back
 as needed; it's not necessary to assimilate its details before proceeding on to further topics.
-For an even more concise reference, almost a cheatsheet,
+For an even more concise reference, in cheatsheet format,
 see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
 The chapters following the keyword parameters chapter all presume familiarlty
