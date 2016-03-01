@@ -210,6 +210,14 @@ However, the return value of ``revn`` *is* logged, and ``revint`` has *not* been
     ~~~
     My favorite number plus 3 is 20
 
+For more information
+----------------------
+
+The :ref:`decorating_classes` chapter covers that subject thoroughly — basics,
+techniques and fine points. In particular, the parameters ``only`` and ``omit``
+are documented there, in the
+section `the omit and only keyword parameters  <http://www.pythonhosted.org/log_calls/decorating_classes.html#the-omit-and-only-keyword-parameters-default-tuple>`_.
+
 Decorating "external" code
 ==================================================
 
@@ -278,13 +286,19 @@ Finally, let's do some arithmetic on fractions:
         Fraction._operator_fallbacks.<locals>.forward return value: 1/24
     1/24
 
-So ultimately, subtraction of fractions is performed by ``Fraction._operator_fallbacks.<locals>.forward``,
-(an instance of) the ``forward`` inner function of the method ``Fraction._operator_fallbacks``. This
-instance of ``forward`` presumably implements the operator ``-``'.
-
-The implementation of ``-`` uses the public properties ``denominator`` and ``numerator``
+So ultimately, subtraction of fractions is performed by a function ``_sub`` (not decorated),
+to which ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
+The latter is an inner function of the method ``Fraction._operator_fallbacks``.
+The ``_sub`` function uses the public properties ``denominator`` and ``numerator``
 to retrieve the fields of the fractions, and returns a new fraction with the computed numerator and denominator.
 Like all fractions, the one returned by ``new`` displays itself in lowest terms.
+
+For more information
+----------------------------
+
+The ``decorate_*`` methods are presented in the
+chapter `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_ of
+the full documentation.
 
 
 Where to go from here
@@ -295,15 +309,16 @@ versatile, yet easy to use. They have introduced a few of `log_calls`'s keyword
 parameters, the source of much of its versatility, as well as one of the ``decorate_*``
 methods.
 
-Read at least the introduction of the next chapter, :ref:`what-log_calls-can-decorate` ,
-then read the :ref:`keyword_parameters` chapter, which documents the parameters in detail.
-The parameters chapter is a prerequisite for those that follow it, most of which can be read
-immediately afterward.
+Read at least the introduction of the next chapter, :ref:`what-log_calls-can-decorate`.
+Then read the essential chapter following
+it, :ref:`keyword_parameters`, which documents the parameters in detail.
+That chapter is a reference, to which you can refer back
+as needed; it's not necessary to assimilate its details before proceeding on to further topics.
+For an even more concise reference, almost a cheatsheet,
+see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
-The chapter :ref:`decorating_classes` covers that subject thoroughly, in particular the
-parameters ``only`` and ``omit``, presenting techniques and fine points.
+The chapters following the keyword parameters chapter all presume familiarlty
+with its basic information, and almost all of them can be read immediately after it.
 
-The ``decorate_*`` methods are presented in :ref:`decorating_functions_class_hierarchies_modules`.
-
-`log_calls` provides even more functionality which these examples haven't even
+`log_calls` provides yet more functionality which these examples haven't even
 hinted at. The remaining chapters document all of it.

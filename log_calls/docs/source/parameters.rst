@@ -53,7 +53,7 @@ The keys of ``log_calls_settings`` are `log_calls` keyword parameters, such as `
 ``log_calls_settings`` **object, which is an attribute of the callable's wrapper.**
 The settings comprise the `log_calls` state of the callable.
 
-initially the value of a setting is the value passed to the `log_calls` decorator for
+Initially the value of a setting is the value passed to the `log_calls` decorator for
 the corresponding keyword parameter, or the default value for that parameter if no
 argument was supplied for it. ``log_calls_settings`` can then be used to read *and write*
 settings values.
@@ -789,7 +789,7 @@ Even even when it's disabled or bypassed, `log_calls` imposes some overhead.
 For production, therefore, it's best to not use it at all. One tedious way to guarantee
 that would be to comment out every ``@log_calls()`` decoration in every source file.
 ``NO_DECO`` allows a more humane approach: Use a settings file or settings dict
-containing project-wide settings, including an entry for NO_DECO; for development, use::
+containing project-wide settings, including an entry for ``NO_DECO``. For development, use::
 
     NO_DECO=False
 

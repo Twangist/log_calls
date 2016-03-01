@@ -9,6 +9,11 @@
  of inline code in the RTD theme. So far, nothing works.
 */
 
+/* Suppress breadcrumbs */
+div[aria-label="breadcrumbs navigation"] {
+    display: none
+}
+
 span.literal {
     /*color: #0044DD !important;*/
     /*color: #003aa9 !important;*/

@@ -1,5 +1,8 @@
 {% block trans %}
-<hr>
+{% if pagename != 'index' %}
+    <hr>
+{% endif %}
+
 <p style="font-size: 95%">
 {% if pagename in ['intro', 'index'] %}
 You can show your appreciation and support of <em>log_calls</em>
@@ -14,7 +17,8 @@ by
     {% endif %}
 {% endif %}
 <a href="http://www.example.com" TARGET="_blank"> <img src="_static/Donate-Lato-14-etc-oglow.png" /></a>
-</p>
+.</p>
+
 <p style="text-align: right">
 Built with <a href="http://sphinx-doc.org/">Sphinx</a> using
 a tweaked <a href="https://readthedocs.org">Read the Docs</a>
