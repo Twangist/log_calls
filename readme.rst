@@ -330,7 +330,7 @@ section `the omit and only keyword parameters  <http://www.pythonhosted.org/log_
 
 ---------------------------------------------------------------------------------------------
 
-Decorating "external" code
+Decorating external code
 ==================================================
 
 Sometimes it's enlightening and instructive to decorate objects in a package or module
@@ -342,11 +342,14 @@ We'll illustrate techniques with a simple example: decorating the fractions clas
 ``fractions.Fraction``, to see how it uses its own API. Along the way we'll ilustrate
 how to use `log_calls` settings to filter the output.
 
-First, let's import the class, decorate it and create an instance:
+First, let's import the class and decorate it:
 
     >>> import fractions
     >>> Fr = fractions.Fraction
     >>> log_calls.decorate_class(Fr)
+
+Now create an instance:
+
     >>> print(Fr(3,4))
     Fraction.__new__ <== called by <module>
         arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
@@ -357,7 +360,7 @@ First, let's import the class, decorate it and create an instance:
     Fraction.__str__ ==> returning to <module>
     3/4
 
-Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
+Create a couple of more fractions, using the `log_calls` global mute to do it in silence:
 
     >>> log_calls.mute = True
     >>> fr56 = fractions.Fraction(5,6)
@@ -761,7 +764,7 @@ as needed; it's not necessary to assimilate its details before proceeding on to 
 For an even more concise reference, almost a cheatsheet,
 see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
-The chapters following the keyword parameters chapter all presume familiarlty
+The chapters following the keyword parameters chapter all presume familiarity
 with its basic information, and most of them can be read immediately after it.
 
 `log_calls` provides yet more functionality which these examples haven't even
