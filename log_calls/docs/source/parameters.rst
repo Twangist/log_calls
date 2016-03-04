@@ -47,7 +47,8 @@ pre- and post-processing. This is simply what decorators do.
 The keys of ``log_calls_settings`` are `log_calls` keyword parameters, such as ``enabled`` and
 ``log_retval`` — in fact, most of the keyword parameters, though not all of them.
 
-.. index:: setting
+.. index:: !setting
+..    single: setting
 
 **The** *settings of a decorated callable* **are the key/value pairs of its**
 ``log_calls_settings`` **object, which is an attribute of the callable's wrapper.**

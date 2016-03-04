@@ -20,17 +20,17 @@ Table of Contents
     parameters
     decorating_classes
     accessing_method_wrappers
-    indent_aware_writing
+    writing_indent_aware_debug_messages
     using_loggers
-    set_reset_defaults
-    decorating_functions_class_hierarchies
+    retrieving_changing_defaults
+    bulk_external_redecorating
     dynamic_control_of_settings
     indirect_values
     call_history_and_statistics
     call_chains
     further_examples_and_use_cases
     record_history_deco
-    appendix_I_parameters_table
+    appendix_I_parameters_reference
     appendix_II_what_has_been_new
 
 .. Index
