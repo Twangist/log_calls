@@ -353,12 +353,15 @@ Now create an instance:
     >>> print(Fr(3,4))
     Fraction.__new__ <== called by <module>
         arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
-        defaults:  _normalize=True
+        ...
     Fraction.__new__ ==> returning to <module>
     Fraction.__str__ <== called by <module>
         arguments: self=Fraction(3, 4)
+        defaults:  _normalize=True
     Fraction.__str__ ==> returning to <module>
     3/4
+
+(**Note**: *In Python 3.4.y, the output lacks the third to last line.*)
 
 Create a couple of more fractions, using the `log_calls` global mute to do it in silence:
 
@@ -379,7 +382,7 @@ accomplish all of that, with one call to ``decorate_class``:
 
 Finally, let's do some arithmetic on fractions:
 
-    >>> print(fr78 - fr56)
+    >>> print(fr78 - fr56)              # doctest: +ELLIPSIS
     Fraction._operator_fallbacks.<locals>.forward <== called by <module>
         arguments: a=Fraction(7, 8), b=Fraction(5, 6)
         Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
@@ -400,6 +403,9 @@ Finally, let's do some arithmetic on fractions:
             Fraction.__new__ return value: 1/24
         Fraction._operator_fallbacks.<locals>.forward return value: 1/24
     1/24
+
+(**Note**: *This is Python 3.5.x output. In Python 3.4.y, the output shows evidence
+of less efficiency, and it lacks the third to last line.*)
 
 So ultimately, subtraction of fractions is performed by a function ``_sub`` (not decorated),
 to which ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.

@@ -111,62 +111,70 @@ def decorate_external_function__function_in_same_module__doesnt_work():
     """
     pass
 
+import sys
+if sys.version_info.major == 3 and sys.version_info.minor >= 5:
 
-def test__deco_fractions_dot_Fraction():
-    """
-This example shows that you can decorate things in the standard library.
+    def test__deco_fractions_dot_Fraction():
+        """
+    This example shows that you can decorate things in the standard library.
 
-    >>> import fractions
-    >>> Fr = fractions.Fraction
-    >>> log_calls.decorate_class(Fr)
-    >>> print(Fr(3,4))
-    Fraction.__new__ <== called by <module>
-        arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
-        defaults:  _normalize=True
-    Fraction.__new__ ==> returning to <module>
-    Fraction.__str__ <== called by <module>
-        arguments: self=Fraction(3, 4)
-    Fraction.__str__ ==> returning to <module>
-    3/4
-
-Create a couple of fractions, in silence:
-
-    >>> log_calls.mute = True
-    >>> fr56 = fractions.Fraction(5,6)
-    >>> fr78 = fractions.Fraction(7,8)
-    >>> log_calls.mute = False
-
-Let's trim the `log_calls` output. Experience shows that ``__str__`` gets called a lot,
-and it becomes just noise, so let's not decorate that. To eliminate more clutter, let's
-suppress the exit lines ("... returning to..."). We'll also display return values:
-
-    >>> log_calls.decorate_class(Fr, omit='__str__', log_exit=False, log_retval=True)
-
-Now, let's do some arithmetic on fractions:
-
-    >>> print(fr78-fr56)
-    Fraction._operator_fallbacks.<locals>.forward <== called by <module>
-        arguments: a=Fraction(7, 8), b=Fraction(5, 6)
-        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
-            arguments: a=Fraction(7, 8)
-            Fraction.denominator return value: 8
-        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
-            arguments: a=Fraction(5, 6)
-            Fraction.denominator return value: 6
-        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
-            arguments: a=Fraction(7, 8)
-            Fraction.numerator return value: 7
-        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
-            arguments: a=Fraction(5, 6)
-            Fraction.numerator return value: 5
-        Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
-            arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
+        >>> import fractions
+        >>> Fr = fractions.Fraction
+        >>> log_calls.decorate_class(Fr)
+        >>> print(Fr(3,4))                      # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        Fraction.__new__ <== called by <module>
+            arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
             defaults:  _normalize=True
-            Fraction.__new__ return value: 1/24
-        Fraction._operator_fallbacks.<locals>.forward return value: 1/24
-    1/24
-    """
-    pass
+        Fraction.__new__ ==> returning to <module>
+        Fraction.__str__ <== called by <module>
+            arguments: self=Fraction(3, 4)
+        Fraction.__str__ ==> returning to <module>
+        3/4
+
+    (**Note**: In in Python 3.4.y, the output lacks the third to last line.*)
+
+
+    Create a couple of fractions, in silence:
+
+        >>> log_calls.mute = True
+        >>> fr56 = fractions.Fraction(5,6)
+        >>> fr78 = fractions.Fraction(7,8)
+        >>> log_calls.mute = False
+
+    Let's trim the `log_calls` output. Experience shows that ``__str__`` gets called a lot,
+    and it becomes just noise, so let's not decorate that. To eliminate more clutter, let's
+    suppress the exit lines ("... returning to..."). We'll also display return values:
+
+        >>> log_calls.decorate_class(Fr, omit='__str__', log_exit=False, log_retval=True)
+
+    Now, let's do some arithmetic on fractions:
+
+        >>> print(fr78 - fr56)    # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        Fraction._operator_fallbacks.<locals>.forward <== called by <module>
+            arguments: a=Fraction(7, 8), b=Fraction(5, 6)
+            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+                arguments: a=Fraction(7, 8)
+                Fraction.denominator return value: 8
+            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+                arguments: a=Fraction(5, 6)
+                Fraction.denominator return value: 6
+            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+                arguments: a=Fraction(7, 8)
+                Fraction.numerator return value: 7
+            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+                arguments: a=Fraction(5, 6)
+                Fraction.numerator return value: 5
+            Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+                arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
+                defaults:  _normalize=True
+                Fraction.__new__ return value: 1/24
+            Fraction._operator_fallbacks.<locals>.forward return value: 1/24
+        1/24
+
+    (**Note**: The output is different in Python 3.4.y -- it shows evidence of less efficiency,
+    and it lacks the third to last line.*)
+        """
+        pass
 
 
 ###############################################################

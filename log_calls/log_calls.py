@@ -101,35 +101,6 @@ class DecoSettingEnabled(DecoSetting_int):
                 return self.default
 
 
-# #### v0.3.0b18
-# def my_recursive_repr(fillvalue='...'):
-#     'Decorator to make a repr function return fillvalue for a recursive call'
-#
-#     def decorating_function(user_function):
-#         repr_running = set()
-#
-#         def wrapper(self):
-#             key = id(self), -1          # -1 == get_ident()
-#             if key in repr_running:
-#                 return fillvalue
-#             repr_running.add(key)
-#             try:
-#                 result = user_function()    # BTO: user_function(self)
-#             finally:
-#                 repr_running.discard(key)
-#             return result
-#
-#         # Can't use functools.wraps() here because of bootstrap issues
-#         wrapper.__module__ = getattr(user_function, '__module__', None)
-#         wrapper.__doc__ = getattr(user_function, '__doc__', '')
-#         wrapper.__name__ = getattr(user_function, '__name__', '')
-#         # BTO: only customization is adding defaults for the above 3 getattr calls
-#         #      so they don't blow up if e.g. user_function has no attr '__module__'
-#         wrapper.__annotations__ = getattr(user_function, '__annotations__', {})
-#         return wrapper
-#
-#     return decorating_function
-
 class DecoSettingArgs(DecoSetting_bool):
     def __init__(self, name, **kwargs):
         super().__init__(name, bool, True, allow_falsy=True, **kwargs)
@@ -640,7 +611,6 @@ class _deco_base():
 
     # placeholder! _set_class_sentinels called from __init__
     _sentinels = None
-
 
     INDENT = 4      # number of spaces to __ by at a time
 
@@ -1630,8 +1600,8 @@ class _deco_base():
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
             # functools.partial objects are callable, have no __name__ much less __qualname__,
             # and trying to deco __call__ gets messy.
-            # Callable builtins e.g. len are not functions in the isfunction sense, can't deco anyway.
-            # Just give up (quietly)
+            # Callable builtins e.g. len are not functions in the isfunction sense,
+            # can't deco anyway. Just give up (quietly):
             return f_or_klass
 
         else:           # not a class, f nonempty is a function of f_or_klass callable
@@ -1979,7 +1949,8 @@ class _deco_base():
             return _deco_base_f_wrapper_
 
             #-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            # end else (case "f_or_klass is a function")
+            # end else (case "f_or_klass is a function",
+            #           subcase "f is a function & is NOT already deco'd")
             #+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 
     def _add_function_attrs(self, f, f_wrapper):
