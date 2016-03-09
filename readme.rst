@@ -734,22 +734,6 @@ See the section
 on `the settings parameter <http://www.pythonhosted.org/log_calls/parameters.html#settings-default-none>`_ in
 the Keyword Parameters chapter of the documentation.
 
-
-.. Examining call history and statistics
-.. ==================================================
-..
-.. .. todo::
-..     Example of using ``stats`` attribute, culminating in the ``.as_CSV`` display
-..
-..
-.. For more information
-.. ----------------------------
-..
-.. .. todo::
-..     "Examining call history and statistics"
-..     doc'd in chapter "Call History and Statistics"
-..     http://www.pythonhosted.org/log_calls/call_history_and_statistics.html
-
 ---------------------------------------------------------------------------------------------
 
 Where To Go From Here
@@ -775,3 +759,36 @@ with its basic information, and most of them can be read immediately after it.
 
 `log_calls` provides yet more functionality which these examples haven't even
 hinted at. The full documentation covers all of it.
+
+-------------------------------
+
+.. raw:: html
+
+    <object data="myfile.svg" type="image/svg+xml"></object>
+
+    <form action="https://www.paypal.com/cgi-bin/webscr"
+      method="post"
+      target="_blank"
+      style=" display:inline!important;">
+
+    <p style="font-size: 95%">
+
+    You can show your appreciation and support of <em>log_calls</em> by
+
+    <span style="border-top:thick; ">
+    <input type="hidden" name="cmd" value="_s-xclick">
+    <input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----">
+    <input type="image" src="log_calls/docs/_static/Donate-BLUE.png"
+           border="0" name="submit"
+           alt="PayPal - The safer, easier way to pay online!"
+           style="vertical-align: middle;">
+    <img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
+    </span>
+
+    .</p>
+    </form>
+
+    <p style="text-align: right">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using
+    the Alabaster theme.
+    </p>
