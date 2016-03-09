@@ -16,8 +16,7 @@
 
    <br />
 
-.. |release|
-    0.3.0
+.. |release| replace:: 0.3.0
 
 
 
