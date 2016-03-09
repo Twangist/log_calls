@@ -6,6 +6,7 @@ include *.txt
 
 global-exclude Untitled*.ipynb
 global-exclude .DS_Store
+exclude _HIDE/*
 exclude log_calls/_HIDE*
 exclude ./.ipynb_checkpoints*
 
