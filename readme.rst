@@ -768,8 +768,6 @@ hinted at. The full documentation covers all of it.
 
 .. raw:: html
 
-    <object data="myfile.svg" type="image/svg+xml"></object>
-
     <form action="https://www.paypal.com/cgi-bin/webscr"
       method="post"
       target="_blank"
