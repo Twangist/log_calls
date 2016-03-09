@@ -762,7 +762,7 @@ The chapters following the keyword parameters chapter all presume familiarity
 with its basic information, and most of them can be read immediately after it.
 
 `log_calls` provides yet more functionality which these examples haven't even
-hinted at. The full documentation covers all of it.
+hinted at. The `full documentation <http://www.pythonhosted.org/log_calls/index.html>`_ covers all of it.
 
 -------------------------------
 
