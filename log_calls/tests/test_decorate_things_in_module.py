@@ -131,7 +131,7 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
         Fraction.__str__ ==> returning to <module>
         3/4
 
-    (**Note**: In in Python 3.4.y, the output lacks the third to last line.*)
+    (**Note**: In Python 3.4.y, the output lacks the third to last line.)
 
 
     Create a couple of fractions, in silence:
