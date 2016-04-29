@@ -5,11 +5,12 @@
 `log_calls` is a Python 3.3+ decorator that can print a lot of useful information
 about calls to decorated functions, methods and properties. The decorator can
 write to ``stdout``, to another stream or file, or to a logger. `log_calls`
-provides methods for writing your own debug messages, and for easily "dumping"
-variables and expressions paired with their values. It can decorate individual
-functions, methods and properties; but it can also programmatically decorate
-callable members of entire classes and class hierarchies, even of entire modules,
-with just a single line — which can greatly expedite learning a new codebase.
+provides methods for writing your own debug messages to its  output stream,
+and for easily "dumping" variables and expressions paired with their values.
+It can decorate individual functions, methods and properties; but it can also
+programmatically decorate callable members of entire classes and class hierarchies,
+even of entire modules, with just a single line — which can greatly expedite learning
+a new codebase.
 
 In short, `log_calls` can save you from writing, rewriting, copying, pasting and
 tweaking a lot of *ad hoc*, debug-only, boilerplate code — and it can keep *your*

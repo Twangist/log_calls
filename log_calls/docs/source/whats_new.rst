@@ -2,16 +2,82 @@
 
 .. _whats_new:
 
-What's New in |release|
-########################
+What's New in |release| and 0.3.0
+##################################
 
-This chapter catalogs additions and changes in the current release.
+This chapter catalogs additions and changes in the current release and its
+predecessor. Those in 0.3.1 are few; those in 0.3.0, several.
 :ref:`Appendix II <what_has_been_new>` contains the complete list of
 what has been new in earlier versions.
 
+--------------------------------------------------------------------
+
+Version 0.3.1
+==================
 
 What's New
-==========
+-----------
+
+* ``log_message`` and ``log_exprs`` are easier to use, especially from within classes.
+  These indent-aware methods let you write additional debugging messages, and let you
+  dump expressions and their values, to the `log_calls` output stream.
+  From within any decorated method or function, you can now simply call
+  ``log_calls.log_message('Starting timer.')`` or ``log_calls.log_exprs('x', 'y', '(x+y)/2'``,
+  without having to first obtain a reference to a "wrapper" and then calling
+  the ``log_*`` methods on `that`.
+
+
+  To use these within a decorated method of a class,  previously you had to first
+  obtain a reference to a "wrapper" and then call the ``log_*`` methods on `that`.
+  Version 0.3.0 provided one-stop shopping for obtaining wrappers; in earlier versions
+  of `log_calls` you had to navigate to it yourself, with different expressions for
+  instance methods, classmethods, staticmethods and properties.
+
+
+  By default, if you call ``log_calls.log_*`` from within a method or function that isn't
+  decorated, it does nothing (except waste a few cycles). You can comment out the ``@log_calls``
+  decoration, or use the ``NO_DECO`` parameter for the same end, and the ``.log_*`` method calls
+  will play nicely: they won't output anything, **and** the calls won't raise ``AttributeError``
+  as they would when calling the methods on a wrapper that ``is None``. In short, it's as benign
+  as it can be to leave the ``log_calls.log_*`` lines uncommented.
+
+  But maybe at some point you *do* want to know when you have lingering code that's
+  supposedly development-only. `log_calls` will inform you of that if you set the
+  following new global flag to ``True`` (or to something truthy):
+
+  |br|
+
+* ``log_calls.log_methods_raise_if_no_deco`` (``bool``; default: ``False``)
+
+  When this flag is true, calls to ``log_calls.log_message`` and ``log_calls.log_exprs``
+  from within an undecorated function or method will raise an appropriate exception. You'll have
+  to comment out or delete any calls to ``log_calls.log_*`` from within callables that are no
+  longer decorated. A call to ``log_calls.log_*`` from within a callable that *never* was decorated
+  is a mistake, and it *should* raise an exception; with this flag set to true, it will.
+
+
+
+What's Changed
+--------------------
+
+
+Deprecations
+--------------------
+
+* *wrapper*.``log_message()`` and *wrapper*.``log_exprs()``.
+
+  Use ``log_calls`` instead of *wrapper*.
+
+
+
+
+--------------------------------------------------------------------
+
+Version 0.3.0
+==================
+
+What Was New in 0.3.0
+----------------------
 
 * `log_calls` and `record_history` can decorate classes	– all, or some, of the
   methods and properties within a class – and their inner classes.
@@ -117,8 +183,8 @@ What's New
 * Classmethods ``log_calls.version()`` and ``record_history.version()`` return the version string.
 
 
-What's Changed
-==============
+What Changed in 0.3.0
+-----------------------
 
 * The ``indent`` setting is now by default ``True``.
 

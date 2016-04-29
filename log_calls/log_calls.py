@@ -1744,8 +1744,7 @@ class _deco_base():
                 self.f_display_name = f.__qualname__
 
             #================================================================
-            # 0.3.0 -- from else to here, stuff migrated from __init__
-            #----------------------------------------------------------------
+            # 0.3.0 -- Init things (migrated from __init__)
             #----------------------------------------------------------------
             # set up pseudo-dict (DecoSettingsMapping),
             # using settings given by self._effective_settings.
@@ -1790,7 +1789,7 @@ class _deco_base():
             self._enabled_stack = []         # 0.3.0 - um, stack, of 'enabled's
 
             #----------------------------------------------------------------
-            # 0.3.0 -- from else to here, stuff migrated from __init__
+            # end of Init passage
             #================================================================
 
             # Save signature and parameters of f
