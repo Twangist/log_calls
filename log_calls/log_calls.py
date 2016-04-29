@@ -390,16 +390,24 @@ def _get_underlying_function(item, actual_item):
 
 #-----------------------------------------------------------------------------
 # _get_own_deco_wrapper
+# _get_own_deco_obj                 New 0.3.1
+# _get_own_deco_wrapper_and_obj     New 0.3.1
 #-----------------------------------------------------------------------------
-def _get_own_deco_wrapper(deco_class, cls) -> "function":
+def _get_own_deco_wrapper(deco_class, _extra_frames=0) -> "function":
+    wrapper, _ = _get_own_deco_wrapper_and_obj(deco_class, extra_frames=(1 + _extra_frames))
+    return wrapper
+
+def _get_own_deco_obj(deco_class, _extra_frames=0) -> "function":
+    _, deco_obj = _get_own_deco_wrapper_and_obj(deco_class, extra_frames=(1 + _extra_frames))
+    return deco_obj
+
+def _get_own_deco_wrapper_and_obj(deco_class, extra_frames=0) -> "function":
     """Return deco wrapper of  caller of caller of caller,
     IFF
     caller of caller is deco'd   # return *that*
-    Note:
-    cls is deco'd, otherwise it wouldn't have a <clsname> + '_wrapper' attr
-    through which to call _get_deco_wrapper :)
 
-    Raise ValueError on error
+    Raises ValueError or AttributeError on error.
+    v 0.3.1, omitted last arg `cls` (unused); made exposed method *staticmethod* not classmethod
     """
     # Error messages. We append a code to better determine cause of error.
     ERR_NOT_DECORATED = "'%s' is not decorated [%d]"
@@ -407,7 +415,7 @@ def _get_own_deco_wrapper(deco_class, cls) -> "function":
     ERR_INCONSISTENT_DECO = "inconsistent %s decorator object for '%s' [%d]"
     # caller is function whose wrapper we want
     # ITs caller should be the wrapper
-    func_frame = sys._getframe(1)
+    func_frame = sys._getframe(1 + extra_frames)   # v0.3.1, was (1)
     code = func_frame.f_code
     funcname = code.co_name
 
@@ -434,6 +442,7 @@ def _get_own_deco_wrapper(deco_class, cls) -> "function":
     try:
         wrapped_f = deco_obj.f
     except AttributeError:
+        # Come here e.g. if deco_obj is None
         raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 4))
     # more consistency checks:
     # wrapped_f nonempty and has same name and identical code to our function
@@ -450,7 +459,7 @@ def _get_own_deco_wrapper(deco_class, cls) -> "function":
     if deco_obj != getattr(wrapper, deco_obj._sentinels['DECO_OF'], None):
         raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 7))
 
-    return wrapper
+    return wrapper, deco_obj
 
 
 #-----------------------------------------------------------------------------
@@ -867,7 +876,8 @@ class _deco_base():
                    sep=', ',
                    extra_indent_level=1,
                    prefix_with_name=False,
-                   prefix=''):
+                   prefix='',
+                   _extra_frames=0):
         """Evaluates each expression (str) in exprs in the context of the caller;
         makes string from each, expr = val,
         pass those strs to _log_message.
@@ -880,7 +890,7 @@ class _deco_base():
         if not exprs:
             return
         msgs = []
-        caller_frame = sys._getframe(1)
+        caller_frame = sys._getframe(1 + _extra_frames)
         for expr in exprs:
             try:
                 val = eval(expr, caller_frame.f_globals, caller_frame.f_locals)
@@ -957,6 +967,70 @@ class _deco_base():
         if _prefix:
             the_msg = _prefix + the_msg
         logging_state.logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
+
+    #---------------------------------
+    # 3.1 new:
+    # log_calls.log_message(....)
+    # log_calls.log_exprs(....)
+    #---------------------------------
+
+    # Allows you to keep calls to log_calls.log_message
+    # in production code (enclosing callable isn't decorated)-- it does nothing
+    # except waste a few cycles each call -- as opposed to having to delete
+    # the call or comment it out.
+    log_methods_raise_if_no_deco = False
+
+    @classmethod
+    def log_message(cls, msg, *msgs,
+                    sep=' ',
+                    extra_indent_level=1,
+                    prefix_with_name=False,
+                    _prefix=''):
+        """
+        :param msg:
+        :param msgs:
+        :param sep:
+        :param extra_indent_level:
+        :param prefix_with_name:
+        :param _prefix:
+        :return:
+        """
+        # Get the associated deco_obj, as we need to call
+        # ITS instance method _log_exprs.
+        # cls is "deco_class" (`log_calls`, `record_history`)
+        try:
+            deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
+        except:
+            if cls.log_methods_raise_if_no_deco:    raise
+            else:                                   return
+
+        deco_obj._log_message(msg, *msgs,
+                              sep=sep,
+                              extra_indent_level=extra_indent_level,
+                              prefix_with_name=prefix_with_name,
+                              _prefix=_prefix)
+
+    @classmethod
+    def log_exprs(cls, *exprs,
+                  sep=', ',
+                  extra_indent_level=1,
+                  prefix_with_name=False,
+                  prefix=''):
+        # Get the associated deco_obj, as we need to call
+        # ITS instance method _log_exprs.
+        # cls is "deco_class" (`log_calls`, `record_history`)
+        try:
+            deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
+        except:
+            if cls.log_methods_raise_if_no_deco:    raise
+            else:                                   return
+
+        deco_obj._log_exprs(*exprs,
+                            sep=sep,
+                            extra_indent_level=extra_indent_level,
+                            prefix_with_name=prefix_with_name,
+                            prefix=prefix,
+                            _extra_frames=1)
 
     #----------------------------------------------------------------
     # settings
@@ -2027,7 +2101,7 @@ class _deco_base():
         setattr(
             klass,
             'get_own_' + this_deco_class_name + '_wrapper',
-            classmethod(partial(_get_own_deco_wrapper, this_deco_class))
+            staticmethod(partial(_get_own_deco_wrapper, this_deco_class))       # TODO new 3.1 verify
         )
 
         # largely for testing (by the time anyone gets to see these,
