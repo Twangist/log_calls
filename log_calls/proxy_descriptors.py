@@ -1,6 +1,7 @@
 __author__ = 'brianoneill'
-__version__ = '0.1.14'
 __doc__ = """
+    Module version = '0.1.14'
+
     See docstrings for install_proxy_descriptor and ClassInstanceAttrProxy.
 """
 from itertools import product, chain

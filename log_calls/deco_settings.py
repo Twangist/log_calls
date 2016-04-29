@@ -1,5 +1,5 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.3.0'
+# __version__ = '0.3.0'
 __doc__ = """
 DecoSettingsMapping -- class that's usable with any class-based decorator
 that has several keyword parameters; this class makes it possible for
@@ -48,7 +48,6 @@ is stripped. Thus, enabled='enable_=' indicates an indirect value supplied
 by the keyword 'enable_' of the decorated function.
 """
 from collections import OrderedDict, defaultdict
-from copy import deepcopy
 import pprint
 
 import warnings     # v0.3.0b23

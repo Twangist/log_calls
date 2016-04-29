@@ -1,5 +1,4 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = 'v0.3.0'
 __doc__ = """
 Configurable decorator for debugging and profiling that writes
 caller name(s), args+values, function return values, execution time,
@@ -13,10 +12,10 @@ Argument logging is based on the Python 2 decorator:
     https://wiki.python.org/moin/PythonDecoratorLibrary#Easy_Dump_of_Function_Arguments
 with changes for Py3 and several enhancements, as described in docs/log_calls.md.
 """
+from log_calls.version import __version__
 import inspect
 import functools
 from functools import wraps, partial
-from itertools import chain
 import logging
 import sys
 import os

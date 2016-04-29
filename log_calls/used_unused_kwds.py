@@ -1,6 +1,7 @@
 __author__ = "Brian O'Neill"  # BTO
-__version__ = '0.2.4'
 __doc__ = """
+Module version = '0.2.4'
+
 Slightly ad-hoc decorator
     used_unused_keywords
 for `__init__` function of `log_calls`. It's not *totally* ad-hoc:
