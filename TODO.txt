@@ -2,23 +2,20 @@
 TODOs
 ##########
 
-log_calls.wrapper(function)
-log_calls.wrapper(cls)
-?
 
-How about
+
+
+
+------
+ DONE
+------
+Simplified debug messages and expression "dumps":
+
     log_calls.log_message(...)
     log_calls.log_exprs(...)
-which would figure out the right thing to do.
-// Might have to use diff names, at least at first //
-(1) Called from within the body of a method (any kind; but not from within class body)
-(2) called from within the body of a *function*.
-In both cases: get the enclosing/current caller, as a... whatever? ....
-Can we tell if it (or something findable) is decorated?
-etc
-see existing code, I'm sure there's a way
 
-Should also work for `record_history`.
+which figure out the right thing to do.
+Works for `record_history` too.
 
 ======================================
 Features that WON'T be in v0.3.0

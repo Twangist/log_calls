@@ -871,6 +871,10 @@ class _deco_base():
         if enabled_too:
             self._enabled_state_pop()
 
+    #----------------------------------------------------------------
+    # `log_calls`-aware debug-message writers
+    #----------------------------------------------------------------
+
     def _log_exprs(self, *exprs,
                    sep=', ',
                    extra_indent_level=1,
@@ -1932,7 +1936,19 @@ class _deco_base():
                 # 0.2.4.post5 - using
                 #     inspect.signature(f).bind(*args, **kwargs)
                 # took 45% of execution time of entire wrapper; this takes 23%:
+                # 0.3.1 TODO BUG No args is a problem?!
                 bound_args = self.f_signature.bind(*args, **kwargs)
+                """
+                 File "/Users/brianoneill/Desktop/Programming/Python-package-staging/log_calls/log_calls/tests/_temp.py", line 12, in <module>
+                    g(f())
+                 File "/Users/brianoneill/Desktop/Programming/Python-package-staging/log_calls/log_calls/log_calls.py", line 1935, in _deco_base_f_wrapper_
+                    bound_args = self.f_signature.bind(*args, **kwargs)
+                 File "/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/inspect.py", line 2646, in bind
+                    return args[0]._bind(args[1:], kwargs)
+                  File "/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/inspect.py", line 2571, in _bind
+                    raise TypeError('too many positional arguments') from None
+                TypeError: too many positional arguments
+                """
 
                 varargs_pos = get_args_pos(self.f_params)   # -1 if no *args in signature
                 argcount = varargs_pos if varargs_pos >= 0 else len(args)

@@ -69,7 +69,7 @@ What to expect
 Both of the above commands run all tests in the ``tests/`` subdirectory. If you run
 either of them, the output you see should end like so::
 
-    Ran 109 tests in 2.505s
+    Ran 112 tests in 2.505s
     OK
 
 indicating that all went well. (Depending upon what packages you have installed,

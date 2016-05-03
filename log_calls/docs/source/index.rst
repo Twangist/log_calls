@@ -19,13 +19,13 @@ Table of Contents
     what_log_calls_can_decorate
     parameters
     decorating_classes
-    accessing_method_wrappers
     writing_indent_aware_debug_messages
     using_loggers
     retrieving_changing_defaults
     bulk_external_redecorating
     dynamic_control_of_settings
     indirect_values
+    accessing_method_wrappers
     call_history_and_statistics
     call_chains
     further_examples_and_use_cases

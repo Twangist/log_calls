@@ -309,13 +309,13 @@ Where to go from here
 ==================================================
 
 These examples have shown just a few of the features that make `log_calls` powerful,
-versatile, yet easy to use. They have introduced a few of `log_calls`'s keyword
+versatile, yet easy to use. They introduced a few of `log_calls`'s keyword
 parameters, the source of much of its versatility, as well as one of the ``decorate_*``
 methods.
 
-Read at least the introduction of the next chapter, :ref:`what-log_calls-can-decorate`.
-Then read the essential chapter following
-it, :ref:`keyword_parameters`, which documents the parameters in detail.
+The next chapter, :ref:`what-log_calls-can-decorate`, gives general culture but also introduces
+terminology and concepts subsequently used throughout.
+An essential chapter follows that: :ref:`keyword_parameters` documents the parameters in detail.
 That chapter is a reference, to which you can refer back
 as needed; it's not necessary to assimilate its details before proceeding on to further topics.
 For an even more concise reference, in cheatsheet format,

@@ -26,7 +26,6 @@ What's New
   without having to first obtain a reference to a "wrapper" and then calling
   the ``log_*`` methods on `that`.
 
-
   To use these within a decorated method of a class,  previously you had to first
   obtain a reference to a "wrapper" and then call the ``log_*`` methods on `that`.
   Version 0.3.0 provided one-stop shopping for obtaining wrappers; in earlier versions
@@ -35,11 +34,11 @@ What's New
 
 
   By default, if you call ``log_calls.log_*`` from within a method or function that isn't
-  decorated, it does nothing (except waste a few cycles). You can comment out the ``@log_calls``
-  decoration, or use the ``NO_DECO`` parameter for the same end, and the ``.log_*`` method calls
-  will play nicely: they won't output anything, **and** the calls won't raise ``AttributeError``
-  as they would when calling the methods on a wrapper that ``is None``. In short, it's as benign
-  as it can be to leave the ``log_calls.log_*`` lines uncommented.
+  decorated, it does nothing. You can comment out the ``@log_calls`` decorator, or use the
+  ``NO_DECO`` parameter toward the same end, and the ``.log_*`` method calls will play nicely:
+  they won't output anything, **and** the calls won't raise ``AttributeError`` as they would
+  formerly when calling the methods on a wrapper that ``is None``. In short, leaving the
+  ``log_calls.log_*`` lines uncommented is as benign as it can be.
 
   But maybe at some point you *do* want to know when you have lingering code that's
   supposedly development-only. `log_calls` will inform you of that if you set the
@@ -50,12 +49,12 @@ What's New
 * ``log_calls.log_methods_raise_if_no_deco`` (``bool``; default: ``False``)
 
   When this flag is true, calls to ``log_calls.log_message`` and ``log_calls.log_exprs``
-  from within an undecorated function or method will raise an appropriate exception. You'll have
-  to comment out or delete any calls to ``log_calls.log_*`` from within callables that are no
-  longer decorated. A call to ``log_calls.log_*`` from within a callable that *never* was decorated
-  is a mistake, and it *should* raise an exception; with this flag set to true, it will.
+  from within an undecorated function or method will raise an appropriate exception. This
+  compels you to comment out or delete any calls to ``log_calls.log_*`` from within undecorated
+  functions or methods.
 
-
+The chapter :ref:`Writing log_calls-Aware Debug Messages <indent_aware_writing_methods>`
+documents the new methods and global.
 
 What's Changed
 --------------------

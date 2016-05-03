@@ -1,5 +1,16 @@
 .. _get_own_log_calls_wrapper-function:
 
+.. todo::
+    0.3.1 Downplay this. We moved this chapter to later, it's no longer a prerequisite
+    for the chapter ``writing_indent_aware_debug_messages`` (though that chapter
+    will need to reference this one, re the deprecated *wrapper*.log_*() methods.
+
+    Use for it now is getting `log_calls_settings` and `stats` for a method.
+    Mention that you used to have to use these classmethods in order to use
+    `log_message` and `log_exprs`, but in 0.3.1 that's no longer true,
+    so the importance of these methods is greatly diminished
+
+
 Accessing Method Wrappers
 #################################
 
