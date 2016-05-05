@@ -388,25 +388,34 @@ def _get_underlying_function(item, actual_item):
 
 
 #-----------------------------------------------------------------------------
+# _get_deco_wrapper                 kls |-->
 # _get_own_deco_wrapper
 # _get_own_deco_obj                 New 0.3.1
 # _get_own_deco_wrapper_and_obj     New 0.3.1
+#
+# The method deco_base._add_class_attrs sets attributes # on a deco'd class
+#   'get_log_calls_wrapper', 'get_own_record_history_wrapper',
+# whose values are e.g.
+#       staticmethod(partial(_get_deco_wrapper, deco_class))
 #-----------------------------------------------------------------------------
-def _get_own_deco_wrapper(deco_class, _extra_frames=0) -> "function":
+def _get_own_deco_wrapper(deco_class, _extra_frames=0) -> 'function':
     wrapper, _ = _get_own_deco_wrapper_and_obj(deco_class, extra_frames=(1 + _extra_frames))
     return wrapper
 
-def _get_own_deco_obj(deco_class, _extra_frames=0) -> "function":
+def _get_own_deco_obj(deco_class, _extra_frames=0) -> 'deco_class obj':
     _, deco_obj = _get_own_deco_wrapper_and_obj(deco_class, extra_frames=(1 + _extra_frames))
     return deco_obj
 
-def _get_own_deco_wrapper_and_obj(deco_class, extra_frames=0) -> "function":
-    """Return deco wrapper of  caller of caller of caller,
+def _get_own_deco_wrapper_and_obj(deco_class, extra_frames=0) -> ('function', 'deco_class obj'):
+    """Return deco wrapper of  caller of ... of caller,
+        [1+extra_frames many levels up the stack frame]
     IFF
-    caller of caller is deco'd   # return *that*
+    caller of ... of caller is deco'd.
+    : return
 
-    Raises ValueError or AttributeError on error.
     v 0.3.1, omitted last arg `cls` (unused); made exposed method *staticmethod* not classmethod
+    Raises AttributeError on error -- if any of many redundant consistency checks fail.
+
     """
     # Error messages. We append a code to better determine cause of error.
     ERR_NOT_DECORATED = "'%s' is not decorated [%d]"
@@ -423,40 +432,40 @@ def _get_own_deco_wrapper_and_obj(deco_class, extra_frames=0) -> "function":
 
     # wrapper_funcname should be '_deco_base_f_wrapper_'
     if wrapper_funcname != '_deco_base_f_wrapper_':
-        raise ValueError(ERR_NOT_DECORATED % (funcname, 1))
+        raise AttributeError(ERR_NOT_DECORATED % (funcname, 1))
 
     # look in its f_locals :) [stackframe hack] for STACKFRAME_HACK_DICT_NAME
     hack_dict = wrapper_frame.f_locals.get(STACKFRAME_HACK_DICT_NAME, None)
     if not hack_dict:
-        raise ValueError(ERR_BYPASSED_OR_NOT_DECORATED % (funcname, 2))
+        raise AttributeError(ERR_BYPASSED_OR_NOT_DECORATED % (funcname, 2))
     # value for key '_wrapper_deco' is the deco object
     try:
         deco_obj = hack_dict['_wrapper_deco']
     except (TypeError, KeyError):
         deco_obj = None
     if not (deco_obj and type(deco_obj) == deco_class):
-        raise ValueError(ERR_NOT_DECORATED % (funcname, 3))
+        raise AttributeError(ERR_NOT_DECORATED % (funcname, 3))
 
     # we've almost surely found a true wrapper
     try:
         wrapped_f = deco_obj.f
     except AttributeError:
         # Come here e.g. if deco_obj is None
-        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 4))
+        raise AttributeError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 4))
     # more consistency checks:
     # wrapped_f nonempty and has same name and identical code to our function
     if not wrapped_f:
-        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 5))
+        raise AttributeError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 5))
     if not (funcname == wrapped_f.__name__ and
             wrapped_f.__code__ is code):
-        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 6))
+        raise AttributeError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 6))
 
     # access its attr deco_obj._sentinels['WRAPPER_FN_OBJ'] --
     # THAT, at long last, is (alllmost surely) the wrapper
     wrapper = getattr(wrapped_f, deco_obj._sentinels['WRAPPER_FN_OBJ'], None)
     # if wrapper is None then getattr returns None, so != deco_obj
     if deco_obj != getattr(wrapper, deco_obj._sentinels['DECO_OF'], None):
-        raise ValueError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 7))
+        raise AttributeError(ERR_INCONSISTENT_DECO % (deco_class.__name__, funcname, 7))
 
     return wrapper, deco_obj
 
@@ -906,7 +915,7 @@ class _deco_base():
                           prefix_with_name=prefix_with_name,
                           _prefix=prefix)
 
-    def _log_message(self, msg, *msgs,
+    def _log_message(self, *msgs,
                      sep=' ',
                      extra_indent_level=1,
                      prefix_with_name=False,
@@ -938,6 +947,9 @@ class _deco_base():
         _prefix: for log_exprs, callers of log_message won't need to use it
                  additional text to prepend to output message
         """
+        if not msgs:
+            return
+
         # do nothing unless enabled! if disabled, the other 'stack' accesses will blow up
         if self._enabled_stack[-1] <= 0:    # disabled
             return
@@ -963,8 +975,8 @@ class _deco_base():
                      )
         if indent_len < 0:
             indent_len = 0   # clamp
-        the_msgs = (msg,) + msgs
-        the_msg = sep.join(map(str, the_msgs))
+        # the_msgs = (msg,) + msgs
+        the_msg = sep.join(map(str, msgs))
         if prefix_with_name:
             the_msg = logging_state.output_fname + ': ' + the_msg
         if _prefix:
@@ -984,13 +996,12 @@ class _deco_base():
     log_methods_raise_if_no_deco = False
 
     @classmethod
-    def log_message(cls, msg, *msgs,
+    def log_message(cls, *msgs,
                     sep=' ',
                     extra_indent_level=1,
                     prefix_with_name=False,
                     _prefix=''):
         """
-        :param msg:
         :param msgs:
         :param sep:
         :param extra_indent_level:
@@ -1007,7 +1018,7 @@ class _deco_base():
             if cls.log_methods_raise_if_no_deco:    raise
             else:                                   return
 
-        deco_obj._log_message(msg, *msgs,
+        deco_obj._log_message(*msgs,
                               sep=sep,
                               extra_indent_level=extra_indent_level,
                               prefix_with_name=prefix_with_name,
@@ -2062,6 +2073,7 @@ class _deco_base():
             setattr(
                 f_wrapper, self.__class__.__name__ + '_settings', self._settings_mapping
             )
+            # Note: Next two are deprecated as of 0.3.1.
             # 0.2.1a
             setattr(
                 f_wrapper, 'log_message', self._log_message,
@@ -2096,6 +2108,9 @@ class _deco_base():
 
         # klass is not a builtin or extension type
 
+        # .....................................................
+        # NOTE: Next two are deprecated as of 0.3.1.
+
         # Make it easy for user to find the log_calls wrapper of a method,
         # given its name, via `get_log_calls_wrapper(fname)`
         # or `get_record_history_wrapper(fname)`
@@ -2117,6 +2132,8 @@ class _deco_base():
             'get_own_' + this_deco_class_name + '_wrapper',
             staticmethod(partial(_get_own_deco_wrapper, this_deco_class))       # TODO new 3.1 verify
         )
+        # . END deprecation.
+        # .....................................................
 
         # largely for testing (by the time anyone gets to see these,
         # they're no longer used... 'cept outer class at class level
@@ -2145,9 +2162,8 @@ class _deco_base():
             while 1:    # until found a deco'd fn or <module> reached
                 curr_funcname = curr_frame.f_code.co_name
                 if curr_funcname == '_deco_base_f_wrapper_':
-                    # Previous was decorated inner fn; overwrite '_deco_base_f_wrapper_'
-                    # print("**** found _deco_base_f_wrapper_, prev fn name =", call_list[-1])     # <<<DEBUG>>>
-                    # Fixup: get name of wrapped function
+                    # Previous was decorated inner fn, fixup; overwrite '_deco_base_f_wrapper_'
+                    # with name of wrapped function
                     inner_fn = curr_frame.f_locals['f']
                     call_list[-1] = inner_fn.__name__       # ~ placeholder
 

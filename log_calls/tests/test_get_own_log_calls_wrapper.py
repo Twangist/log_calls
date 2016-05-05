@@ -60,7 +60,7 @@ Class we'll use through this entire set of tests:
     >>> b.no_deco()     # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
-    ValueError: ...
+    AttributeError: ...
     >>> b.statmethod()
     B.statmethod: Hi
     >>> b.clsmethod()
@@ -84,7 +84,7 @@ This won't work/is wrong:
 
     >>> try:
     ...     b.no_deco()
-    ... except ValueError as e:
+    ... except AttributeError as e:
     ...     print(e)
     'no_deco' is not decorated [1]
 
@@ -96,7 +96,7 @@ This won't work/is wrong:
     >>> # "true bypass" -- method can't call get_own_log_calls_wrapper
     >>> try:
     ...     b.method()
-    ... except ValueError as e:
+    ... except AttributeError as e:
     ...     print(e)
     'method' is true-bypassed (enabled < 0) or not decorated [2]
 
@@ -106,7 +106,7 @@ Induce more errors
     ...     # No local named _deco_base__active_call_items__
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     'no_deco' is true-bypassed (enabled < 0) or not decorated [2]
@@ -115,7 +115,7 @@ Induce more errors
     ...     _deco_base__active_call_items__ = 17    # exists but isn't a dict
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     'no_deco' is not decorated [3]
@@ -126,7 +126,7 @@ Induce more errors
     ...     }
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     'no_deco' is not decorated [3]
@@ -137,7 +137,7 @@ Induce more errors
     ...     }
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     'no_deco' is not decorated [3]
@@ -148,7 +148,7 @@ Induce more errors
     ...     }
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     inconsistent log_calls decorator object for 'no_deco' [4]
@@ -162,7 +162,7 @@ Induce more errors
     ...
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     inconsistent log_calls decorator object for 'no_deco' [5]
@@ -176,7 +176,7 @@ Induce more errors
     ...
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     inconsistent log_calls decorator object for 'no_deco' [5]
@@ -190,7 +190,7 @@ Induce more errors
     ...
     ...     try:
     ...         b.no_deco()
-    ...     except ValueError as e:
+    ...     except AttributeError as e:
     ...         print(e)
     >>> _deco_base_f_wrapper_()
     inconsistent log_calls decorator object for 'no_deco' [7]

@@ -73,7 +73,7 @@ to ``True``, as discussed :ref:`below <log_methods_raise_if_no_deco>`.
 
     Join one one or more messages with ``sep``, and write the result to the `log_calls`
     output destination of the caller, a decorated callable. The "messages" are strings,
-    or objects whose *repr*s will be displayed.
+    or objects to be displayed as ``str``\ s.
 
     :param msg: the first or only message
     :param msgs: optional additional messages
@@ -88,7 +88,7 @@ to ``True``, as discussed :ref:`below <log_methods_raise_if_no_deco>`.
         if the ``log_call_numbers`` setting is true.
     :type prefix_with_name:  ``bool``
 
-    :raises: TypeError, ValueError, AttributeError if called from within
+    :raises: AttributeError if called from within
              an undecorated callable and ``log_calls.log_methods_raise_if_no_deco`` is true.
 
     **Note**: If the `mute` setting of the caller is ``log_calls.MUTE.CALLS``,
@@ -155,7 +155,7 @@ in ``tests/test_log_calls_v30_minor_features_fixes.py``.
     :param prefix_with_name: as for ``log_message()``
     :param prefix: additional text to prepend to output message.
 
-    :raises: TypeError, ValueError, AttributeError if called from within
+    :raises: AttributeError if called from within
              an undecorated callable and ``log_calls.log_methods_raise_if_no_deco`` is true.
 
 
