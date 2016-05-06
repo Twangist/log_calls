@@ -121,7 +121,7 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
         >>> import fractions
         >>> Fr = fractions.Fraction
         >>> log_calls.decorate_class(Fr)
-        >>> print(Fr(3,4))                      # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        >>> print(Fr(3,4))
         Fraction.__new__ <== called by <module>
             arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
             defaults:  _normalize=True
@@ -131,7 +131,8 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
         Fraction.__str__ ==> returning to <module>
         3/4
 
-    (**Note**: In Python 3.4.y, the output lacks the third to last line.)
+    (**Note**: In Python 3.4.y, the output lacks the third line, as in 3.4.x
+               ``__new__`` has no ``_normalize`` parameter.)
 
 
     Create a couple of fractions, in silence:
@@ -149,29 +150,29 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
 
     Now, let's do some arithmetic on fractions:
 
-        >>> print(fr78 - fr56)    # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        Fraction._operator_fallbacks.<locals>.forward <== called by <module>
+        >>> print(fr78 - fr56)
+        Fraction._operator_fallbacks.<locals>.forward (__sub__) <== called by <module>
             arguments: a=Fraction(7, 8), b=Fraction(5, 6)
-            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
                 arguments: a=Fraction(7, 8)
                 Fraction.denominator return value: 8
-            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
                 arguments: a=Fraction(5, 6)
                 Fraction.denominator return value: 6
-            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
                 arguments: a=Fraction(7, 8)
                 Fraction.numerator return value: 7
-            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
                 arguments: a=Fraction(5, 6)
                 Fraction.numerator return value: 5
-            Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+            Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
                 arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
                 defaults:  _normalize=True
                 Fraction.__new__ return value: 1/24
-            Fraction._operator_fallbacks.<locals>.forward return value: 1/24
+            Fraction._operator_fallbacks.<locals>.forward (__sub__) return value: 1/24
         1/24
 
-    (**Note**: The output is different in Python 3.4.y -- it shows evidence of less efficiency,
+    (**Note**: The output is different in Python 3.4.y -- it's less efficient,
     and it lacks the third to last line.*)
         """
         pass
@@ -183,6 +184,7 @@ import doctest
 # For unittest integration
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
+    print("Adding tests for test_decorate_things_in_module.py")
     return tests
 
 if __name__ == '__main__':

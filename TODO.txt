@@ -2,20 +2,52 @@
 TODOs
 ##########
 
+Document:
+    display name has ``__name__`` in parens following ``__qualname__`` iff
+        * ``name`` param not given and
+        * ``__name__`` not a substring of ``__qualname__``
 
+    Motivated by fractions.Fraction.__sub__ and the like -- qualname of ``__sub__``
+    ``__add__`` et al is a closure, inner function ``forward`` of ``Fraction._operator_fallbacks``
+    (qualname = ``Fraction._operator_fallbacks.<locals>.forward``)
+    See section "decorating external blah" in Quick Start.
 
+Add this (above) new behavior to What's New (create new subsection "What's Changed" for 0.3.1)
+
+What's New:
+    mention that the new methods and global exist on ``record_history`` too
+
+``record_history`` docs:
+    update for new ``log_*`` methods
+
+¿Add ``log_calls.NO_DECO`` global?
+    If so, doc it, in at least these chapters:
+        What's New
+        Writing `log_calls`-aware debugging messages
+
+Add/write section in Quick Start for writing `log_calls`-aware debugging messages.
+
+Finish doc'ing log_* methods: older deprecated classmethods (of a deco'd class)
 
 
 ------
  DONE
 ------
+Display name of a deco'd callable has ``__name__`` in parens following ``__qualname__`` if
+        * ``name`` param not given and
+        * ``__name__`` not a substring of ``__qualname__``
+
+    Inspired by fractions.Fraction.__sub__ and the like -- see section
+    "decorating external blah" in Quick Start.
+
+
 Simplified debug messages and expression "dumps":
 
-    log_calls.log_message(...)
-    log_calls.log_exprs(...)
+        log_calls.log_message(...)
+        log_calls.log_exprs(...)
 
-which figure out the right thing to do.
-Works for `record_history` too.
+    which figure out the right thing to do.
+    Works for `record_history` too.
 
 ======================================
 Features that WON'T be in v0.3.0

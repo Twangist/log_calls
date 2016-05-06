@@ -1010,7 +1010,7 @@ class _deco_base():
         :return:
         """
         # Get the associated deco_obj, as we need to call
-        # ITS instance method _log_exprs.
+        # ITS instance method _log_message.
         # cls is "deco_class" (`log_calls`, `record_history`)
         try:
             deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
@@ -1757,6 +1757,13 @@ class _deco_base():
                     self.f_display_name = self._name_param
             else:
                 self.f_display_name = f.__qualname__
+
+                # TODO TRY THIS -- anything break?
+                # 0.3.1 Inspired by fractions.Fraction.__sub__ et al:
+                # __name__ may be very different from __qualname__;
+                # if so, show both
+                if f.__name__ not in f.__qualname__:
+                    self.f_display_name += " (" + f.__name__ + ")"
 
             #================================================================
             # 0.3.0 -- Init things (migrated from __init__)

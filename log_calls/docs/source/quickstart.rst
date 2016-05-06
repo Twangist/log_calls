@@ -90,6 +90,32 @@ control reached ``g1`` from ``h``.
 
 See the :ref:`call_chains`  chapter for more examples and finer points.
 
+.. _quickstart-lc-aware-debug-messages:
+
+Writing `log_calls`-aware debugging messages
+-------------------------------------------------------
+
+.. todo::
+    Write this.
+    * Use probably old stuff about "print"ed messages "literally sticking out".
+    * Also show that you can comment out the deco and, by default, the debug-msg-writing
+      calls just shut up and don't give errors.
+    * link/ref to chapter on log_* methods
+
+
+(As we saw above..., ) if you use ``print`` to write debugging messages, those messages
+literally “stick out”, and it becomes difficult, especially in more complex situations
+with multiple functions and methods, to figure out who actually wrote which message — hence the ``---``
+and ``***` prefixes used above. `log_calls` provides alternatives to ``print`` that overcome
+this and other problems.
+
+<ONE EXAMPLE with say 2 functions, one using
+    log_message() .........
+ the other using
+    log_exprs() .........
+>
+
+comment out decos
 
 .. _quickstart-methods:
 
@@ -245,7 +271,7 @@ First, let's import the class, decorate it and create an instance:
     Fraction.__str__ ==> returning to <module>
     3/4
 
-(**Note**: *In Python 3.4.y, the output lacks the third to last line.*)
+(**Note**: *In Python 3.4.y, the output lacks the third line: ``__new__`` had no ``normalize`` parameter.*)
 
 Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
 
@@ -267,36 +293,76 @@ accomplish all of that, with one call to ``decorate_class``:
 Finally, let's do some arithmetic on fractions:
 
     >>> print(fr78 - fr56)      # doctest: +SKIP
-    Fraction._operator_fallbacks.<locals>.forward <== called by <module>
+    Fraction._operator_fallbacks.<locals>.forward (__sub__) <== called by <module>
         arguments: a=Fraction(7, 8), b=Fraction(5, 6)
-        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
             arguments: a=Fraction(7, 8)
             Fraction.denominator return value: 8
-        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+        Fraction.denominator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
             arguments: a=Fraction(5, 6)
             Fraction.denominator return value: 6
-        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
             arguments: a=Fraction(7, 8)
             Fraction.numerator return value: 7
-        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+        Fraction.numerator <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
             arguments: a=Fraction(5, 6)
             Fraction.numerator return value: 5
-        Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward
+        Fraction.__new__ <== called by _sub <== Fraction._operator_fallbacks.<locals>.forward (__sub__)
             arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
             defaults:  _normalize=True
             Fraction.__new__ return value: 1/24
-        Fraction._operator_fallbacks.<locals>.forward return value: 1/24
+        Fraction._operator_fallbacks.<locals>.forward (__sub__) return value: 1/24
     1/24
 
 (**Note**: *This is Python 3.5.x output. In Python 3.4.y, the output shows evidence
 of less efficiency, and it lacks the third to last line.*)
 
-So ultimately, subtraction of fractions is performed by a function ``_sub`` (not decorated),
-to which ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
+The topmost call is to an inner function ``forward`` of the method ``Fraction._operator_fallbacks``,
+presumably a closure. The ``__name__`` of the callable is actually ``__sub__``, and we know that
+the infix subtraction operator ``-`` is implemented by a "dunder" method ``Fraction.__sub__``,
+so it looks like the closure `is` the value of that name.
+
+An undecorated function or method ``_sub`` is called by the closure. Because
+``_sub`` isn't decorated we don't know what its arguments are, and the call chains for
+the decorated ``numerator``, ``denominator`` and ``__new__`` chase back to ``__sub__``.
+
+Why isn't ``_sub`` decorated? Check that — let's guess that it takes two Fraction arguments:
+
+    >>> print(Fr._sub(fr78, fr56))
+    Fraction._sub <== called by <module>
+        arguments: a=Fraction(7, 8), b=Fraction(5, 6)
+        Fraction.denominator <== called by Fraction._sub
+            arguments: a=Fraction(7, 8)
+            Fraction.denominator return value: 8
+        Fraction.denominator <== called by Fraction._sub
+            arguments: a=Fraction(5, 6)
+            Fraction.denominator return value: 6
+        Fraction.numerator <== called by Fraction._sub
+            arguments: a=Fraction(7, 8)
+            Fraction.numerator return value: 7
+        Fraction.numerator <== called by Fraction._sub
+            arguments: a=Fraction(5, 6)
+            Fraction.numerator return value: 5
+        Fraction.__new__ <== called by Fraction._sub
+            arguments: cls=<class 'fractions.Fraction'>, numerator=2, denominator=48
+            defaults:  _normalize=True
+            Fraction.__new__ return value: 1/24
+        Fraction._sub return value: 1/24
+    1/24
+
+Aha: it *is* decorated after all, and the `log_calls` output looks familiar.
+So, perhaps the closure ``forward``, implementing ``__sub__``, has a nonlocal
+variable which was bound to the real ``_sub`` at class initialization, before
+the methods of the class were decorated; the closure calls the inner, decorated
+``_sub``, not the `log_calls` wrapper around it.
+
+Ultimately, then, subtraction of Fractions is performed by a function ``_sub``,
+to which ``__sub__`` i.e. ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
 The latter is an inner function of the method ``Fraction._operator_fallbacks``.
 The ``_sub`` function uses the public properties ``denominator`` and ``numerator``
-to retrieve the fields of the fractions, and returns a new fraction with the computed numerator and denominator.
-Like all fractions, the one returned by ``new`` displays itself in lowest terms.
+to retrieve the fields of the Fractions, and returns a new Fraction, with a
+numerator of 2 (= 7 * 6 - 8 * 5) and denominator of 48 (= 6 * 8). ``__new__`` reduces the returned
+Fraction to lowest terms (because its parameter ``_normalize`` is true, its default value).
 
 For more information
 ----------------------------

@@ -9,8 +9,8 @@ for writing debugging messages.
 
 ``log_message`` writes to the `log_calls` output stream
 — whether that's a console stream, file or logger — where its output is properly
-synced and aligned (with respect to the decorated callable it was called from). If
-later you undecorate the callable (by deleting or commenting out the decorator,
+synced and aligned with respect to the decorated callable it was called from. If
+later you undecorate the callable (for example, by deleting or commenting out the decorator,
 or by passing it ``NO_DECO=True``), you don't *have* to remove the call to
 ``log_message``, because by default the method writes something only when called
 from within a decorated callable, and doesn't raise an exception otherwise.
@@ -22,12 +22,7 @@ formatting. As a convenience, `log_calls` provides the :ref:`log_exprs() <log_ex
 method, which prints variables and expressions together with their values in the
 context of the caller.
 
-.. todo::
-    0.3.1 (reference the chapter ``accessing_method_wrappers`` when discussing
-    (briefly?) the deprecated *wrapper*.log_*() methods -- more difficult to
-    use in classes, "plumbing" exposed.)
-
-.. index:: log_methods_raise_if_no_deco (flag)
+.. index:: log_message()
 
 .. _log_message_method:
 
@@ -68,15 +63,14 @@ to ``True``, as discussed :ref:`below <log_methods_raise_if_no_deco>`.
 
 .. index:: log_message()
 
-.. py:method:: log_calls.log_message(msg, *msgs, sep=' ', extra_indent_level=1, prefix_with_name=False)
+.. py:method:: log_calls.log_message(*msgs, sep=' ', extra_indent_level=1, prefix_with_name=False)
     :noindex:
 
-    Join one one or more messages with ``sep``, and write the result to the `log_calls`
+    Join one or more messages with ``sep``, and write the result to the `log_calls`
     output destination of the caller, a decorated callable. The "messages" are strings,
-    or objects to be displayed as ``str``\ s.
+    or objects to be displayed as ``str``\ s. The method does nothing if no message are passed.
 
-    :param msg: the first or only message
-    :param msgs: optional additional messages
+    :param msgs: messages to write.
     :param extra_indent_level: a number of 4-column-wide *indent levels* specifying
         where to begin writing that message. This value x 4 is an offset in columns
         from the left margin of the visual frame established by `log_calls` – that is,
@@ -166,15 +160,11 @@ in ``tests/test_log_calls_v30_minor_features_fixes.py``.
 The global variable ``log_calls.log_methods_raise_if_no_deco`` (default: ``False``)
 =====================================================================================
 
-.. todo::
-    blah blah
-
 By default (when ``log_methods_raise_if_no_deco == False``), if you call ``log_calls.log_*``
 from within a method or function that isn't decorated, it does nothing (except waste a
 few cycles). You can comment out or delete the ``@log_calls`` decorator, or use the ``NO_DECO``
 parameter to suppress decoration, and the ``.log_*`` method calls will play nicely: they won't
-output anything, **and** the calls won't raise ``AttributeError`` (as they would formerly
-if you called the methods on a wrapper that ``is None``). In short, leaving the ``log_calls.log_*``
+output anything, **and** the calls won't raise an exception. In short, leaving the ``log_calls.log_*``
 lines uncommented is as benign as it can be.
 
 But probably at some point you *do* want to know when you have lingering code that's
@@ -182,7 +172,7 @@ supposedly development-only. `log_calls` will inform you of that if you set
 ``log_calls.log_methods_raise_if_no_deco`` to ``True`` (or any truthy value).
 
 When this flag is true, calls to ``log_calls.log_message`` and ``log_calls.log_exprs``
-from within an undecorated function or method will raise an appropriate exception. This
+from within an undecorated function or method will raise ``AttributeError``. This
 compels you to comment out or delete any calls to ``log_calls.log_*`` from within undecorated
 functions or methods. (A call to ``log_calls.log_*`` from within a callable
 that *never* was decorated is just a mistake, and it *should* raise an exception; with this flag
@@ -233,8 +223,8 @@ in all decorated callables.
 
 .. _indent_aware_writing_methods-global-mute:
 
-Examples using the `mute` setting and global mute — corner cases
-------------------------------------------------------------------
+global mute interactions with the `mute` setting — examples
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, define a couple of simple functions:
 
@@ -243,7 +233,8 @@ First, define a couple of simple functions:
     >>> @log_calls()
     ... def f(): f.log_message("Hi"); g()
 
-Assume that ``log_calls.mute == False``, which is the default. Calling ``f()`` gives all possible output:
+Assume that ``log_calls.mute == log_calls.MUTE.NOTHING``, which is the default. 
+Calling ``f()`` gives all possible output:
 
     >>> f()
     f <== called by <module>
@@ -293,60 +284,45 @@ Using ``log_message()`` in classes
 .. todo::
     REWORK
 
-A method or property must first access its own wrapper order to use ``log_message()``,
-one of the wrapper's attributes. This is straightforward, as explained in the section
-on :ref:`accessing wrappers of methods <get_own_log_calls_wrapper-function>`.
-
-The following class illustrates all possibilities. Note that `log_calls` call output is muted
-(to reduce clutter for this example), and therefore ``log_message()`` automatically prefixes
-its output with the name of the caller, and doesn't indent by an extra 4 spaces:
+The following class illustrates all possibilities of calling ``log_calls.log_message``
+from a method. To reduce clutter in this example, `log_calls` call output is muted, 
+and therefore ``log_message()`` automatically prefixes its output with the name 
+of the caller, and doesn't indent by an extra 4 spaces:
 
     >>> @log_calls(omit='no_deco', mute=log_calls.MUTE.CALLS)
     ... class B():
     ...     def __init__(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...     def method(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...     def no_deco(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()      # raises ValueError
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...     @classmethod
     ...     def clsmethod(cls):
-    ...         wrapper = cls.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...     @staticmethod
     ...     def statmethod():
-    ...         wrapper = B.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...
     ...     @property
     ...     def prop(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...     @prop.setter
-    ...     @log_calls(name='B.%s.setter')
+    ...     @log_calls(name='B.%s.setter')  # o/w, display name of setter is also 'B.prop'
     ...     def prop(self, val):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi')
+    ...         log_calls.log_message('Hi')
     ...
     ...     def setx(self, val):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi from setx alias x.setter')
+    ...         log_calls.log_message('Hi from setx alias x.setter')
     ...     def delx(self):
-    ...         wrapper = self.get_own_log_calls_wrapper()
-    ...         wrapper.log_message('Hi from delx alias x.deleter')
+    ...         log_calls.log_message('Hi from delx alias x.deleter')
     ...     x = property(None, setx, delx)
 
     >>> b = B()
     B.__init__: Hi
     >>> b.method()
     B.method: Hi
-    >>> b.no_deco()     # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-        ...
-    ValueError: ...
+    >>> b.no_deco()     # outputs nothing
     >>> b.statmethod()
     B.statmethod: Hi
     >>> b.clsmethod()
@@ -360,3 +336,21 @@ its output with the name of the caller, and doesn't indent by an extra 4 spaces:
     >>> del b.x
     B.delx: Hi from delx alias x.deleter
 
+Observe that the call to ``b.no_deco()`` does nothing, even though the method isn't decorated.
+If ``log_calls.log_methods_raise_if_no_deco`` were true, the call from ``b.no_deco()``
+to ``log_calls.log_message`` would raise ``AttributeError``.
+
+
+`cls`\ ``.log_message()``, `cls`\ ``.log_exprs()`` [deprecated]
+=================================================================
+
+.. todo::
+    0.3.1 (reference the chapter ``accessing_method_wrappers`` when discussing
+    (briefly?) the deprecated *wrapper*.log_*() methods -- more difficult to
+    use in classes, "plumbing" exposed.)
+
+FORMERLY : A method or property must first access its own wrapper order to use ``log_message()``,
+one of the wrapper's attributes. This is straightforward, as explained in the section
+on :ref:`accessing wrappers of methods <get_own_log_calls_wrapper-function>`.
+
+... raise ``AttributeError`` (as they would formerly if you called the methods on a wrapper that ``is None``).
