@@ -19,7 +19,7 @@ Table of Contents
     what_log_calls_can_decorate
     parameters
     decorating_classes
-    writing_indent_aware_debug_messages
+    writing_log_calls_aware_debug_messages
     using_loggers
     retrieving_changing_defaults
     bulk_external_redecorating
