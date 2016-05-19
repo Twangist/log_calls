@@ -300,12 +300,14 @@ You can pass expressions to ``print_exprs``:
     >>> @log_calls()
     ... def f(a):
     ...     log_calls.print("Even multiline messages\\n"
-    ...                           "are properly indented.")
+    ...                     "are properly indented.")
     ...     return g(a, 2*a)
     >>> @log_calls()
     ... def g(x, y):
     ...     retval = x + y + 1
-    ...     log_calls.print_exprs('retval', prefix="Not to mention multiline\\nprefixes -- ")
+    ...     log_calls.print_exprs('retval',
+    ...                           prefix="Not to mention multiline\\n"
+    ...                                  "prefixes -- ")
     ...     return retval
     >>> f(2)
     f <== called by <module>
@@ -517,8 +519,5 @@ That chapter is a reference; it's not necessary to assimilate its details before
 For an even more concise reference, in cheatsheet format,
 see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
-The chapters following the keyword parameters chapter all presume familiarlty
-with its basic information, and almost all of them can be read immediately after it.
-
-`log_calls` provides a lot of functionality, which these examples have introduced,
-hinted at, or not mentioned at all. The remaining chapters document all of it.
+`log_calls` provides a lot of functionality, which these examples have only introduced.
+The remaining chapters document all of it.
