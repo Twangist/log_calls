@@ -18,56 +18,81 @@ Version 0.3.1
 What's New
 -----------
 
-* ``log_message`` and ``log_exprs`` are easier to use, especially from within classes.
-  These indent-aware methods let you write additional debugging messages, and let you
-  dump expressions and their values, to the `log_calls` output stream.
-  From within any decorated method or function, you can now simply call
-  ``log_calls.log_message('Starting timer.')`` or ``log_calls.log_exprs('x', 'y', '(x+y)/2'``,
+* This version simplifies writing debugging messages and dumping expressions
+  to the `log_calls` output stream in a `log_calls`-aware way. There are now two methods
+  for these purposes:
+
+    - ``log_calls.print()``
+    - ``log_calls.print_exprs()``
+
+  which can be called from within any decorated callable. These supercede the now deprecated
+  ``log_message`` and ``log_exprs`` attributes on each decorated callable. The new methods
+  are notably easier to use from within classes.
+
+  Like their predecessors, these methods are indent-aware, and, unlike the global ``print``
+  function, they produce no output unless called from within an enabled decorated function.
+
+  You can now simply call ``log_calls.print('Starting timer.')`` or ``log_calls.print_exprs('x', 'y', '(x+y)/2'``,
   without having to first obtain a reference to a "wrapper" and then calling
   the ``log_*`` methods on `that`.
 
-  To use these within a decorated method of a class,  previously you had to first
-  obtain a reference to a "wrapper" and then call the ``log_*`` methods on `that`.
   Version 0.3.0 provided one-stop shopping for obtaining wrappers; in earlier versions
   of `log_calls` you had to navigate to it yourself, with different expressions for
   instance methods, classmethods, staticmethods and properties.
 
-
-  By default, if you call ``log_calls.log_*`` from within a method or function that isn't
+  By default, if you call ``log_calls.print*`` from within a method or function that isn't
   decorated, it does nothing. You can comment out the ``@log_calls`` decorator, or use the
-  ``NO_DECO`` parameter toward the same end, and the ``.log_*`` method calls will play nicely:
+  ``NO_DECO`` parameter to achieve the same end, and the ``.print*`` method calls will play nicely:
   they won't output anything, **and** the calls won't raise ``AttributeError`` as they would
   formerly when calling the methods on a wrapper that ``is None``. In short, leaving the
-  ``log_calls.log_*`` lines uncommented is as benign as it can be.
+  ``log_calls.print*`` lines uncommented is as benign as it can be.
 
-  But maybe at some point you *do* want to know when you have lingering code that's
+  But probably at some point you *do* want to know when you have lingering code that's
   supposedly development-only. `log_calls` will inform you of that if you set the
   following new global flag to ``True`` (or to something truthy):
 
   |br|
 
-* ``log_calls.log_methods_raise_if_no_deco`` (``bool``; default: ``False``)
+* ``log_calls.print_methods_raise_if_no_deco`` (``bool``; default: ``False``)
 
-  When this flag is true, calls to ``log_calls.log_message`` and ``log_calls.log_exprs``
+  When this flag is true, calls to ``log_calls.print`` and ``log_calls.print_exprs``
   from within an undecorated function or method will raise an appropriate exception. This
-  compels you to comment out or delete any calls to ``log_calls.log_*`` from within undecorated
+  compels you to comment out or delete any calls to ``log_calls.print*`` from within undecorated
   functions or methods.
 
 The chapter :ref:`Writing log_calls-Aware Debug Messages <indent_aware_writing_methods>`
-documents the new methods and global.
+documents the new methods and global flag.
+
+* The new methods and global exist on ``record_history`` too:
+
+    - ``record_history.print()``
+    - ``record_history.print_exprs()``
+    - ``record_history.print_methods_raise_if_no_deco``
+
+  all exist and behave analogously to the `log_calls` attributes.
+
 
 What's Changed
 --------------------
+
+* A callable's display name now has its ``__name__`` in parentheses following its
+  ``__qualname__`` if (and only if)
+
+        * the ``name`` parameter was not provided for it, and
+        * its ``__name__`` is not a substring of its ``__qualname__``.
+
+  See the section section :ref:`quickstart-decorating-external-code` in the Quick Start chapter
+  for a motivating example.
+
+* ``log_exprs``  gained a ``suffix=''`` keyword parameter (and ``log_calls.print_exprs()`` has the same parameter).
 
 
 Deprecations
 --------------------
 
-* *wrapper*.``log_message()`` and *wrapper*.``log_exprs()``.
+* *wrapper*.\ ``log_message()`` and *wrapper*.\ ``log_exprs()``.
 
-  Use ``log_calls`` instead of *wrapper*.
-
-
+  Use ``log_calls.print()`` and ``log_calls.print_exprs()`` instead.
 
 
 --------------------------------------------------------------------

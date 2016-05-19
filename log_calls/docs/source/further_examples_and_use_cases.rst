@@ -45,7 +45,7 @@ Only `log_calls` output:
     do_stuff_with_commentary ==> returning to <module>
 
 The metaclass example later in this chapter also uses this technique,
-and writes its messages with the :ref:`log_message() <log_message_method>` method.
+and writes its messages with the :ref:`log_calls.print() <log_message_method>` method.
 
 .. _recursion-example:
 
@@ -181,9 +181,7 @@ A metaclass example
 
 This example demonstrates a few techniques:
 
-* writing debug messages with ``log_message()``, which handles global indentation for you;
-* use of ``get_own_log_calls_wrapper()`` within a method to access ``log_message``,
-  in a way that works for all methods (whether instance methods, classmethods, or staticmethods);
+* writing debug messages with ``log_calls.print()``, which handles global indentation for you;
 * use of ``enabled`` as an integer level of verbosity.
 
 The following class ``A_meta`` will serve as the metaclass for classes defined subsequently:
@@ -206,9 +204,8 @@ The following class ``A_meta`` will serve as the metaclass for classes defined s
     ...         super_dict = super().__prepare__(cls_name, bases, **kwargs)
     ...         A_debug = kwargs.pop('A_debug', A_DBG_NONE)
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             logging_fn = mcs.get_own_log_calls_wrapper().log_message
-    ...             logging_fn("    mro =", mcs.__mro__)
-    ...             logging_fn("    dict from super() = %r" % super_dict)
+    ...             log_calls.print("    mro =", mcs.__mro__)
+    ...             log_calls.print("    dict from super() = %r" % super_dict)
     ...         super_dict = OrderedDict(super_dict)
     ...         super_dict['key-from-__prepare__'] = 1729
     ...         return super_dict
@@ -217,29 +214,26 @@ The following class ``A_meta`` will serve as the metaclass for classes defined s
     ...         cls_members['key-from-__new__'] = "No, Hardy!"
     ...         A_debug = kwargs.pop('A_debug', A_DBG_NONE)
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             logging_fn = mcs.get_own_log_calls_wrapper().log_message
-    ...             logging_fn("    calling super() with cls_members =", cls_members)
+    ...             log_calls.print("    calling super() with cls_members =", cls_members)
     ...         return super().__new__(mcs, cls_name, bases, cls_members, **kwargs)
     ...
     ...     def __init__(cls, cls_name, bases, cls_members: dict, **kwargs):
     ...         A_debug = kwargs.pop('A_debug', A_DBG_NONE)
     ...         if A_debug >= A_DBG_INTERNAL:
-    ...             logging_fn = cls.get_own_log_calls_wrapper().log_message
-    ...             logging_fn("    cls.__mro__:", cls.__mro__)
-    ...             logging_fn("    type(cls).__mro__[1] =", type(cls).__mro__[1])
+    ...             log_calls.print("    cls.__mro__:", cls.__mro__)
+    ...             log_calls.print("    type(cls).__mro__[1] =", type(cls).__mro__[1])
     ...         try:
     ...             super().__init__(cls_name, bases, cls_members, **kwargs)
     ...         except TypeError as e:
     ...             # call type.__init__
     ...             if A_debug >= A_DBG_INTERNAL:
-    ...                 logging_fn("    calling type.__init__ with no kwargs")
+    ...                 log_calls.print("    calling type.__init__ with no kwargs")
     ...             type.__init__(cls, cls_name, bases, cls_members)
 
 The class ``A_meta`` is a metaclass: it derives from ``type``,
 and defines (overrides) methods ``__prepare__``, ``__new__`` and ``__init__``.
-As described in :ref:`log_message_in_class`, all of these `log_calls`-decorated methods
-access their `log_calls` wrapper, so that they can write their messages using the indent-aware
-method :ref:`log_message() <log_message_method>`.
+All of these `log_calls`-decorated methods awrite their messages using the indent-aware
+method :ref:`log_calls.print() <log_message_method>`.
 
 All of ``A_meta``'s methods look for an implicit keyword parameter ``A_debug``,
 used as the indirect value of the `log_calls` parameter ``enabled``.

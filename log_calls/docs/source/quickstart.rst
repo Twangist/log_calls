@@ -238,8 +238,12 @@ a program's progress, display the values of variables, announce milestones, repo
 the consistency of internal state, and so on.
 
 The ``@log_calls`` decorator automates the boilerplate aspects of this reportage:
-who calls whom, when, how, and with what result. `log_calls` also provides
-attractive alternatives to the ``print`` function for writing other debugging messages.
+who calls whom, when, how, and with what result. `log_calls` also provides the methods
+
+    * ``log_calls.print()`` and
+    * ``log_calls.print_exprs()``
+
+as attractive alternatives to the ``print`` function for writing other debugging messages.
 
 One common kind of debugging message reports the values of variables as a program runs,
 taking snapshots at strategic places at the top level of the code, or within a loop as an
@@ -261,26 +265,26 @@ the decorator's output:
     ...         a, b = b, (a % b)
     ...         log_calls.print_exprs('a', 'b', prefix="\\t", suffix= '\\t<--')
     ...     return a
-    >>> gcd(48, 246)
+    >>> gcd(48, 246)            # doctest: +NORMALIZE_WHITESPACE
     gcd <== called by <module>
         arguments: a=48, b=246
         At bottom of loop:
-            a = 246, b = 48	<--
-            a = 48, b = 6	<--
-            a = 6, b = 0	<--
+        	a = 246, b = 48	<--
+        	a = 48, b = 6	<--
+        	a = 6, b = 0	<--
     gcd ==> returning to <module>
     6
 
-If you delete, comment out or otherwise disable the decorator, the ``log_*`` methods will do nothing
+If you delete, comment out or otherwise disable the decorator, the ``print*`` methods will do nothing
 (except waste a little time). To illustrate this, we could just repeat the above function with the
 decorator omitted or commented out; but we can also disable the decorator dynamically, and the
-``log_*`` methods will be silent too:
+``print*`` methods will be silent too:
 
     >>> gcd.log_calls_settings.enabled = False
     >>> gcd(48, 246)
     6
 
-You can pass expressions to ``log_exprs``:
+You can pass expressions to ``print_exprs``:
 
     >>> @log_calls()
     ... def f():
@@ -291,7 +295,7 @@ You can pass expressions to ``log_exprs``:
         x = 42, x//6 = 7, x/6 = 7.0
     f ==> returning to <module>
 
-``log_message`` and ``log_exprs`` properly indent even multiline messages:
+``print`` and ``print_exprs`` properly indent even multiline messages:
 
     >>> @log_calls()
     ... def f(a):
@@ -316,13 +320,13 @@ You can pass expressions to ``log_exprs``:
     f ==> returning to <module>
     7
 
-You can specify multiple lines for ``log_message`` either with one string that has explicit newlines,
+You can specify multiple lines for ``print`` either with one string that has explicit newlines,
 as above, or by using the ``sep`` keyword parameter together with multiple positional string arguments:
 
     >>> @log_calls()
     ... def h():
     ...     log_calls.print("Line 1 of 3", "line 2 of 3", "line 3 of 3",
-    ...                           sep='\\n')
+    ...                     sep='\\n')
     >>> h()
     h <== called by <module>
         Line 1 of 3
@@ -331,15 +335,15 @@ as above, or by using the ``sep`` keyword parameter together with multiple posit
     h ==> returning to <module>
 
 
-The behavior of the ``log_*`` methods is configurable in a few ways:
+The behavior of the ``print*`` methods is configurable in a few ways:
 
-    * their output can be "allowed through" while muting the output of the decorators
-    * their output doesn't *have* to be indented, it can be flush left (``extra_indent_level=-1000``)
+    * their output can be "allowed through" while muting the output of the decorators;
+    * their output doesn't *have* to be indented, it can be flush left (``extra_indent_level=-1000``);
     * optionally the methods can raise an exception if called from within a function or method that
       isn't decorated, so that development-only code doesn't sneak into production.
 
-See the chapter :ref:`indent_aware_writing_methods` for details about the ``log_message``
-and ``log_exprs`` methods. The chapter :ref:`dynamic_control_of_settings` documents the
+See the chapter :ref:`indent_aware_writing_methods` for details about the ``print()``
+and ``print_exprs()`` methods. The chapter :ref:`dynamic_control_of_settings` documents the
 ``log_calls_settings`` attribute of a decorated callable.
 
 
@@ -361,9 +365,9 @@ the source code to confirm or refute those hunches.
 
 First, let's import the class, decorate it and create an instance:
 
-    >>> from fractions import Fraction as Fr
-    >>> log_calls.decorate_class(Fr)
-    >>> print(Fr(3,4))
+    >>> from fractions import Fraction as Frac
+    >>> log_calls.decorate_class(Frac)
+    >>> print(Frac(3,4))
     Fraction.__new__ <== called by <module>
         arguments: cls=<class 'fractions.Fraction'>, numerator=3, denominator=4
         defaults:  _normalize=True
@@ -373,13 +377,15 @@ First, let's import the class, decorate it and create an instance:
     Fraction.__str__ ==> returning to <module>
     3/4
 
-(**Note**: *In Python 3.4, the output lacks the third line: ``__new__`` had no ``normalize`` parameter.*)
+(**Note**: *In this section, the expected output shown is from Python 3.5.
+The output of Python 3.4 differs slightly: it's a bit less efficient, and* __new__,
+*indirectly called below, had no* _normalize *parameter.*)
 
 Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
 
     >>> log_calls.mute = True
-    >>> fr56 = fractions.Fraction(5,6)
-    >>> fr78 = fractions.Fraction(7,8)
+    >>> fr56 = Frac(5,6)
+    >>> fr78 = Frac(7,8)
     >>> log_calls.mute = False
 
 Before using these, let's redecorate to improve `log_calls` output.
@@ -390,7 +396,7 @@ After trying other examples at the command line it becomes apparent that
 accomplish all of that, with another call to ``decorate_class``, which won't
 wrap the `log_calls` wrappers already created but will instead just update their settings:
 
-    >>> log_calls.decorate_class(Fr,
+    >>> log_calls.decorate_class(Frac,
     ...                          omit='__str__', log_exit=False, log_retval=True)
 
 Finally, let's do some arithmetic on fractions:
@@ -417,19 +423,17 @@ Finally, let's do some arithmetic on fractions:
         Fraction._operator_fallbacks.<locals>.forward (__sub__) return value: 1/24
     1/24
 
-(**Note**: *This is Python 3.5 output; Python 3.4 output differs slightly.*)
-
 The topmost call is to an inner function ``forward`` of the method ``Fraction._operator_fallbacks``,
 presumably a closure. The ``__name__`` of the callable is actually ``__sub__`` (its ``__qualname__``
 is ``Fraction._operator_fallbacks.<locals>.forward``). We know that classes implement
 the infix subtraction operator ``-`` with "dunder" methods ``__sub__`` and ``__rsub__``,
 so it appears that in ``Fraction``, the closure `is` the value of the attribute ``__sub__``:
 
-    >>> Fr.__sub__
-    <function fractions.Fraction._operator_fallbacks.<locals>.forward>
-    >>> Fr.__sub__.__qualname__
-    'Fr._operator_fallbacks.<locals>.forward'
-    >>> Fr.__sub__.__name__
+    >>> Frac.__sub__      # doctest: +ELLIPSIS
+    <function Fraction._operator_fallbacks.<locals>.forward...>
+    >>> Frac.__sub__.__qualname__
+    'Fraction._operator_fallbacks.<locals>.forward'
+    >>> Frac.__sub__.__name__
     '__sub__'
 
 The closure calls an undecorated function or method ``_sub``. Because
@@ -442,7 +446,7 @@ confirms that guess (``_sub`` is on line 433).
 
 Why isn't ``_sub`` decorated? Let's check that:
 
-    >>> print(Fr._sub(fr78, fr56))
+    >>> print(Frac._sub(fr78, fr56))
     Fraction._sub <== called by <module>
         arguments: a=Fraction(7, 8), b=Fraction(5, 6)
         Fraction.denominator <== called by Fraction._sub
@@ -479,14 +483,14 @@ So, the closure ``forward`` that implements ``__sub__`` has a nonlocal variable 
 to the real ``_sub`` at class initialization, before the methods of the class were decorated.
 The closure calls the inner, decorated ``_sub``, not the `log_calls` wrapper around it.
 
-Ultimately, then, subtraction of Fractions is performed by a function ``_sub``,
+Ultimately, then, subtraction of fractions is performed by a function ``_sub``,
 to which ``__sub__`` i.e. ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
 ``_sub`` uses the public properties ``denominator`` and ``numerator``
 to retrieve the fields of the ``Fraction``\ s, and returns a new ``Fraction``, with a
 numerator of 2 (= 7 * 6 - 8 * 5) and denominator of 48 (= 6 * 8). ``__new__`` (line 124
-of the source code) reduces the returned
-``Fraction`` to lowest terms just before returning it (because its parameter ``_normalize``
-is true, its default value giving Python 3.4 behavior).
+of the source code) reduces the returned ``Fraction`` to lowest terms just before
+returning it (because its parameter ``_normalize`` is true, its default value, which
+gives Python 3.4 behavior).
 
 Scrolling through ``fractions.py`` reveals that other operators are implemented
 in exactly the same way.

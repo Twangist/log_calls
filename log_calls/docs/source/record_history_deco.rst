@@ -106,12 +106,17 @@ as described in :ref:`stats-attribute`. In the :ref:`record_history-examples` se
 below, we'll illustrate its use with the ``record_me`` function.
 
 
-The ``log_message()`` and ``log_exprs()`` methods
+The ``.print()`` and ``.print_exprs()`` methods
 ==============================================================
 
-Callables decorated with `record_history` can use :ref:`indent_aware_writing_methods`
-``log_message()`` and ``log_exprs()``. Of course, you won't want to do so in a tight loop
-whose performance you're profiling, but the functions are available. Output is always via ``print``.
+Callables decorated with `record_history` can use the methods
+``record_history.print()`` and ``record_history.print_exprs()`` to write debug messages.
+Of course, you won't want to do so in a tight loop whose performance you're profiling,
+but the methods are available. Output is always via the global ``print`` function, as
+`record_history` doesn't write to loggers or files. `record_history` also has the
+global flag ``record_history.print_methods_raise_if_no_deco``, completely analogous
+to that of `log_calls`. See the chapter :ref:`indent_aware_writing_methods` for
+details about these methods and the global flag.
 
 
 .. index:: get_record_history_wrapper() (record_history-decorated class method)
