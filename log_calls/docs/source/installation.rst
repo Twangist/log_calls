@@ -72,8 +72,8 @@ either of them, the output you see should end like so::
     Ran 112 tests in 2.235s
     OK
 
-indicating that all went well. (Depending upon what packages you have installed,
-you may see fewer tests reported.) If any test fails, it will tell you.
+indicating that all went well. (Depending upon which Python version you're using and on
+what packages you have installed, you may see fewer tests reported.) If any test fails, it will tell you.
 
 .. note:: This package *probably* requires the CPython implementation, as it uses internals
  of stack frames which may well differ in other interpreters. It's not guaranteed to
@@ -81,6 +81,6 @@ you may see fewer tests reported.) If any test fails, it will tell you.
  to run the tests under another interpreter or compiler, please tell us what you find*.)
 
  We would like `log_calls` to work with PyPy3, once that supports at least
- Python 3.3, and provided it supports the ``inspect`` module. Presently (early 2016,
- well after the release of Python 3.5) the PyPy3 project has still only reached Python 3.2.5,
- with no information available as to their next milestone.
+ Python 3.3, and provided it supports the ``inspect`` module. Presently (Spring 2016,
+ just after the release of Python 3.6.0 alpha) the PyPy3 project has still only reached
+ Python 3.2.5, with no information available as to their next milestone.
