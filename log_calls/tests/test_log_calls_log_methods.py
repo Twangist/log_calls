@@ -3,7 +3,7 @@ __author__ = 'brianoneill'
 from log_calls import log_calls
 
 #-----------------------------------------------------
-# log_calls.log_message, log_calls.log_exprs
+# log_calls.print, log_calls.print_exprs
 # Test in methods, in functions
 #-----------------------------------------------------
 def test_lc_log_message__output_expected():
@@ -15,34 +15,34 @@ def test_lc_log_message__output_expected():
     >>> @log_calls(omit='not_decorated', mute=log_calls.MUTE.CALLS)
     ... class B():
     ...     def __init__(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...         # Test that the old version still works! It shares code.
     ...         wrapper = self.get_own_log_calls_wrapper()
     ...         wrapper.log_message("Hi from original log_message")
     ...
     ...     def method(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def not_decorated(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @classmethod
     ...     def clsmethod(cls):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @staticmethod
     ...     def statmethod():
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...
     ...     @property
     ...     def prop(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @prop.setter
     ...     @log_calls(name='B.%s.setter')
     ...     def prop(self, val):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...
     ...     def setx(self, val):
-    ...         log_calls.log_message('Hi from setx alias x.setter')
+    ...         log_calls.print('Hi from setx alias x.setter')
     ...     def delx(self):
-    ...         log_calls.log_message('Hi from delx alias x.deleter')
+    ...         log_calls.print('Hi from delx alias x.deleter')
     ...     x = property(None, setx, delx)
 
     >>> b = B()
@@ -54,7 +54,7 @@ def test_lc_log_message__output_expected():
 
     >>> # NO OUTPUT from this, nor an exception,
     >>> # because by default
-    >>> #   log_calls.log_methods_raise_if_no_deco == False
+    >>> #   log_calls.print_methods_raise_if_no_deco == False
     >>> b.not_decorated()
 
     >>> b.statmethod()
@@ -83,44 +83,44 @@ def test_lc_log_message__output_expected():
     ...         wrapper = self.get_own_log_calls_wrapper()
     ...         wrapper.log_exprs('x', 'y', 'x+y')
     ...
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     def method(self):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     def not_decorated(self):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     @classmethod
     ...     def clsmethod(cls):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'cls.__name__')
+    ...         log_calls.print_exprs('x', 'y', 'cls.__name__')
     ...
     ...     @staticmethod
     ...     def statmethod():
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     @property
     ...     def prop(self):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     @prop.setter
     ...     @log_calls(name='D.%s.setter')
     ...     def prop(self, val):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     def setx(self, val):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...
     ...     def delx(self):
     ...         x = 2; y = 3
-    ...         log_calls.log_exprs('x', 'y', 'x+y')
+    ...         log_calls.print_exprs('x', 'y', 'x+y')
     ...     x = property(None, setx, delx)
 
     >>> d = D()
@@ -132,7 +132,7 @@ def test_lc_log_message__output_expected():
 
     # NO OUTPUT from this, NOR AN EXCEPTION,
     # because by default
-    #   log_calls.log_methods_raise_if_no_deco == False
+    #   log_calls.print_methods_raise_if_no_deco == False
     >>> d.not_decorated()
 
     >>> d.statmethod()
@@ -159,7 +159,7 @@ def test_lc_log_message__output_expected():
 
     >>> @log_calls(mute=log_calls.MUTE.CALLS)
     ... def bar(x, y, z):
-    ...     log_calls.log_message("Hi", "there")
+    ...     log_calls.print("Hi", "there")
     ...     pass
 
     >>> bar(1, 2, 3)
@@ -170,26 +170,26 @@ def test_lc_log_message__output_expected():
 
 
 #-----------------------------------------------------
-# Test log_calls.log_methods_raise_if_no_deco (bool)
+# Test log_calls.print_methods_raise_if_no_deco (bool)
 # On undecorated functions/methods,
 # and deco'd but with NO_DECO=True parameter
 #-----------------------------------------------------
 
 def test_lc_log_message__no_output_no_exceptions_expected():
     """
-    >>> log_calls.log_methods_raise_if_no_deco = False  # the default
+    >>> log_calls.print_methods_raise_if_no_deco = False  # the default
 
     >>> def nodeco(x, y, z):
-    ...     log_calls.log_message("Hi", "from", "function nodeco")
+    ...     log_calls.print("Hi", "from", "function nodeco")
     ...     pass
     >>> nodeco(11, 12, 13)            # no output, NO EXCEPTION
 
     >>> @log_calls(omit='not_decorated', mute=log_calls.MUTE.CALLS)
     ... class A():
     ...     def __init__(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def not_decorated(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
 
     >>> a = A()
     A.__init__: Hi
@@ -200,17 +200,17 @@ def test_lc_log_message__no_output_no_exceptions_expected():
     >>> @log_calls(NO_DECO=True)
     ... class C():
     ...     def __init__(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def cmethod(self, x):
-    ...         log_calls.log_message('Hi')
-    ...         log_calls.log_exprs('x + 10')
+    ...         log_calls.print('Hi')
+    ...         log_calls.print_exprs('x + 10')
 
     >>> c = C()         # no output, no exception
 
     >>> c.cmethod(5)    # no output, no exception
 
     >>> def schmoe(x):
-    ...     log_calls.log_message("Yo, schmoe")
+    ...     log_calls.print("Yo, schmoe")
     ...     pass
 
     >>> schmoe(170)     # no output, no exception
@@ -220,14 +220,14 @@ def test_lc_log_message__no_output_no_exceptions_expected():
 
 def test_lc_log_message__exceptions_expected():
     """
-    >>> log_calls.log_methods_raise_if_no_deco = True   # not the default
+    >>> log_calls.print_methods_raise_if_no_deco = True   # not the default
 
     >>> @log_calls(omit='not_decorated', mute=log_calls.MUTE.CALLS)
     ... class A():
     ...     def __init__(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def not_decorated(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
 
     >>> a = A()
     A.__init__: Hi
@@ -240,12 +240,12 @@ def test_lc_log_message__exceptions_expected():
     ... class B():
     ...     def __init__(self):
     ...         # Comment out so we can create a B object!
-    ...         # log_calls.log_message('Hi')
+    ...         # log_calls.print('Hi')
     ...         pass
     ...     def bmethod1(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def bmethod2(self, z):
-    ...         log_calls.log_exprs('z * 3')
+    ...         log_calls.print_exprs('z * 3')
 
     >>> b = B()     # no harm, noop
 
@@ -262,7 +262,7 @@ def test_lc_log_message__exceptions_expected():
 
     >>> @log_calls(NO_DECO=True)
     ... def foo(x, y, z):
-    ...     log_calls.log_message("Hi", "from", "function foo")
+    ...     log_calls.print("Hi", "from", "function foo")
     ...     pass
 
     >>> foo(1, 2, 3)  # doctest: +IGNORE_EXCEPTION_DETAIL, +ELLIPSIS
@@ -273,7 +273,7 @@ def test_lc_log_message__exceptions_expected():
     Undecorated, ever
 
     >>> def schmoe(x):
-    ...     log_calls.log_message("Yo, schmoe")
+    ...     log_calls.print("Yo, schmoe")
     ...     pass
 
     >>> schmoe(100)  # doctest: +IGNORE_EXCEPTION_DETAIL, +ELLIPSIS
@@ -282,9 +282,6 @@ def test_lc_log_message__exceptions_expected():
     AttributeError: ... is not decorated...
 
     """
-
-
-
     pass
 
 

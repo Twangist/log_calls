@@ -474,6 +474,28 @@ Another:
         i = 3, f(i) = 39.5
         i = 4, f(i) = 97.0
     g ==> returning to <module>
+
+0.3.1
+    >>> @log_calls()
+    ... def gcd(a, b):
+    ...     log_calls.print("At bottom of loop:")
+    ...     while b:
+    ...         a, b = b, (a % b)
+    ...         log_calls.print_exprs('a', 'b', prefix="\\t", suffix= '\\t<--')
+    ...     return a
+    >>> gcd(48, 246)            # doctest: +NORMALIZE_WHITESPACE
+    gcd <== called by <module>
+        arguments: a=48, b=246
+        At bottom of loop:
+        	a = 246, b = 48	<--
+        	a = 48, b = 6	<--
+        	a = 6, b = 0	<--
+    gcd ==> returning to <module>
+    6
+
+    >>> gcd.log_calls_settings.enabled = False
+    >>> gcd(48, 246)
+    6
     """
     pass
 

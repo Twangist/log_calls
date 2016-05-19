@@ -171,7 +171,8 @@ though of course less than when ``enabled`` is positive (e.g. ``True``).
 ===================================
 
 The ``args_sep`` parameter specifies the string used to separate arguments. If the string ends in
-(or is) ``\n``, additional whitespace is appended so that arguments line up nicely:
+``\n`` (in particular, if ``sep`` `is` ``'\n'``), additional whitespace is interspersed so that
+arguments line up nicely:
 
     >>> @log_calls(args_sep='\\n')
     ... def f(a, b, c, **kwargs):
@@ -185,13 +186,6 @@ The ``args_sep`` parameter specifies the string used to separate arguments. If t
             **kwargs={'u': 'you'}
     6
     f ==> returning to <module>
-
-.. topic:: A `doctest` quirk
-
-    The `doctest` examples in this document use ``'\\n'``
-    where in actual code you'd write ``'\n'``. All
-    the examples herein work (as tests, they pass), but they would fail if
-    ``'\n'`` were used.
 
 --------------------------------------------------------------------
 
@@ -270,8 +264,8 @@ When this setting is true, values returned by a decorated callable are reported:
 .. note::
     By default, `log_calls` suppresses the return value of ``__init__`` methods,
     even when ``log_retval=True`` has been passed to a decorator of the method's
-    class. To override this, you must decorate ``__init__`` itself and supply
-    ``log_retval=True``.
+    class. To override this, you'd have to decorate ``__init__`` itself and supply
+    ``log_retval=True``. However, there's no reason to: ``__init__`` returns ``None``.
 
 --------------------------------------------------------------------
 
@@ -298,7 +292,7 @@ that indicates the callable's return to its caller:
 ================================================
 
 `log_calls` keeps a running tally of the number of times a decorated callable
-has been called. You can display this (1-based) number using the ``log_call_numbers``
+has been called. You can display this number using the ``log_call_numbers``
 parameter:
 
     >>> @log_calls(log_call_numbers=True)
@@ -323,11 +317,12 @@ The call number is also displayed with the function name when ``log_retval`` is 
 The display of call numbers is particularly valuable in the presence of recursion or reentrance —
 see the example :ref:`recursion-example`, where the feature is used to good effect.
 
-.. topic:: Resetting the next call number to 1
+.. topic:: Clearing the number of calls (setting it to 0)
 
-    To reset the next call number of a decorated function ``f`` to 1, call the ``f.stats.clear_history()``
-    method. To reset it to 1 for a callable in a class, call ``wrapper.stats.clear_history()`` where
-    ``wrapper`` is the callable's wrapper, obtained via one of the two methods described in
+    To reset the number of calls to a decorated function ``f``, so that the
+    next call number will be 1, call the ``f.stats.clear_history()`` method.
+    To reset it for a callable in a class, call ``wrapper.stats.clear_history()``
+    where ``wrapper`` is the callable's wrapper, obtained via one of the two methods described in
     the section on :ref:`accessing the wrappers of methods <get_own_log_calls_wrapper-function>`.
 
     See :ref:`clear_history` in the :ref:`call_history_statistics` chapter for details
@@ -372,7 +367,7 @@ The ``indent`` parameter, when true, indents each new level of logged messages b
 providing a visualization of the call hierarchy.
 
 A decorated callable's logged output is indented only as much as is necessary.
-Here, the even numbered functions don't indent, so the indented functions that
+Here, the even-numbered functions don't indent, so the indented functions that
 they call are indented just one level more than their "inherited" indentation level:
 
     >>> @log_calls()
@@ -442,6 +437,10 @@ Another simple example:
 
 This parameter is useful mainly to simplify the display names of inner functions,
 and to disambiguate the display names of *getter* and *deleter* property methods.
+
+If the ``name`` setting is empty (the default), the display name of a decorated callable
+is its ``__qualname__``, followed by (a space and) its ``__name__`` in parentheses if
+the ``__name__`` is not a substring of the ``__qualname__``.
 
 .. topic:: Example — using ``name`` with an inner function
 
@@ -520,7 +519,7 @@ manipulates ``sys.stdout`` dynamically.)
 
 If your program writes to the console a lot, you may not want `log_calls` messages interspersed
 with your real output: your understanding of both logically distinct streams might be hindered,
-and it may be better to make them two actually distinct streams. Splitting off the `log_calls`
+and it may be better to make them actually distinct. Splitting off the `log_calls`
 output can also be useful for understanding or for creating documentation: you can gather all,
 and only all, of the `log_calls` messages in one place. The ``indent`` setting will be respected,
 whether messages go to the console or to a file.
@@ -560,14 +559,14 @@ It can take any of the following three numeric values, shown here in increasing 
 
 :``log_calls.MUTE.NOTHING``:   (default) doesn't mute any output
 :``log_calls.MUTE.CALLS``:     mutes all logging of function/method call details,
-                               but the output of any calls to the methods :ref:`log_message() <log_message_method>`
-                               and :ref:`log_exprs() <log_exprs_method>` is allowed through
+                               but the output of any calls to the methods :ref:`log_calls.print() <log_message_method>`
+                               and :ref:`log_calls.print_exprs() <log_exprs_method>` is allowed through
 :``log_calls.MUTE.ALL``:       mutes all output of `log_calls`.
 
 ``mute`` is a *setting* — part of the state maintained for a decorated callable —
 and can be changed dynamically.
 
-Examples are best deferred until the ``log_message()`` method has been discussed:
+Examples are best deferred until the ``log_*()`` methods are discussed:
 see :ref:`indent_aware_writing_methods-mute`.
 
 The ``mute`` parameter lets `log_calls` behave just like the `record_history` decorator,
@@ -576,7 +575,7 @@ a decorated callable. See :ref:`record_history_deco` for a precise statement of 
 see the tests/examples in ``tests/test_log_calls_as_record_history`` for illustration.
 
 
-.. index:: log_calls.mute (log_calls class data attribute)
+.. index:: log_calls.mute (log_calls class attribute)
 
 .. _global_mute:
 
@@ -599,7 +598,7 @@ To see this in action, refer to :ref:`indent_aware_writing_methods-mute`.
 ``settings`` (default: ``None``)
 ================================================
 
-The ``settings`` parameter lets you collect common values for keyword parameters
+The ``settings`` parameter lets you collect several keyword parameter/value pairs
 in one place and pass them to `log_calls` with a single parameter.
 ``settings`` is a useful shorthand if you have, for example, a module with several
 `log_calls`-decorated functions, all with multiple, mostly identical settings
@@ -611,9 +610,10 @@ of settings for different sets of functions, or classes, or modules — you're
 free to organize them as you please.
 
 When not ``None``, the ``settings`` parameter can be either a ``dict``, or a ``str``
-specifying the location of a *settings file* — a text file containing *key=value* pairs and optional comments.
-(Details about settings files, their location and their format appear below, in :ref:`settings-as-str`.)
-In either case, the valid keys are :ref:`the keyword parameters that are "settings" <the-settings>`
+specifying the location of a *settings file* — a text file containing *key=value*
+pairs and optional comments. (Details about settings files, their location and their
+format appear below, in :ref:`settings-as-str`.) In either case, the valid keys are
+:ref:`the keyword parameters that are "settings" <the-settings>`
 (as defined in :ref:`what-is-a-setting`) plus, as a convenience, ``NO_DECO``.
 *Invalid keys are ignored.*
 
@@ -692,7 +692,7 @@ results *nor is any warning issued*, and the ``settings`` parameter is ignored.
     Blank lines are ignored, as are lines whose first non-whitespace character is ``#``,
     which therefore you can use as comments.
 
-    Here are the allowed "direct" values for settings:
+    Here are the allowed "direct" values for settings in a settings file:
 
     +-----------------------+------------------------------------------------------+
     || Setting              || Allowed "direct" value                              |
@@ -731,7 +731,7 @@ results *nor is any warning issued*, and the ``settings`` parameter is ignored.
         args_sep   = ' | '
         log_args   = False
         log_retval = TRUE
-        logger     = 'star3_logger'
+        logger     = 'my_logger'
         # file: this is just for illustration, as logger takes precedence.
         #       file can only be sys.stderr or sys.stdout [*** NOT IN QUOTES! ***] (or None)
         file=sys.stderr
@@ -747,7 +747,7 @@ results *nor is any warning issued*, and the ``settings`` parameter is ignored.
 .. note::
  You can use the ``log_calls.set_defaults()`` classmethod to change the `log_calls` default settings,
  instead of passing the same ``settings`` argument to every ``@log_calls(...)`` decoration.
- See :ref:`set_reset_defaults`.
+ See the chapter :ref:`set_reset_defaults`.
 
 Where to find more examples
 ------------------------------

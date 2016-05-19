@@ -14,25 +14,47 @@ Document:
 
 Add this (above) new behavior to What's New (create new subsection "What's Changed" for 0.3.1)
 
+``log_exprs`` suffix='' keyword parameter.
+    TODO document.
+        What's New
+
+
 What's New:
     mention that the new methods and global exist on ``record_history`` too
 
 ``record_history`` docs:
-    update for new ``log_*`` methods
+    update for new ``log_*`` methods and global
 
 ¿Add ``log_calls.NO_DECO`` global?
     If so, doc it, in at least these chapters:
         What's New
         Writing `log_calls`-aware debugging messages
 
-Add/write section in Quick Start for writing `log_calls`-aware debugging messages.
-
 Finish doc'ing log_* methods: older deprecated classmethods (of a deco'd class)
 
+Presently you can't mute all the log_* methods en masse, while allowing the decorator's output.
+    That takes a little revamping, there's no longer a "threshold" for muting (see _log_message
+    impl), as the log_calls.MUTE values aren't a linear order anymore they're a diamond — the
+    subsets of the 2-element set {decorator output, log_methods }
+
+    Idea: represent the FOUR possible mute states by (frozen) subsets of that 2-element set;
+    instead of taking ``max`` of numeric values, take *union* of global mute and callable's mute setting.
+
+``logger`` setting, in settings files:
+    in addition to
+        || ``logger``           || name of a logger, enclosed in quotes (or ``None``)  |
+    also allow
+        __name__
+    ¿¿¿ NOT in quotes ???
+
+    TODO: implement, test, document (in parameters chapter)
 
 ------
  DONE
 ------
+Fix: ``decorate_module``: both functions and classes had to be True, couldn't have one false
+        (method would do nothing)
+
 Display name of a deco'd callable has ``__name__`` in parens following ``__qualname__`` if
         * ``name`` param not given and
         * ``__name__`` not a substring of ``__qualname__``
@@ -43,8 +65,8 @@ Display name of a deco'd callable has ``__name__`` in parens following ``__qualn
 
 Simplified debug messages and expression "dumps":
 
-        log_calls.log_message(...)
-        log_calls.log_exprs(...)
+        log_calls.print(...)
+        log_calls.print_exprs(...)
 
     which figure out the right thing to do.
     Works for `record_history` too.

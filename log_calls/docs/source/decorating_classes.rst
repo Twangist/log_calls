@@ -15,11 +15,11 @@ The remaining sections discuss other topics pertinent to class decoration.
 
 .. _omit_only_params:
 
-The ``omit`` and ``only`` keyword parameters (default: ``tuple()``)
+The ``omit`` and ``only`` keyword parameters (default: ``()``)
 =======================================================================
 
 These parameters let you concisely specify which methods and properties of a decorated class
-get decorated. `log_calls` ignores ``omit`` and ``only`` when decorating a function. When not ``None``,
+get decorated. `log_calls` ignores ``omit`` and ``only`` when decorating a function. When not empty,
 the value of each of these parameters specifies one or more methods or properties of a decorated class.
 If you provide just ``omit``, all callables of the class will be decorated except for those
 specified by ``omit``. If you provide just ``only``, only the callables it specifies will be
@@ -150,7 +150,8 @@ Examples of callable designators
            is checked for a match against both ``mymethod`` and ``C.mymethod``.
 
         As the second and third to last examples in the above table illustrate,
-        these can lead to surprises, especially when using complements of character sets.
+        these matching rules can lead to surprises, especially when using complements
+        of character sets.
 
 ----------------------------------------------------------------------------------------------------------------
 
@@ -309,9 +310,11 @@ Using ``only`` with the property name — all property methods are decorated:
     ... class A():
     ...     @property
     ...     def prop(self): pass
+    ...
     ...     @prop.setter
     ...     @log_calls(name='A.%s.setter')
     ...     def prop(self, val): pass
+    ...
     ...     @prop.deleter
     ...     @log_calls(name='A.%s.deleter')
     ...     def prop(self, val): pass
@@ -389,7 +392,7 @@ In ``I1``, only ``g1`` is decorated, despite the outer class's ``only`` specifie
 ``omit`` on inner and outer class decorators
 ----------------------------------------------------
 
-``omit`` is cumulative: inner ``omit`` is added to outer ``omit``:
+``omit`` is cumulative — inner ``omit`` is added to outer ``omit``:
 
     >>> @log_calls(omit='*_handler', settings=MINIMAL)
     ... class O():

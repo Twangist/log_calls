@@ -597,7 +597,8 @@ class _deco_base():
 
         NOTHING = False     # (default -- all output produced)
         CALLS = True        # (mute output from decorated functions & methods & properties,
-                            #  but log_message and thus log_exprs produce output;
+                            #  but log_calls.print() and log_calls.print_exprs()
+                            #  (log_message and thus log_exprs) produce output;
                             #  call # recording, history recording continue if enabled)
         ALL = 2             # (no output at all; but call # recording, history recording continue if enabled)
 
@@ -889,6 +890,7 @@ class _deco_base():
                    extra_indent_level=1,
                    prefix_with_name=False,
                    prefix='',
+                   suffix='',
                    _extra_frames=0):
         """Evaluates each expression (str) in exprs in the context of the caller;
         makes string from each, expr = val,
@@ -898,6 +900,7 @@ class _deco_base():
         :param extra_indent_level: as for _log_message
         :param prefix_with_name: as for _log_message
         :param prefix: additional text to prepend to output message
+        :param suffix: additional text to append  to output message (0.3.1)
         """
         if not exprs:
             return
@@ -913,13 +916,15 @@ class _deco_base():
                           sep=sep,
                           extra_indent_level=extra_indent_level,
                           prefix_with_name=prefix_with_name,
-                          _prefix=prefix)
+                          _prefix=prefix,
+                          _suffix=suffix)
 
     def _log_message(self, *msgs,
                      sep=' ',
                      extra_indent_level=1,
                      prefix_with_name=False,
-                     _prefix=''):
+                     _prefix='',
+                     _suffix=''):
         """Signature much like that of print, such is the intent.
         "log" one or more "messages", which can be anything - a string,
         an int, object with __str__ method... all get str()'d.
@@ -944,8 +949,10 @@ class _deco_base():
         self._output_fname[-1] is the function's possibly prefixed name,
             + possibly [its call #]
 
-        _prefix: for log_exprs, callers of log_message won't need to use it
+        _prefix: (for log_exprs, callers of log_message won't need to use it)
                  additional text to prepend to output message
+        _suffix: (0.3.1) (for log_exprs, callers of log_message won't need to use it)
+                 additional text to append to output message
         """
         if not msgs:
             return
@@ -970,37 +977,38 @@ class _deco_base():
             extra_indent_level -= 1
             prefix_with_name = True
 
-        indent_len = (logging_state.indent_len +
+        indent_len = (logging_state.indent_len
                       + (extra_indent_level * self.INDENT)
                      )
         if indent_len < 0:
             indent_len = 0   # clamp
-        # the_msgs = (msg,) + msgs
+
         the_msg = sep.join(map(str, msgs))
         if prefix_with_name:
             the_msg = logging_state.output_fname + ': ' + the_msg
-        if _prefix:
-            the_msg = _prefix + the_msg
+        assert isinstance(_prefix, str) and isinstance(_suffix, str)
+        the_msg = _prefix + the_msg + _suffix
+
         logging_state.logging_fn(prefix_multiline_str(' ' * indent_len, the_msg))
 
     #---------------------------------
     # 3.1 new:
-    # log_calls.log_message(....)
-    # log_calls.log_exprs(....)
+    # log_calls.print(....)
+    # log_calls.print_exprs(....)
     #---------------------------------
 
-    # Allows you to keep calls to log_calls.log_message
+    # Allows you to keep calls to log_calls.print*
     # in production code (enclosing callable isn't decorated)-- it does nothing
     # except waste a few cycles each call -- as opposed to having to delete
     # the call or comment it out.
-    log_methods_raise_if_no_deco = False
+    print_methods_raise_if_no_deco = False
 
     @classmethod
-    def log_message(cls, *msgs,
-                    sep=' ',
-                    extra_indent_level=1,
-                    prefix_with_name=False,
-                    _prefix=''):
+    def print(cls, *msgs,
+              sep=' ',
+              extra_indent_level=1,
+              prefix_with_name=False,
+              _prefix=''):
         """
         :param msgs:
         :param sep:
@@ -1015,7 +1023,7 @@ class _deco_base():
         try:
             deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
         except:
-            if cls.log_methods_raise_if_no_deco:    raise
+            if cls.print_methods_raise_if_no_deco:    raise
             else:                                   return
 
         deco_obj._log_message(*msgs,
@@ -1025,18 +1033,19 @@ class _deco_base():
                               _prefix=_prefix)
 
     @classmethod
-    def log_exprs(cls, *exprs,
-                  sep=', ',
-                  extra_indent_level=1,
-                  prefix_with_name=False,
-                  prefix=''):
+    def print_exprs(cls, *exprs,
+                    sep=', ',
+                    extra_indent_level=1,
+                    prefix_with_name=False,
+                    prefix='',
+                    suffix=''):
         # Get the associated deco_obj, as we need to call
         # ITS instance method _log_exprs.
         # cls is "deco_class" (`log_calls`, `record_history`)
         try:
             deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
         except:
-            if cls.log_methods_raise_if_no_deco:    raise
+            if cls.print_methods_raise_if_no_deco:    raise
             else:                                   return
 
         deco_obj._log_exprs(*exprs,
@@ -1044,6 +1053,7 @@ class _deco_base():
                             extra_indent_level=extra_indent_level,
                             prefix_with_name=prefix_with_name,
                             prefix=prefix,
+                            suffix=suffix,
                             _extra_frames=1)
 
     #----------------------------------------------------------------
@@ -1187,8 +1197,8 @@ class _deco_base():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def __init__(self,
                  settings=None,
-                 _omit=tuple(),             # 0.3.0 class deco'ing: str or seq - omit these methods/proper; not a setting
-                 _only=tuple(),             # 0.3.0 class deco'ing: str or seq - deco only these (sans any in omit); not a setting
+                 _omit=(),                  # 0.3.0 class deco'ing: str or seq - omit these methods/proper; not a setting
+                 _only=(),                  # 0.3.0 class deco'ing: str or seq - deco only these (sans any in omit); not a setting
                  _name_param=None,          # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  _override=False,           # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  _used_keywords_dict={},    # 0.2.4 new parameter, but NOT a "setting"
@@ -1561,7 +1571,7 @@ class _deco_base():
                         # otherwise we'll create a another, new wrapper for it,
                         # and THAT will be found by log_calls_wrapper(func.__name__)
                         # but log_calls_wrapper(property_name + '.___ter') will find this wrapper,
-                        # and bad things can happen (log_message can use "the other" wrapper).
+                        # and bad things can happen (_log_message can use "the other" wrapper).
                         # So: Is func also in class klass dict *** as a function ***?
                         # NOT the case if @property decorator used to create property (item),
                         # but it IS the case if some random methods (including func)
@@ -1918,7 +1928,8 @@ class _deco_base():
 
                 # 0.2.2 -- self._log_message() will use
                 # the logging_fn, indent_len and output_fname at top of these stacks;
-                # thus, verbose functions should use log_message to write their blather.
+                # thus, verbose functions should use log_calls.print (~ log_message)
+                # to write their blather.
                 # There's a stack of logging-state ,
                 # used by self._log_message(), maintained in this wrapper.
                 self._logging_state_push(logging_fn, global_indent_len, output_fname, mute)
@@ -2409,8 +2420,7 @@ class _deco_base():
         """
         module_filename = get_file_of_object(mod)
 
-        whatis = inspect.ismodule(mod)
-        if not (module_filename and inspect.ismodule(mod) and functions and classes):
+        if not (module_filename and inspect.ismodule(mod)):
             return      # refuse, SILENTLY
 
         # Functions
@@ -2513,7 +2523,7 @@ class log_calls(_deco_base):
                                    value <= 0 --> unboundedly many records are stored.
         Parameters that aren't *settings*
         0.3.0
-        omit=tuple()
+        omit=()
             When decorating a class, specifies the methods that will NOT be decorated.
             As for `field_names` parameter of namedtuples:
                 a single string with each name separated by whitespace and/or commas,
@@ -2535,7 +2545,7 @@ class log_calls(_deco_base):
             will be omitted).
             Ignored when decorating a function.
 
-        only=tuple()
+        only=()
             As for `field_names` parameter of namedtuples:
                 a single string with each name separated by whitespace and/or commas,
                     for example 'x y' or 'x, y',
@@ -2594,9 +2604,9 @@ class log_calls(_deco_base):
     @used_unused_keywords()
     def __init__(self,
                  settings=None,     # 0.2.4.post2. A dict or a pathname
-                 omit=tuple(),      # 0.3.0 class deco'ing: omit these methods or properties; not a setting
-                 only=tuple(),      # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
-                 name='',         # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
+                 omit=(),           # 0.3.0 class deco'ing: omit these methods or properties; not a setting
+                 only=(),           # 0.3.0 class deco'ing: deco only these methods or props (sans any in omit); not a setting
+                 name='',           # 0.3.0 name or oldstyle fmt str for f_display_name of fn; not a setting
                  override=False,    # 0.3.0b18: new settings override existing ones. NOT a "setting"
                  enabled=True,
                  args_sep=', ',

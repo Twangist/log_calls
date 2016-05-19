@@ -69,8 +69,8 @@ Keyword parameters for "settings"
 | ``mute``            | ``0`` (``False``) || Three-valued ``int`` that controls amount of output:       |
 |                     |                   ||   ``log_calls.MUTE.NOTHING`` (0) — mute nothing            |
 |                     |                   ||   ``log_calls.MUTE.CALLS``   (1) —                         |
-|                     |                   ||          mutes `log_calls` own output, but allows          |
-|                     |                   ||          output of ``log_message`` and ``log_exprs``       |
+|                     |                   ||        mutes `log_calls` own output, but allows            |
+|                     |                   ||        output of ``log_calls.print`` and ``.print_exprs``  |
 |                     |                   ||   ``log_calls.MUTE.ALL``     (2) — mute all output         |
 +---------------------+-------------------+-------------------------------------------------------------+
 | ``logger``          | ``None``          || If not ``None``, either a logger (a ``logging.Logger``     |

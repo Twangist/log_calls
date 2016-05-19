@@ -5,7 +5,8 @@ Writing `log_calls`-Aware Debug Messages
 ################################################################################
 
 `log_calls` provides the ``log_message`` method as a better alternative to ``print``
-for writing debugging messages.
+for writing debugging messages. It also provides the ``log_exprs`` method as an easy
+way to "dump" variables and expressions together with their values.
 
 ``log_message`` writes to the `log_calls` output stream
 — whether that's a console stream, file or logger — where its output is properly
@@ -26,16 +27,16 @@ context of the caller.
 
 .. _log_message_method:
 
-The ``log_calls.log_message()`` method
+The ``log_calls.print()`` method
 ==============================================
 
-When you call ``log_calls.log_message('my message')`` from within a decorated callable ``f``,
+When you call ``log_calls.print('my message')`` from within a decorated callable ``f``,
 ``my message`` appears in the `log_calls` output stream, between the "entering" and "exiting"
 parts of the `log_calls` report for the call to ``f``, aligned with the "arguments" section:
 
     >>> @log_calls()
     ... def f(x):
-    ...     log_calls.log_message('About to try new approach...')
+    ...     log_calls.print('About to try new approach...')
     ...     return 4 * x
     >>> f(2)
     f <== called by <module>
@@ -50,7 +51,7 @@ passing it ``NO_DECO=True`` — by default you *don't* have to comment out the c
 
     >>> # @log_calls()
     >>> def f(x):
-    ...     log_calls.log_message('About to try new approach...')
+    ...     log_calls.print('About to try new approach...')
     ...     return 4 * x
     >>> f(2)
     8
@@ -63,12 +64,12 @@ to ``True``, as discussed :ref:`below <log_methods_raise_if_no_deco>`.
 
 .. index:: log_message()
 
-.. py:method:: log_calls.log_message(*msgs, sep=' ', extra_indent_level=1, prefix_with_name=False)
+.. py:method:: log_calls.print(*msgs, sep=' ', extra_indent_level=1, prefix_with_name=False)
     :noindex:
 
     Join one or more messages with ``sep``, and write the result to the `log_calls`
     output destination of the caller, a decorated callable. The "messages" are strings,
-    or objects to be displayed as ``str``\ s. The method does nothing if no message are passed.
+    or objects to be displayed as ``str``\ s. The method does nothing if no messages are passed.
 
     :param msgs: messages to write.
     :param extra_indent_level: a number of 4-column-wide *indent levels* specifying
@@ -101,46 +102,22 @@ Writing expressions and their values with ``log_exprs()``
 ``log_exprs()`` is a convenience method built upon ``log_message()``
 which makes it easy to print variables and expressions together with their values.
 
-Here's a small but realistic example:
-
-    >>> @log_calls()
-    ... def gcd(a, b):
-    ...     while b:
-    ...         a, b = b, (a % b)
-    ...         log_calls.log_exprs('a', 'b', prefix="At bottom of loop: ")
-    ...     return a
-    >>> gcd(48, 246)
-    gcd <== called by <module>
-        arguments: a=48, b=246
-        At bottom of loop: a = 246, b = 48
-        At bottom of loop: a = 48, b = 6
-        At bottom of loop: a = 6, b = 0
-    gcd ==> returning to <module>
-    6
-
-You can also pass expressions to ``log_exprs``:
-    >>> @log_calls()
-    ... def f():
-    ...     x = 42
-    ...     log_calls.log_exprs('x', 'x//6')
-    >>> f()
-    f <== called by <module>
-        x = 42, x//6 = 7
-    f ==> returning to <module>
-
+See the examples in the :ref:`quickstart-lc-aware-debug-messages` section of the :ref:`quickstart` chapter.
 
 Further examples can be found in the docstring of the function ``test__log_exprs()``
-in ``tests/test_log_calls_v30_minor_features_fixes.py``.
+in ``tests/test_log_calls_v30_minor_features_fixes.py``, and in the test module
+``tests/test_log_calls_log_methods.py``.
 
 ``log_exprs()`` details
 ----------------------------------------------------
 
-.. py:method:: log_calls.log_exprs(*exprs, sep=', ', extra_indent_level=1, prefix_with_name=False, prefix='')
+.. py:method:: log_calls.print_exprs(*exprs, sep=', ', extra_indent_level=1, prefix_with_name=False, prefix='', suffix='')
     :noindex:
 
     Evaluate each expression in ``exprs`` in the context of the caller, a decorated callable;
     make a string `expr` ``=`` `val` from each, and pass those strings
-    to ``log_message()`` as messages to write, separated by ``sep``.
+    to (the internal method called by) ``log_message()`` as messages to write,
+    separated by ``sep``.
 
     :param exprs: expressions to evaluate and log with their values
     :type exprs: sequence of ``str``
@@ -148,6 +125,7 @@ in ``tests/test_log_calls_v30_minor_features_fixes.py``.
     :param extra_indent_level: as for ``log_message()``
     :param prefix_with_name: as for ``log_message()``
     :param prefix: additional text to prepend to output message.
+    :param suffix: additional text to append to output message.
 
     :raises: AttributeError if called from within
              an undecorated callable and ``log_calls.log_methods_raise_if_no_deco`` is true.
@@ -171,7 +149,7 @@ But probably at some point you *do* want to know when you have lingering code th
 supposedly development-only. `log_calls` will inform you of that if you set
 ``log_calls.log_methods_raise_if_no_deco`` to ``True`` (or any truthy value).
 
-When this flag is true, calls to ``log_calls.log_message`` and ``log_calls.log_exprs``
+When this flag is true, calls to ``log_calls.print`` and ``log_calls.print_exprs``
 from within an undecorated function or method will raise ``AttributeError``. This
 compels you to comment out or delete any calls to ``log_calls.log_*`` from within undecorated
 functions or methods. (A call to ``log_calls.log_*`` from within a callable
@@ -184,6 +162,15 @@ set to true, it will.)
 Indent-aware writing methods and muting — examples
 ==============================================================
 
+Presently, "muting" has three states, of a possible four:
+
+    * ``log_calls.MUTE.NOTHING`` — mute nothing
+    * ``log_calls.MUTE.CALLS`` — mute the output of the ``@log_calls`` decorators while allowing the output of the ``log_calls.log_*`` methods
+    * ``log_calls.MUTE.ALL`` — mute all `log_calls` output
+
+There's a global mute, ``log_calls.mute``, and each decorated callable has its own ``mute`` setting.
+
+
 .. _indent_aware_writing_methods-mute-setting:
 
 Examples using the `mute` setting
@@ -194,7 +181,7 @@ i.e. ``False``, the default), `log_calls` produces output as do ``log_message()`
 
     >>> @log_calls()
     ... def f():
-    ...     log_calls.log_message('Hello, world!')
+    ...     log_calls.print('Hello, world!')
     >>> f()
     f <== called by <module>
         Hello, world!
@@ -284,7 +271,7 @@ Using ``log_message()`` in classes
 .. todo::
     REWORK
 
-The following class illustrates all possibilities of calling ``log_calls.log_message``
+The following class illustrates all possibilities of calling ``log_calls.print``
 from a method. To reduce clutter in this example, `log_calls` call output is muted, 
 and therefore ``log_message()`` automatically prefixes its output with the name 
 of the caller, and doesn't indent by an extra 4 spaces:
@@ -292,30 +279,30 @@ of the caller, and doesn't indent by an extra 4 spaces:
     >>> @log_calls(omit='no_deco', mute=log_calls.MUTE.CALLS)
     ... class B():
     ...     def __init__(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def method(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     def no_deco(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @classmethod
     ...     def clsmethod(cls):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @staticmethod
     ...     def statmethod():
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...
     ...     @property
     ...     def prop(self):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...     @prop.setter
     ...     @log_calls(name='B.%s.setter')  # o/w, display name of setter is also 'B.prop'
     ...     def prop(self, val):
-    ...         log_calls.log_message('Hi')
+    ...         log_calls.print('Hi')
     ...
     ...     def setx(self, val):
-    ...         log_calls.log_message('Hi from setx alias x.setter')
+    ...         log_calls.print('Hi from setx alias x.setter')
     ...     def delx(self):
-    ...         log_calls.log_message('Hi from delx alias x.deleter')
+    ...         log_calls.print('Hi from delx alias x.deleter')
     ...     x = property(None, setx, delx)
 
     >>> b = B()
@@ -338,7 +325,7 @@ of the caller, and doesn't indent by an extra 4 spaces:
 
 Observe that the call to ``b.no_deco()`` does nothing, even though the method isn't decorated.
 If ``log_calls.log_methods_raise_if_no_deco`` were true, the call from ``b.no_deco()``
-to ``log_calls.log_message`` would raise ``AttributeError``.
+to ``log_calls.print`` would raise ``AttributeError``.
 
 
 `cls`\ ``.log_message()``, `cls`\ ``.log_exprs()`` [deprecated]

@@ -7,7 +7,7 @@
 
     Use for it now is getting `log_calls_settings` and `stats` for a method.
     Mention that you used to have to use these classmethods in order to use
-    `log_message` and `log_exprs`, but in 0.3.1 that's no longer true,
+    `og_message` and `log_exprs`, but in 0.3.1 that's no longer true,
     so the importance of these methods is greatly diminished
 
 
@@ -18,10 +18,8 @@ The ``get_log_calls_wrapper()`` and ``get_own_log_calls_wrapper()`` classmethods
 =============================================================================================================================
 
 `log_calls` decorates a callable by "wrapping" it in a function (the *wrapper*) which has
-various attributes — not only data containing settings, but also methods. Access to these attributes
-requires access to the callable's wrapper. In particular, a decorated callable
-must access its *own* wrapper in order to use the :ref:`log_message() <log_message_method>` and
-:ref:`log_exprs() <log_exprs_method>` methods.
+attributes containing settings and statistics. Access to these attributes
+requires access to the callable's wrapper.
 
 It's straightforward to access the wrapper of a decorated global function ``f``: after decoration,
 ``f`` refers to the wrapper. For methods and properties, however, the various kinds of methods

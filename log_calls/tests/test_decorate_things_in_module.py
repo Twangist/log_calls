@@ -118,8 +118,7 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
         """
     This example shows that you can decorate things in the standard library.
 
-        >>> import fractions
-        >>> Fr = fractions.Fraction
+        >>> from fractions import Fraction as Fr
         >>> log_calls.decorate_class(Fr)
         >>> print(Fr(3,4))
         Fraction.__new__ <== called by <module>
@@ -138,8 +137,8 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
     Create a couple of fractions, in silence:
 
         >>> log_calls.mute = True
-        >>> fr56 = fractions.Fraction(5,6)
-        >>> fr78 = fractions.Fraction(7,8)
+        >>> fr56 = Fr(5,6)
+        >>> fr78 = Fr(7,8)
         >>> log_calls.mute = False
 
     Let's trim the `log_calls` output. Experience shows that ``__str__`` gets called a lot,
@@ -174,6 +173,15 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 5:
 
     (**Note**: The output is different in Python 3.4.y -- it's less efficient,
     and it lacks the third to last line.*)
+
+    Just cuz these are mentioned in Quick Start:
+        >>> Fr.__sub__          # doctest: +ELLIPSIS
+        <function Fraction._operator_fallbacks.<locals>.forward...>
+        >>> Fr.__sub__.__qualname__
+        'Fraction._operator_fallbacks.<locals>.forward'
+        >>> Fr.__sub__.__name__
+        '__sub__'
+
         """
         pass
 
@@ -184,7 +192,7 @@ import doctest
 # For unittest integration
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
-    print("Adding tests for test_decorate_things_in_module.py")
+    # print("Adding tests for test_decorate_things_in_module.py")
     return tests
 
 if __name__ == '__main__':

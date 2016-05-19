@@ -404,6 +404,77 @@ you can simply do this:
     pass
 
 
+def main__log_exprs_multiline():
+    """
+Embedding newlines in a single message:
+
+    >>> @log_calls()
+    ... def f(a):
+    ...     log_calls.print("Even multiline messages\\n"
+    ...                           "are properly indented!")
+    ...     return g(a, 2*a)
+    >>> @log_calls()
+    ... def g(x, y):
+    ...     retval = x + y + 1
+    ...     log_calls.print_exprs('retval', prefix="Not to mention multiline\\nprefixes -- ")
+    ...     return retval
+    >>> f(2)
+    f <== called by <module>
+        arguments: a=2
+        Even multiline messages
+        are properly indented!
+        g <== called by f
+            arguments: x=2, y=4
+            Not to mention multiline
+            prefixes -- retval = 7
+        g ==> returning to f
+    f ==> returning to <module>
+    7
+
+or using the ``sep`` keyword parameter with multiple messages:
+
+    >>> @log_calls()
+    ... def h():
+    ...     log_calls.print("Line 1 of 3", "line 2 of 3", "line 3 of 3",
+    ...                           sep='\\n')
+    >>> h()
+    h <== called by <module>
+        Line 1 of 3
+        line 2 of 3
+        line 3 of 3
+    h ==> returning to <module>
+
+Not indenting ``log_*`` output -- tedious:
+
+    >>> @log_calls()
+    ... def f(a):
+    ...     log_calls.print("Even multiline messages\\n"
+    ...                           "are properly indented!",
+    ...                           extra_indent_level=-1000)
+    ...     return g(a, 2*a)
+    >>> @log_calls()
+    ... def g(x, y):
+    ...     retval = x + y + 1
+    ...     log_calls.print_exprs('retval',
+    ...     extra_indent_level=-1000,
+    ...     prefix="Not to mention multiline\\nprefixes -- ")
+    ...     return retval
+    >>> f(2)
+    f <== called by <module>
+        arguments: a=2
+    Even multiline messages
+    are properly indented!
+        g <== called by f
+            arguments: x=2, y=4
+    Not to mention multiline
+    prefixes -- retval = 7
+        g ==> returning to f
+    f ==> returning to <module>
+    7
+
+    """
+    pass
+
 def main__settings():
     """
 The `.log_calls` settings file in the `log_calls/tests/` directory
