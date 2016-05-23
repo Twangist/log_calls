@@ -54,7 +54,6 @@ about stack frame internals which may not be valid in other interpreters.
 See the documentation online at http://www.pythonhosted.org/log_calls/,
 or in the log_calls/docs/ directory, for usage, details, examples and *tips und tricks*.
 """
-# TODO: Last paragraph of the above still gonna be true? (location of docs)
 
 import sys
 if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 3):
@@ -75,7 +74,7 @@ setup(
                 'Eliminates reams of boilerplate code.',
     long_description=__doc__,
     license='MIT',
-    keywords='decorator debugging profiling logging function call caller stack recursion teaching',
+    keywords='decorator debugging profiling logging function method class call caller stack recursion exploring learning teaching',
     url='http://github.com/Twangist/log_calls',
     packages=['log_calls', 'log_calls/tests'],
     test_suite='run_tests.py',     # log_calls.tests
