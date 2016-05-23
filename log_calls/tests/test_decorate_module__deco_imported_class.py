@@ -3,6 +3,7 @@ __author__ = 'brianoneill'
 from log_calls import log_calls
 
 ###############################################################
+
 def test_decorate_module():
     """
     >>> from log_calls.tests import some_module
@@ -83,7 +84,9 @@ N is now in the global namespace.
     """
     pass
 
+
 ###############################################################
+
 import doctest
 
 # For unittest integration
@@ -91,12 +94,12 @@ def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite())
     return tests
 
-if __name__ == '__main__':
 
+def buncha_tests_n_examples():
     # from log_calls import log_calls
 
     # cwd is tests/
-    import some_module as somemod
+    from . import some_module as somemod
     # from log_calls.tests import some_module
 
     log_calls.decorate_module(somemod)
@@ -136,7 +139,24 @@ if __name__ == '__main__':
     C.concat ==> returning to <module>
     Hi there!"""
 
-    pass
 
-    ############################
+###############################################################
+
+OBSERVE = True
+
+import doctest
+
+
+
+# For unittest integration
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocTestSuite())
+    # print("Adding tests for test_decorate_things_in_module.py")
+    return tests
+
+if __name__ == '__main__':
+
+    if OBSERVE:
+        buncha_tests_n_examples()
+
     doctest.testmod()

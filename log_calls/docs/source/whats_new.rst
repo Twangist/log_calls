@@ -78,13 +78,16 @@ What's Changed
 * A callable's display name now has its ``__name__`` in parentheses following its
   ``__qualname__`` if (and only if)
 
-        * the ``name`` parameter was not provided for it, and
-        * its ``__name__`` is not a substring of its ``__qualname__``.
+        * the ``name`` parameter was not provided to `log_calls` for the callable, and
+        * the callable's ``__name__`` is not a substring of its ``__qualname__``.
 
   See the section section :ref:`quickstart-decorating-external-code` in the Quick Start chapter
   for a motivating example.
 
-* ``log_exprs``  gained a ``suffix=''`` keyword parameter (and ``log_calls.print_exprs()`` has the same parameter).
+* ``log_exprs`` now a ``suffix`` keyword parameter (as does ``log_calls.print_exprs()``).
+
+* Fixed: ``log_calls.decorate_module()`` wouldn't decorate *only* classes, or *only* functions;
+  it would decorate nothing instead.
 
 
 Deprecations

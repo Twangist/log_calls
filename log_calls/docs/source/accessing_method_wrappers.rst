@@ -1,16 +1,5 @@
 .. _get_own_log_calls_wrapper-function:
 
-.. todo::
-    0.3.1 Downplay this. We moved this chapter to later, it's no longer a prerequisite
-    for the chapter ``writing_indent_aware_debug_messages`` (though that chapter
-    will need to reference this one, re the deprecated *wrapper*.log_*() methods.
-
-    Use for it now is getting `log_calls_settings` and `stats` for a method.
-    Mention that you used to have to use these classmethods in order to use
-    `og_message` and `log_exprs`, but in 0.3.1 that's no longer true,
-    so the importance of these methods is greatly diminished
-
-
 Accessing Method Wrappers
 #################################
 
@@ -18,8 +7,9 @@ The ``get_log_calls_wrapper()`` and ``get_own_log_calls_wrapper()`` classmethods
 =============================================================================================================================
 
 `log_calls` decorates a callable by "wrapping" it in a function (the *wrapper*) which has
-attributes containing settings and statistics. Access to these attributes
-requires access to the callable's wrapper.
+attributes containing data about the callable: ``log_calls_settings``, containing settings,
+and ``stats``, containing statistics. Access to these attributes requires access to the callable's
+wrapper.
 
 It's straightforward to access the wrapper of a decorated global function ``f``: after decoration,
 ``f`` refers to the wrapper. For methods and properties, however, the various kinds of methods
@@ -78,8 +68,3 @@ and the two ways of defining properties require different navigation paths to th
 
     :return: the wrapper of the caller (a function), so that the caller
              can access its own `log_calls` attributes.
-
-    See the section :ref:`log_message_in_class`, which illustrates the use
-    of ``get_own_log_calls_wrapper`` from within every kind of callable in a class.
-
-

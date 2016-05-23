@@ -2,28 +2,13 @@
 TODOs
 ##########
 
-Document:
-    display name has ``__name__`` in parens following ``__qualname__`` iff
-        * ``name`` param not given and
-        * ``__name__`` not a substring of ``__qualname__``
+What's New, 0.3.1 Changes contains:
 
-    Motivated by fractions.Fraction.__sub__ and the like -- qualname of ``__sub__``
-    ``__add__`` et al is a closure, inner function ``forward`` of ``Fraction._operator_fallbacks``
-    (qualname = ``Fraction._operator_fallbacks.<locals>.forward``)
-    See section "decorating external blah" in Quick Start.
+    * Fixed: ``log_calls.decorate_module()`` wouldn't decorate *only* classes,
+      or *only* functions; it would decorate both, or nothing at all.
+      SO,
+      add a test for that, right?
 
-Add this (above) new behavior to What's New (create new subsection "What's Changed" for 0.3.1)
-
-``log_exprs`` suffix='' keyword parameter.
-    TODO document.
-        What's New
-
-
-What's New:
-    mention that the new methods and global exist on ``record_history`` too
-
-``record_history`` docs:
-    update for new ``log_*`` methods and global
 
 ¿Add ``log_calls.NO_DECO`` global?
     If so, doc it, in at least these chapters:

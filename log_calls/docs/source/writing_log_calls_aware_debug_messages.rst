@@ -23,6 +23,8 @@ formatting. As a convenience, `log_calls` provides the :ref:`log_calls.print_exp
 method, which prints variables and expressions together with their values in the
 context of the caller.
 
+-----------------------------------------------------------------------
+
 .. _log_message_method:
 
 The ``log_calls.print()`` method
@@ -92,6 +94,8 @@ to ``True``, as discussed :ref:`below <print_methods_raise_if_no_deco>`.
 
 .. index:: log_calls.print_exprs()
 
+-----------------------------------------------------------------------
+
 .. _log_exprs_method:
 
 Writing expressions and their values with ``log_calls.print_exprs()``
@@ -130,6 +134,8 @@ in ``tests/test_log_calls_v30_minor_features_fixes.py``, and in the test module
 
 .. index:: print_methods_raise_if_no_deco (flag)
 
+-----------------------------------------------------------------------
+
 .. _print_methods_raise_if_no_deco:
 
 The global variable ``log_calls.print_methods_raise_if_no_deco`` (default: ``False``)
@@ -153,6 +159,7 @@ functions or methods. (A call to ``log_calls.log_*`` from within a callable
 that *never* was decorated is just a mistake, and it *should* raise an exception; with this flag
 set to true, it will.)
 
+-----------------------------------------------------------------------
 
 .. _indent_aware_writing_methods-mute:
 
@@ -200,12 +207,8 @@ When the callable's ``mute`` setting is ``log_calls.MUTE.ALL``,
 
 Using global `mute`
 --------------------------
-Setting ``log_calls.mute = log_calls.MUTE.CALLS`` allows output only from ``log_calls.log_*`` methods,
-in all decorated callables.
-
-.. todo::
-    Say more; implications; example, 2 fns, including turning decoration off
-
+Setting ``log_calls.mute = log_calls.MUTE.CALLS`` mutes `decorator` output from all decorated callables,
+allowing only output from ``log_calls.log_*`` methods.
 
 .. _indent_aware_writing_methods-global-mute:
 
@@ -261,14 +264,12 @@ Further examples can be found in ``tests/test_log_calls_v30_minor_features_fixes
 ``test__log_message__indirect_mute()`` illustrates using an indirect value for the
 ``mute`` setting.
 
+-----------------------------------------------------------------------
 
 .. _log_message_in_class:
 
 Using ``log_calls.print()`` in classes
 ==========================================
-
-.. todo::
-    REWORK
 
 The following class illustrates all possibilities of calling ``log_calls.print()``
 from a method. To reduce clutter in this example, `log_calls` call output is muted,
@@ -326,17 +327,14 @@ Observe that the call to ``b.no_deco()`` does nothing, even though the method is
 If ``log_calls.print_methods_raise_if_no_deco`` were true, the call from ``b.no_deco()``
 to ``log_calls.print`` would raise ``AttributeError``.
 
+-----------------------------------------------------------------------
 
 `wrapper`\ ``.log_message()``, `wrapper`\ ``.log_exprs()`` [deprecated]
 ===========================================================================
 
-.. todo::
-    0.3.1 (reference the chapter ``accessing_method_wrappers`` when discussing
-    (briefly?) the deprecated *wrapper*.log_*() methods -- more difficult to
-    use in classes, "plumbing" exposed.)
-
-FORMERLY : A method or property must first access its own wrapper order to use ``log_message()``,
-one of the wrapper's attributes. This is straightforward, as explained in the section
-on :ref:`accessing wrappers of methods <get_own_log_calls_wrapper-function>`.
-
-... raise ``AttributeError`` (as they would formerly if you called the methods on a wrapper that ``is None``).
+Before ``log_calls.print()`` and ``log_calls.print_exprs()`` existed,
+the methods ``log_message()`` and ``log_exprs()`` provided similar functionality.
+Using these within a class was (and remains) somewhat clumsy: a method or property
+must first access its own "wrapper" order to use these methods. The section
+on :ref:`accessing wrappers of methods <get_own_log_calls_wrapper-function>` shows
+how to do so.

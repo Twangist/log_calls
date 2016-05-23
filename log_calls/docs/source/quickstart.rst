@@ -114,6 +114,8 @@ Only the ``ntimes`` method is decorated:
     A.ntimes ==> returning to <module>
     12
 
+-----------------------------------------------------------------------
+
 .. _quickstart-classes:
 
 Decorating classes
@@ -226,6 +228,7 @@ subtleties and techniques. In particular, the parameters ``only`` and ``omit``
 are documented there, in the
 section `the omit and only keyword parameters  <http://www.pythonhosted.org/log_calls/decorating_classes.html#the-omit-and-only-keyword-parameters-default-tuple>`_.
 
+-----------------------------------------------------------------------
 
 .. _quickstart-lc-aware-debug-messages:
 
@@ -233,9 +236,9 @@ Writing `log_calls`-aware debugging messages
 =====================================================
 
 Printing statements to an output device or file is one of the oldest forms of debugging.
-These statements (let's call them `debugging messages`, `aka` "print statements") track
-a program's progress, display the values of variables, announce milestones, report on
-the consistency of internal state, and so on.
+These statements track a program's progress, display the values of variables, announce
+milestones, report on the consistency of internal state, and so on. Let's call such
+statements `debugging messages`.
 
 The ``@log_calls`` decorator automates the boilerplate aspects of this reportage:
 who calls whom, when, how, and with what result. `log_calls` also provides the methods
@@ -255,8 +258,8 @@ All other debugging messages require a method as general as ``print``: the ``log
 method is that counterpart.
 
 Both methods write to the same output destination as the decorator,
-whether that's the console, a file or a logger, and their output is properly synced and aligned with
-the decorator's output:
+whether that's the console, a file or a logger, and their output is properly synced
+and aligned with the decorator's output:
 
     >>> @log_calls()
     ... def gcd(a, b):
@@ -306,8 +309,9 @@ You can pass expressions to ``print_exprs``:
     ... def g(x, y):
     ...     retval = x + y + 1
     ...     log_calls.print_exprs('retval',
-    ...                           prefix="Not to mention multiline\\n"
-    ...                                  "prefixes -- ")
+    ...                           prefix="So are multiline\\n"
+    ...                                  "prefixes --\\n",
+    ...                           suffix="\\n-- and suffixes.")
     ...     return retval
     >>> f(2)
     f <== called by <module>
@@ -316,8 +320,10 @@ You can pass expressions to ``print_exprs``:
         are properly indented.
         g <== called by f
             arguments: x=2, y=4
-            Not to mention multiline
-            prefixes -- retval = 7
+            So are multiline
+            prefixes --
+            retval = 7
+            -- and suffixes.
         g ==> returning to f
     f ==> returning to <module>
     7
@@ -348,6 +354,8 @@ See the chapter :ref:`indent_aware_writing_methods` for details about the ``prin
 and ``print_exprs()`` methods. The chapter :ref:`dynamic_control_of_settings` documents the
 ``log_calls_settings`` attribute of a decorated callable.
 
+
+-----------------------------------------------------------------------
 
 .. _quickstart-decorating-external-code:
 
@@ -380,7 +388,7 @@ First, let's import the class, decorate it and create an instance:
     3/4
 
 (**Note**: *In this section, the expected output shown is from Python 3.5.
-The output of Python 3.4 differs slightly: it's a bit less efficient, and* __new__,
+The output of Python 3.4 differs slightly: in places it's less efficient, and* __new__,
 *indirectly called below, had no* _normalize *parameter.*)
 
 Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
@@ -446,7 +454,10 @@ A look at the source code for ``fractions``,
 `fractions.py <https://hg.python.org/cpython/file/3.5/Lib/fractions.py>`_
 confirms that guess (``_sub`` is on line 433).
 
-Why isn't ``_sub`` decorated? Let's check that:
+Why isn't ``_sub`` decorated?
+------------------------------
+
+Let's check that:
 
     >>> print(Frac._sub(fr78, fr56))
     Fraction._sub <== called by <module>
@@ -485,6 +496,9 @@ So, the closure ``forward`` that implements ``__sub__`` has a nonlocal variable 
 to the real ``_sub`` at class initialization, before the methods of the class were decorated.
 The closure calls the inner, decorated ``_sub``, not the `log_calls` wrapper around it.
 
+How the code works
+-------------------
+
 Ultimately, then, subtraction of fractions is performed by a function ``_sub``,
 to which ``__sub__`` i.e. ``Fraction._operator_fallbacks.<locals>.forward`` dispatches.
 ``_sub`` uses the public properties ``denominator`` and ``numerator``
@@ -503,6 +517,7 @@ For more information
 The ``decorate_*`` methods are presented in the
 chapter `Bulk (Re)Decoration, (Re)Decorating Imports <http://www.pythonhosted.org/log_calls/decorating_functions_class_hierarchies.html>`_.
 
+-----------------------------------------------------------------------
 
 Where to go from here
 ==================================================
@@ -515,8 +530,8 @@ methods.
 The next chapter, :ref:`what-log_calls-can-decorate`, gives general culture but also introduces
 terminology and concepts subsequently used throughout.
 An essential chapter follows: :ref:`keyword_parameters` documents the parameters in detail.
-That chapter is a reference; it's not necessary to assimilate its details before proceeding on to further topics.
-For an even more concise reference, in cheatsheet format,
+That chapter is a reference; it's not necessary to assimilate its details before proceeding
+on to further topics. For an even more concise reference, in cheatsheet format,
 see `Appendix I: Keyword Parameters Reference <http://www.pythonhosted.org/log_calls/appendix_I_parameters_table.html>`_.
 
 `log_calls` provides a lot of functionality, which these examples have only introduced.
