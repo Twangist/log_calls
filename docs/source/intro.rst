@@ -50,6 +50,7 @@ The package contains two other decorators:
   which of its keyword parameters were actually supplied by the caller,
   and which received their default values.
 
-This document describes the decorators' features and their use. The test suites
-in ``log_calls/tests/``, which provide 96% coverage, contain many additional
-examples, with commentary.
+This document describes the decorators' features and their use. Th e``tests/``
+subdirectory of the distribution archive contains many test suites. These
+contain many additional examples, with commentary. As tests, they provide
+96+% coverage.

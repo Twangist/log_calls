@@ -258,7 +258,7 @@ def get_file_of_object(obj, allow_binary=True) -> str:
             Return the name of the Python source file in which an object was defined.
             This will fail with a TypeError if the object is a built-in module, class, or function.
 
-        -- https://docs.python.org/3.5/library/inspect.html
+        -- https://docs.python.org/3.6/library/inspect.html#inspect.getsourcefile
     """
     try:
         return (inspect.getfile if allow_binary else inspect.getsourcefile)(obj)

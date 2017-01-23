@@ -387,8 +387,8 @@ First, let's import the class, decorate it and create an instance:
     Fraction.__str__ ==> returning to <module>
     3/4
 
-(**Note**: *In this section, the expected output shown is from Python 3.5.
-The output of Python 3.4 differs slightly: in places it's less efficient, and* __new__,
+(**Note**: *In this section, the expected output shown is from Python 3.6 and 3.5.
+The output of Python ≤ 3.4 differs slightly: in places it's less efficient, and* __new__,
 *indirectly called below, had no* _normalize *parameter.*)
 
 Now create a couple of fractions, using the `log_calls` global mute to do it in silence:
@@ -451,7 +451,7 @@ The closure calls an undecorated function or method ``_sub``. Because
 the decorated ``numerator``, ``denominator`` and ``__new__`` chase back to ``__sub__``.
 It appears to know about both operands, so we might guess that it takes two arguments.
 A look at the source code for ``fractions``,
-`fractions.py <https://hg.python.org/cpython/file/3.5/Lib/fractions.py>`_
+`fractions.py <https://hg.python.org/cpython/file/3.6/Lib/fractions.py>`_
 confirms that guess (``_sub`` is on line 433).
 
 Why isn't ``_sub`` decorated?

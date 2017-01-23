@@ -8,7 +8,8 @@ Dependencies and requirements
 ==============================
 
 The *log_calls* package has no dependencies — it requires no other packages.
-All it requires is a standard distribution of Python 3.3 or higher (Python 3.4+ recommended).
+All it requires is a standard distribution of Python 3.3 or higher (Python 3.4+
+recommended).
 
 Installing `log_calls`
 ==========================
@@ -40,19 +41,9 @@ Running the tests
 =================
 Each ``*.py`` file in the ``log_calls/`` directory has at least one corresponding test
 file ``test_*.py`` in the ``log_calls/tests/`` directory. The tests provide 96+% coverage.
-All tests have passed on every tested platform + Python version (3.3.x through 3.5.y);
+All tests have passed on every tested platform + Python version (3.3.x through 3.6.0);
 however, that's a sparse matrix :) If you encounter any turbulence, do let us know.
 
-Running the tests after installation
----------------------------------------
-From the ``log_calls/tests`` directory (beneath ``site-packages`` in a virtualenv, for example), run:
-
-    ``$ python -m unittest discover [-q | -v] log_calls.tests``
-
-which takes switches ``-q`` for "quiet" (the default), ``-v`` for "verbose".
-
-Running the tests after downloading the distribution file
---------------------------------------------------------------
 You can run the tests for `log_calls` after downloading it but before installing it,
 by running the following command in the directory into which you uncompressed the download:
 
@@ -60,9 +51,6 @@ by running the following command in the directory into which you uncompressed th
 
 which takes switches ``-q`` for "quiet" (the default), ``-v`` for "verbose",
 and ``-h`` for "help".
-
-After you've run the tests and installed `log_calls`, you can delete the directory
-containing the uncompressed distribution file.
 
 What to expect
 --------------
@@ -72,8 +60,8 @@ either of them, the output you see should end like so::
     Ran 112 tests in 2.235s
     OK
 
-indicating that all went well. (Depending upon which Python version you're using and on
-what packages you have installed, you may see fewer tests reported.) If any test fails, it will tell you.
+indicating that all went well. (**Depending upon which Python version you're using and on
+what packages you have installed, you may see fewer tests reported.**) If any test fails, it will tell you.
 
 .. note:: This package *probably* requires the CPython implementation, as it uses internals
  of stack frames which may well differ in other interpreters. It's not guaranteed to

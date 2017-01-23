@@ -2,21 +2,25 @@
 
 .. _whats_new:
 
-What's New in |release| and 0.3.0
-##################################
+What's New (releases |release|, 0.3.1 and 0.3.0)
+##################################################
+
+This release, |release|, updates `log_calls` for Python 3.6. There are *no*
+changes to package code, only minor changes to documentation and to a single test.
+However, the package itself is reorganized: the ``docs/`` and ``tests/`` subdirectories
+have been moved to the top level of the distribution archive, at the same level
+as ``log_calls/`` rather than within the package. They are no longer installed
+by ``setup.py`` or ``pip``, so you'll need the distribution to access their files.
 
 This chapter catalogs additions and changes in the current release and its
-predecessor. Those in 0.3.1 are few; those in 0.3.0, several.
+predecessor. Those in 0.3.2/0.3.1 are few; those in 0.3.0, several.
 :ref:`Appendix II <what_has_been_new>` contains the complete list of
 what has been new in earlier versions.
 
-This release, |release|, updates `log_calls` for Python 3.6 — only minor changes
-to documentation and to a single test; no changes to package code.
-
 --------------------------------------------------------------------
 
-Version 0.3.1
-==================
+Version 0.3.2 / 0.3.1
+=======================
 
 What's New
 -----------

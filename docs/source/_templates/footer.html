@@ -36,11 +36,11 @@
     You can show your appreciation and support of <em>log_calls</em>
 {% else %}
     {% if pagename in ['whats_new'] or 'appendix' in pagename %}
-        Has <em>log_calls</em> helped you? Would you like to help ensure that its development continues, <br/>
-        at the same high level of quality? You can show your appreciation and support
+        Has <em>log_calls</em> helped you? You can show your appreciation and support
     {% else %}
-        Have you found this helpful? Would you like to see <em>log_calls</em> development continue, <br/>
-        at the same high level of quality? You can show your appreciation and support
+        {% if pagename in ['quickstart', 'decorating_classes', 'parameters', 'call_history_and_statistics'] %}
+            Have you found this helpful? You can show your appreciation and support
+        {% endif %}
     {% endif %}
 {% endif %}
 

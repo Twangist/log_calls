@@ -76,7 +76,8 @@ setup(
     license='MIT',
     keywords='decorator debugging profiling logging function method class call caller stack recursion exploring learning teaching',
     url='http://github.com/Twangist/log_calls',
-    packages=['log_calls', 'log_calls/tests'],
+    # packages=['log_calls', 'log_calls/tests'],
+    packages=['log_calls'],
     test_suite='run_tests.py',     # log_calls.tests
     scripts=[       # 'scripts/log_calls-path-to-docs'
             ],
