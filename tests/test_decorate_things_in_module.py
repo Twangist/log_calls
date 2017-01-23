@@ -6,7 +6,7 @@ from log_calls import log_calls
 
 def decorate_class_use_then_import_use():
     """
-    >>> from log_calls.tests import some_module
+    >>> import some_module
 
     >>> log_calls.decorate_class(some_module.C,
     ...                          decorate_subclasses=True,
@@ -15,32 +15,32 @@ def decorate_class_use_then_import_use():
     >>> d = some_module.D("Hello,")
     >>> d.concat("world!")                  # doctest: +ELLIPSIS
     C.concat <== called by <module>
-        arguments: self=<log_calls.tests.some_module.D object at 0x...>; s='world!'
+        arguments: self=<some_module.D object at 0x...>; s='world!'
     C.concat ==> returning to <module>
     'Hello, world!'
 
     >>> d.tacnoc("world!")                  # doctest: +ELLIPSIS
     D.tacnoc <== called by <module>
-        arguments: self=<log_calls.tests.some_module.D object at 0x...>; s='world!'
+        arguments: self=<some_module.D object at 0x...>; s='world!'
         C.concat <== called by D.tacnoc
-            arguments: self=<log_calls.tests.some_module.D object at 0x...>; s='world!'
+            arguments: self=<some_module.D object at 0x...>; s='world!'
         C.concat ==> returning to D.tacnoc
     D.tacnoc ==> returning to <module>
     '!dlrow ,olleH'
 
 
-    >>> from log_calls.tests.some_module import C, D
+    >>> from some_module import C, D
     >>> c = C("Yo,")
     >>> c.concat("Sammy?")                  # doctest: +ELLIPSIS
     C.concat <== called by <module>
-        arguments: self=<log_calls.tests.some_module.C object at 0x...>; s='Sammy?'
+        arguments: self=<some_module.C object at 0x...>; s='Sammy?'
     C.concat ==> returning to <module>
     'Yo, Sammy?'
 
     >>> d = D("Hey,")
     >>> d.concat("Leroy!")                  # doctest: +ELLIPSIS
     C.concat <== called by <module>
-        arguments: self=<log_calls.tests.some_module.D object at 0x...>; s='Leroy!'
+        arguments: self=<some_module.D object at 0x...>; s='Leroy!'
     C.concat ==> returning to <module>
     'Hey, Leroy!'
     """
@@ -48,7 +48,7 @@ def decorate_class_use_then_import_use():
 
 def decorate_external_function__use_then_import_use():
     """
-    >>> from log_calls.tests import some_other_module
+    >>> import some_other_module
 
     >>> log_calls.decorate_module_function(some_other_module.make_id,
     ...                                    args_sep=' | ', log_retval=True)
@@ -60,7 +60,7 @@ def decorate_external_function__use_then_import_use():
     make_id ==> returning to <module>
     0015-0632-A
 
-    >>> from log_calls.tests.some_other_module import make_id
+    >>> from some_other_module import make_id
 
     >>> print(make_id(15, 632))
     make_id <== called by <module>
@@ -73,7 +73,7 @@ def decorate_external_function__use_then_import_use():
 
 def decorate_function__imported_function():
     """
-    >>> from log_calls.tests.some_other_module import make_id2
+    >>> from some_other_module import make_id2
 
     >>> log_calls.decorate_function(make_id2,
     ...                             args_sep=' || ')

@@ -3,7 +3,8 @@ __author__ = 'brianoneill'
 import doctest
 from log_calls import log_calls
 
-from log_calls.tests.settings_with_NO_DECO import g_DECORATE, g_settings_dict
+# from log_calls.tests.settings_with_NO_DECO import g_DECORATE, g_settings_dict
+from settings_with_NO_DECO import g_DECORATE, g_settings_dict
 
 def test_no_deco__via_dict():
     """

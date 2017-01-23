@@ -6,7 +6,7 @@ from log_calls import log_calls
 
 def test_decorate_module():
     """
-    >>> from log_calls.tests import some_module
+    >>> import some_module
 
     >>> log_calls.decorate_module(some_module)
 
@@ -31,12 +31,12 @@ Classes in module:
 
     >>> c = some_module.C("Hi")             # doctest: +ELLIPSIS
     C.__init__ <== called by <module>
-        arguments: self=<log_calls.tests.some_module.C object at 0x...>, prefix='Hi'
+        arguments: self=<some_module.C object at 0x...>, prefix='Hi'
     C.__init__ ==> returning to <module>
 
     >>> print(c.concat("there!"))           # doctest: +ELLIPSIS
     C.concat <== called by <module>
-        arguments: self=<log_calls.tests.some_module.C object at 0x...>, s='there!'
+        arguments: self=<some_module.C object at 0x...>, s='there!'
     C.concat ==> returning to <module>
     Hi there!
     """
@@ -44,7 +44,7 @@ Classes in module:
 
 def decorate_imported_class():
     """
-    >>> from log_calls.tests.some_other_module import N
+    >>> from some_other_module import N
 
 N is now in the global namespace.
 
@@ -54,14 +54,14 @@ N is now in the global namespace.
     >>> enn = N(14)                     # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     N.__init__ <== called by <module>
         arguments:
-            self=<log_calls.tests.some_other_module.N object at 0x...>
+            self=<some_other_module.N object at 0x...>
             n=14
     N.__init__ ==> returning to <module>
 
     >>> print(enn.n)                    # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     N.n <== called by <module>
         arguments:
-            self=<log_calls.tests.some_other_module.N object at 0x...>
+            self=<some_other_module.N object at 0x...>
         N.n return value: 14
     N.n ==> returning to <module>
     14
@@ -69,7 +69,7 @@ N is now in the global namespace.
     >>> enn.n = -78                     # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     N.n <== called by <module>
         arguments:
-            self=<log_calls.tests.some_other_module.N object at 0x...>
+            self=<some_other_module.N object at 0x...>
             val=-78
         N.n return value: None
     N.n ==> returning to <module>
@@ -77,7 +77,7 @@ N is now in the global namespace.
     >>> print(enn.n)                    # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     N.n <== called by <module>
         arguments:
-            self=<log_calls.tests.some_other_module.N object at 0x...>
+            self=<some_other_module.N object at 0x...>
         N.n return value: -78
     N.n ==> returning to <module>
     -78
@@ -128,14 +128,14 @@ def buncha_tests_n_examples():
     c = somemod.C("Hi")
     """
     C.__init__ <== called by <module>
-        arguments: self=<log_calls.tests.some_module.C object at 0x...>, prefix='Hi'
+        arguments: self=<some_module.C object at 0x...>, prefix='Hi'
     C.__init__ ==> returning to <module>"""
 
     #### FAILS ####
     print(c.concat("there!"))
     """
     C.concat <== called by <module>
-        arguments: self=<log_calls.tests.some_module.C object at 0x...>, s='there!'
+        arguments: self=<some_module.C object at 0x...>, s='there!'
     C.concat ==> returning to <module>
     Hi there!"""
 

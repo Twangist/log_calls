@@ -1,7 +1,7 @@
 include run_tests.py
 include readme.rst
-recursive-include log_calls/docs *
-recursive-include log_calls/tests *
+recursive-include docs *
+recursive-include tests *
 include *.txt
 
 global-exclude Untitled*.ipynb
