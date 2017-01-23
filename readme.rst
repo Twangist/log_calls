@@ -82,15 +82,19 @@ many additional examples, with commentary.
 
 --------------------------------------------------------------------
 
-.. _installation:
+.. _requirements:
 
-Installation
+Requirements
 ##################
-
 
 The *log_calls* package has no dependencies — it requires no other packages.
 All it requires is a standard distribution of Python 3.3 or higher (Python 3.4+ recommended).
 The package won't install on earlier versions.
+
+.. _installation:
+
+Installation
+##################
 
 Installing `log_calls` is as simple as running the command
 
@@ -99,7 +103,19 @@ Installing `log_calls` is as simple as running the command
 to install `log_calls` from PyPI (the Python Package Index). Here,
 ``$`` indicates your command prompt, whatever it may be.
 
-Ideally, you'll install `log_calls` in a virtual environment (a *virtualenv*).
+The complete distribution of `log_calls` (available as a  ``tar.gz`` or a ``zip``
+from PyPI or github) contains three subdirectories: ``log_calls``, the package
+proper; ``docs``, the documentation source files; and ``tests``, mentioned above.
+These last two subdirectories are *not* installed by pip, so to obtain those
+files you'll have to download an archive and unpack the archive to a fresh directory.
+You can then install `log_calls` by changing to that directory and running
+the following command:
+
+        ``$ python3 setup.py install``
+
+
+Whichever method you choose, ideally you'll install `log_calls` in a virtual
+environment (a *virtualenv*).
 It's easy to set up a virtual environment using tools included in the standard
 distribution: in Python 3.3 - 3.5, use
 `pyvenv <https://docs.python.org/3/using/scripts.html?highlight=pyvenv#pyvenv-creating-virtual-environments>`_
@@ -920,7 +936,9 @@ covers all of it.
 
     <p style="font-size: 95%">
     You can show your appreciation and support of <em>log_calls</em> by
-    <a href="http://www.paypal.me/logcalls" TARGET="_blank"> <img src="log_calls/docs/_static/Donate-BLUE.png" /></a>
+    <a href="http://www.paypal.me/logcalls" TARGET="_blank">
+        <img src="docs/_static/Donate-BLUE.png" style="vertical-align: middle;" />
+    </a>
     .</p>
     <p style="text-align: right">
     Built with <a href="http://sphinx-doc.org/">Sphinx</a> using
