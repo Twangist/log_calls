@@ -1023,7 +1023,7 @@ class _deco_base():
         try:
             deco_obj = _get_own_deco_obj(cls, _extra_frames=1)
         except:
-            if cls.print_methods_raise_if_no_deco:    raise
+            if cls.print_methods_raise_if_no_deco:  raise   # default False/don't
             else:                                   return
 
         deco_obj._log_message(*msgs,

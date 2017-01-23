@@ -346,14 +346,16 @@ or writing to a file with `print`, using the `file` parameter:
     h ==> returning to <module>
     <BLANKLINE>
 
-or with the logger defined above, which can be passed either as the Logger instance itself:
+or with the logger defined above, which can be passed either as the Logger
+instance itself [the value shown for `logger_` is the `repr` of `another_logger`,
+replaced by ellipses as it varies across Python versions]:
 
     >>> h(logger_=another_logger)       # doctest: +ELLIPSIS
     h <== called by <module>
-        arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
+        arguments: **kwargs={'logger_': <...>}
         h: before g...
         g <== called by h
-            arguments: **kwargs={'logger_': <logging.Logger object at 0x...>}
+            arguments: **kwargs={'logger_': <...>}
             Regards, g
         g ==> returning to h
         h: ... after g

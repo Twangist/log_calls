@@ -10,6 +10,9 @@ predecessor. Those in 0.3.1 are few; those in 0.3.0, several.
 :ref:`Appendix II <what_has_been_new>` contains the complete list of
 what has been new in earlier versions.
 
+This release, |release|, updates `log_calls` for Python 3.6 — only minor changes
+to documentation and to a single test; no changes to package code.
+
 --------------------------------------------------------------------
 
 Version 0.3.1

@@ -16,7 +16,7 @@
 
    <br />
 
-.. |release| replace:: 0.3.1
+.. |release| replace:: 0.3.1b
 
 
 
@@ -77,8 +77,8 @@ This document introduces `log_calls` and shows you a few ways to use it. To lear
 see `the complete documentation  <http://www.pythonhosted.org/log_calls/index.html>`_
 for the definitive, detailed account.
 
-The test suites in ``log_calls/tests/``, which provide 96% coverage, contain many additional
-examples, with commentary.
+The test suites in ``log_calls/tests/``, which provide 95+% coverage, contain
+many additional examples, with commentary.
 
 --------------------------------------------------------------------
 
@@ -100,9 +100,14 @@ to install `log_calls` from PyPI (the Python Package Index). Here,
 ``$`` indicates your command prompt, whatever it may be.
 
 Ideally, you'll install `log_calls` in a virtual environment (a *virtualenv*).
-In Python 3.3+, it's easy to set up a virtual environment using the
+It's easy to set up a virtual environment using tools included in the standard
+distribution: in Python 3.3 - 3.5, use
 `pyvenv <https://docs.python.org/3/using/scripts.html?highlight=pyvenv#pyvenv-creating-virtual-environments>`_
-tool included in the standard distribution.
+; in Python 3.6, which deprecates ``pyvenv``, use
+
+       ``$ python3.6 -m venv /path/to/virtualenv``
+
+as per `the relevant docs <https://docs.python.org/3/library/venv.html?highlight=venv#creating-virtual-environments>`_.
 
 --------------------------------------------------------------------
 
